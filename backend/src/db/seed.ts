@@ -1,4 +1,5 @@
 import db, { initializeDatabase } from './database';
+import { getOriginalGrid, getAllSeasons } from '../utils/gridData';
 
 function seedDatabase() {
   console.log('Starting database seed...');
@@ -13,95 +14,102 @@ function seedDatabase() {
     return;
   }
 
-  // Seed Teams (includes both 2026 and 2027 teams)
-  const teams = [
-    { name: 'Red Bull Racing', is_top_four: 1 },
-    { name: 'Mercedes', is_top_four: 1 },
-    { name: 'Ferrari', is_top_four: 1 },
-    { name: 'McLaren', is_top_four: 1 },
-    { name: 'Aston Martin', is_top_four: 0 },
-    { name: 'Alpine', is_top_four: 0 },
-    { name: 'Williams', is_top_four: 0 },
-    { name: 'RB', is_top_four: 0 },
-    { name: 'Kick Sauber', is_top_four: 0 },
-    { name: 'Haas', is_top_four: 0 },
-    { name: 'Cadillac F1', is_top_four: 0 } // 2027+ only
-  ];
+  // Load grid data from JSON
+  const seasons = getAllSeasons();
+  console.log(`Loading grid data from JSON for ${seasons.length} seasons: ${seasons.join(', ')}`);
 
+  // Collect all unique teams across all seasons
+  const allTeamsMap = new Map<string, { name: string; is_top_four: boolean }>();
+
+  seasons.forEach((year) => {
+    const grid = getOriginalGrid(year);
+    grid.teams.forEach((team) => {
+      if (!allTeamsMap.has(team.name)) {
+        allTeamsMap.set(team.name, {
+          name: team.name,
+          is_top_four: team.is_top_four
+        });
+      }
+    });
+  });
+
+  // Seed Teams
   const insertTeam = db.prepare('INSERT INTO teams (name, is_top_four, is_active) VALUES (?, ?, 1)');
   const teamIds: { [key: string]: number } = {};
 
-  teams.forEach(team => {
-    const result = insertTeam.run(team.name, team.is_top_four);
+  Array.from(allTeamsMap.values()).forEach(team => {
+    const result = insertTeam.run(team.name, team.is_top_four ? 1 : 0);
     teamIds[team.name] = Number(result.lastInsertRowid);
   });
 
-  console.log('Teams seeded successfully');
+  console.log(`Teams seeded successfully (${allTeamsMap.size} teams)`);
 
-  // Seed Drivers for 2026 grid
-  const drivers = [
-    { name: 'Max Verstappen', team: 'Red Bull Racing' },
-    { name: 'Liam Lawson', team: 'Red Bull Racing' },
-    { name: 'George Russell', team: 'Mercedes' },
-    { name: 'Andrea Kimi Antonelli', team: 'Mercedes' },
-    { name: 'Charles Leclerc', team: 'Ferrari' },
-    { name: 'Lewis Hamilton', team: 'Ferrari' },
-    { name: 'Lando Norris', team: 'McLaren' },
-    { name: 'Oscar Piastri', team: 'McLaren' },
-    { name: 'Fernando Alonso', team: 'Aston Martin' },
-    { name: 'Lance Stroll', team: 'Aston Martin' },
-    { name: 'Pierre Gasly', team: 'Alpine' },
-    { name: 'Jack Doohan', team: 'Alpine' },
-    { name: 'Carlos Sainz', team: 'Williams' },
-    { name: 'Alex Albon', team: 'Williams' },
-    { name: 'Yuki Tsunoda', team: 'RB' },
-    { name: 'Isack Hadjar', team: 'RB' },
-    { name: 'Nico Hulkenberg', team: 'Kick Sauber' },
-    { name: 'Gabriel Bortoleto', team: 'Kick Sauber' },
-    { name: 'Esteban Ocon', team: 'Haas' },
-    { name: 'Oliver Bearman', team: 'Haas' }
-  ];
+  // Collect all unique drivers across all seasons
+  const allDriversMap = new Map<string, { name: string; team: string }>();
 
+  seasons.forEach((year) => {
+    const grid = getOriginalGrid(year);
+    grid.teams.forEach((team) => {
+      team.drivers.forEach((driver) => {
+        if (!allDriversMap.has(driver.name)) {
+          allDriversMap.set(driver.name, {
+            name: driver.name,
+            team: team.name
+          });
+        }
+      });
+    });
+  });
+
+  // Seed Drivers
   const insertDriver = db.prepare('INSERT INTO drivers (name, team_id, is_active) VALUES (?, ?, 1)');
 
-  drivers.forEach(driver => {
+  Array.from(allDriversMap.values()).forEach(driver => {
     insertDriver.run(driver.name, teamIds[driver.team]);
   });
 
-  console.log('Drivers seeded successfully');
+  console.log(`Drivers seeded successfully (${allDriversMap.size} drivers)`);
+
+  // Collect all unique team principals across all seasons
+  const allPrincipalsMap = new Map<string, { name: string; team: string }>();
+
+  seasons.forEach((year) => {
+    const grid = getOriginalGrid(year);
+    grid.teams.forEach((team) => {
+      if (!allPrincipalsMap.has(team.team_principal.name)) {
+        allPrincipalsMap.set(team.team_principal.name, {
+          name: team.team_principal.name,
+          team: team.name
+        });
+      }
+    });
+  });
 
   // Seed Team Principals
-  const principals = [
-    { name: 'Christian Horner', team: 'Red Bull Racing' },
-    { name: 'Toto Wolff', team: 'Mercedes' },
-    { name: 'Fred Vasseur', team: 'Ferrari' },
-    { name: 'Andrea Stella', team: 'McLaren' },
-    { name: 'Mike Krack', team: 'Aston Martin' },
-    { name: 'Oliver Oakes', team: 'Alpine' },
-    { name: 'James Vowles', team: 'Williams' },
-    { name: 'Laurent Mekies', team: 'RB' },
-    { name: 'Mattia Binotto', team: 'Kick Sauber' },
-    { name: 'Ayao Komatsu', team: 'Haas' }
-  ];
-
   const insertPrincipal = db.prepare('INSERT INTO team_principals (name, team_id, is_active) VALUES (?, ?, 1)');
 
-  principals.forEach(principal => {
+  Array.from(allPrincipalsMap.values()).forEach(principal => {
     insertPrincipal.run(principal.name, teamIds[principal.team]);
   });
 
-  console.log('Team principals seeded successfully');
+  console.log(`Team principals seeded successfully (${allPrincipalsMap.size} principals)`);
 
-  // Seed 2026 Season (ACTIVE)
+  // Seed Seasons from JSON
   const insertSeason = db.prepare('INSERT INTO seasons (year, prediction_deadline, is_active) VALUES (?, ?, ?)');
-  const season2026Result = insertSeason.run(2026, '2026-02-16T00:00:00Z', 1);
-  const season2026Id = Number(season2026Result.lastInsertRowid);
+  const seasonIds: { [key: string]: number } = {};
 
-  // Seed 2027 Season (INACTIVE - for future predictions)
-  const season2027Result = insertSeason.run(2027, '2027-02-15T00:00:00Z', 0);
-  const season2027Id = Number(season2027Result.lastInsertRowid);
+  seasons.forEach((year) => {
+    const grid = getOriginalGrid(year);
+    const result = insertSeason.run(parseInt(year), grid.prediction_deadline, grid.is_active ? 1 : 0);
+    seasonIds[year] = Number(result.lastInsertRowid);
+    console.log(`  Season ${year} seeded (${grid.is_active ? 'ACTIVE' : 'inactive'})`);
+  });
 
-  console.log('Seasons seeded successfully (2026 active, 2027 inactive)');
+  console.log(`Seasons seeded successfully (${seasons.length} seasons)`);
+
+  // Reference season IDs for race calendar seeding
+  const season2026Id = seasonIds['2026'];
+  const season2027Id = seasonIds['2027'];
 
   // Seed 2026 Race Calendar (24 races)
   const races2026 = [
