@@ -38,15 +38,13 @@ export function up(db: any) {
 
   seasons.forEach((year) => {
     const grid = getOriginalGrid(year);
-    grid.teams.forEach((team) => {
-      team.drivers.forEach((driver) => {
-        if (!allDriversMap.has(driver.name)) {
-          allDriversMap.set(driver.name, {
-            name: driver.name,
-            team: team.name
-          });
-        }
-      });
+    grid.drivers.forEach((driver) => {
+      if (!allDriversMap.has(driver.name)) {
+        allDriversMap.set(driver.name, {
+          name: driver.name,
+          team: driver.team
+        });
+      }
     });
   });
 
@@ -64,11 +62,11 @@ export function up(db: any) {
 
   seasons.forEach((year) => {
     const grid = getOriginalGrid(year);
-    grid.teams.forEach((team) => {
-      if (!allPrincipalsMap.has(team.team_principal.name)) {
-        allPrincipalsMap.set(team.team_principal.name, {
-          name: team.team_principal.name,
-          team: team.name
+    grid.team_principals.forEach((principal) => {
+      if (!allPrincipalsMap.has(principal.name)) {
+        allPrincipalsMap.set(principal.name, {
+          name: principal.name,
+          team: principal.team
         });
       }
     });
@@ -94,11 +92,12 @@ export function up(db: any) {
     console.log(`  Seeded season ${year} (${grid.is_active ? 'ACTIVE' : 'inactive'})`);
   });
 
-  // Reference season IDs for race calendar seeding
+  // Seed 2026 Race Calendar (24 races) if it exists
   const season2026Id = seasonIds['2026'];
-  const season2027Id = seasonIds['2027'];
-
-  // Seed 2026 Race Calendar (24 races)
+  if (!season2026Id) {
+    console.log('  Skipping 2026 race calendar (season not found)');
+    return;
+  }
   const races2026 = [
     { name: 'Australian GP', round: 1, fp1: '2026-03-15T01:30:00Z', race_date: '2026-03-17', location: 'Melbourne', is_sprint: false },
     { name: 'Chinese GP', round: 2, fp1: '2026-03-22T02:30:00Z', race_date: '2026-03-24', location: 'Shanghai', is_sprint: true },
@@ -137,7 +136,13 @@ export function up(db: any) {
 
   console.log(`  Seeded 2026 race calendar (${races2026.length} races)`);
 
-  // Seed 2027 Race Calendar (24 races)
+  // Seed 2027 Race Calendar (24 races) if it exists
+  const season2027Id = seasonIds['2027'];
+  if (!season2027Id) {
+    console.log('  Skipping 2027 race calendar (season not found)');
+    return;
+  }
+
   const races2027 = [
     { name: 'Australian GP', round: 1, fp1: '2027-03-14T01:30:00Z', race_date: '2027-03-16', location: 'Melbourne', is_sprint: false },
     { name: 'Chinese GP', round: 2, fp1: '2027-03-21T02:30:00Z', race_date: '2027-03-23', location: 'Shanghai', is_sprint: true },

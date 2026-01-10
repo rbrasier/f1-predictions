@@ -1,438 +1,57 @@
-{
-  "2026": {
-    "season_start": "2026-03-15",
-    "prediction_deadline": "2026-02-16T00:00:00Z",
-    "is_active": true,
-    "teams": [
-      {
-        "name": "Red Bull Racing",
-        "is_top_four": true,
-        "team_principal": {
-          "name": "Christian Horner",
-          "joined": "2026-01-01"
-        },
-        "drivers": [
-          {
-            "name": "Max Verstappen",
-            "number": 1,
-            "joined": "2026-01-01"
-          },
-          {
-            "name": "Liam Lawson",
-            "number": 30,
-            "joined": "2026-01-01"
-          }
-        ]
-      },
-      {
-        "name": "Mercedes",
-        "is_top_four": true,
-        "team_principal": {
-          "name": "Toto Wolff",
-          "joined": "2026-01-01"
-        },
-        "drivers": [
-          {
-            "name": "George Russell",
-            "number": 63,
-            "joined": "2026-01-01"
-          },
-          {
-            "name": "Andrea Kimi Antonelli",
-            "number": 12,
-            "joined": "2026-01-01"
-          }
-        ]
-      },
-      {
-        "name": "Ferrari",
-        "is_top_four": true,
-        "team_principal": {
-          "name": "Fred Vasseur",
-          "joined": "2026-01-01"
-        },
-        "drivers": [
-          {
-            "name": "Charles Leclerc",
-            "number": 16,
-            "joined": "2026-01-01"
-          },
-          {
-            "name": "Lewis Hamilton",
-            "number": 44,
-            "joined": "2026-01-01"
-          }
-        ]
-      },
-      {
-        "name": "McLaren",
-        "is_top_four": true,
-        "team_principal": {
-          "name": "Andrea Stella",
-          "joined": "2026-01-01"
-        },
-        "drivers": [
-          {
-            "name": "Lando Norris",
-            "number": 4,
-            "joined": "2026-01-01"
-          },
-          {
-            "name": "Oscar Piastri",
-            "number": 81,
-            "joined": "2026-01-01"
-          }
-        ]
-      },
-      {
-        "name": "Aston Martin",
-        "is_top_four": false,
-        "team_principal": {
-          "name": "Mike Krack",
-          "joined": "2026-01-01"
-        },
-        "drivers": [
-          {
-            "name": "Fernando Alonso",
-            "number": 14,
-            "joined": "2026-01-01"
-          },
-          {
-            "name": "Lance Stroll",
-            "number": 18,
-            "joined": "2026-01-01"
-          }
-        ]
-      },
-      {
-        "name": "Alpine",
-        "is_top_four": false,
-        "team_principal": {
-          "name": "Oliver Oakes",
-          "joined": "2026-01-01"
-        },
-        "drivers": [
-          {
-            "name": "Pierre Gasly",
-            "number": 10,
-            "joined": "2026-01-01"
-          },
-          {
-            "name": "Jack Doohan",
-            "number": 7,
-            "joined": "2026-01-01"
-          }
-        ]
-      },
-      {
-        "name": "Williams",
-        "is_top_four": false,
-        "team_principal": {
-          "name": "James Vowles",
-          "joined": "2026-01-01"
-        },
-        "drivers": [
-          {
-            "name": "Carlos Sainz",
-            "number": 55,
-            "joined": "2026-01-01"
-          },
-          {
-            "name": "Alex Albon",
-            "number": 23,
-            "joined": "2026-01-01"
-          }
-        ]
-      },
-      {
-        "name": "RB",
-        "is_top_four": false,
-        "team_principal": {
-          "name": "Laurent Mekies",
-          "joined": "2026-01-01"
-        },
-        "drivers": [
-          {
-            "name": "Yuki Tsunoda",
-            "number": 22,
-            "joined": "2026-01-01"
-          },
-          {
-            "name": "Isack Hadjar",
-            "number": 50,
-            "joined": "2026-01-01"
-          }
-        ]
-      },
-      {
-        "name": "Kick Sauber",
-        "is_top_four": false,
-        "team_principal": {
-          "name": "Mattia Binotto",
-          "joined": "2026-01-01"
-        },
-        "drivers": [
-          {
-            "name": "Nico Hulkenberg",
-            "number": 27,
-            "joined": "2026-01-01"
-          },
-          {
-            "name": "Gabriel Bortoleto",
-            "number": 5,
-            "joined": "2026-01-01"
-          }
-        ]
-      },
-      {
-        "name": "Haas",
-        "is_top_four": false,
-        "team_principal": {
-          "name": "Ayao Komatsu",
-          "joined": "2026-01-01"
-        },
-        "drivers": [
-          {
-            "name": "Esteban Ocon",
-            "number": 31,
-            "joined": "2026-01-01"
-          },
-          {
-            "name": "Oliver Bearman",
-            "number": 87,
-            "joined": "2026-01-01"
-          }
-        ]
-      }
-    ],
-    "replacements": []
-  },
-  "2027": {
-    "season_start": "2027-03-14",
-    "prediction_deadline": "2027-02-15T00:00:00Z",
-    "is_active": false,
-    "teams": [
-      {
-        "name": "Red Bull Racing",
-        "is_top_four": true,
-        "team_principal": {
-          "name": "Christian Horner",
-          "joined": "2027-01-01"
-        },
-        "drivers": [
-          {
-            "name": "Max Verstappen",
-            "number": 1,
-            "joined": "2027-01-01"
-          },
-          {
-            "name": "Liam Lawson",
-            "number": 30,
-            "joined": "2027-01-01"
-          }
-        ]
-      },
-      {
-        "name": "Mercedes",
-        "is_top_four": true,
-        "team_principal": {
-          "name": "Toto Wolff",
-          "joined": "2027-01-01"
-        },
-        "drivers": [
-          {
-            "name": "George Russell",
-            "number": 63,
-            "joined": "2027-01-01"
-          },
-          {
-            "name": "Andrea Kimi Antonelli",
-            "number": 12,
-            "joined": "2027-01-01"
-          }
-        ]
-      },
-      {
-        "name": "Ferrari",
-        "is_top_four": true,
-        "team_principal": {
-          "name": "Fred Vasseur",
-          "joined": "2027-01-01"
-        },
-        "drivers": [
-          {
-            "name": "Charles Leclerc",
-            "number": 16,
-            "joined": "2027-01-01"
-          },
-          {
-            "name": "Lewis Hamilton",
-            "number": 44,
-            "joined": "2027-01-01"
-          }
-        ]
-      },
-      {
-        "name": "McLaren",
-        "is_top_four": true,
-        "team_principal": {
-          "name": "Andrea Stella",
-          "joined": "2027-01-01"
-        },
-        "drivers": [
-          {
-            "name": "Lando Norris",
-            "number": 4,
-            "joined": "2027-01-01"
-          },
-          {
-            "name": "Oscar Piastri",
-            "number": 81,
-            "joined": "2027-01-01"
-          }
-        ]
-      },
-      {
-        "name": "Aston Martin",
-        "is_top_four": false,
-        "team_principal": {
-          "name": "Mike Krack",
-          "joined": "2027-01-01"
-        },
-        "drivers": [
-          {
-            "name": "Fernando Alonso",
-            "number": 14,
-            "joined": "2027-01-01"
-          },
-          {
-            "name": "Lance Stroll",
-            "number": 18,
-            "joined": "2027-01-01"
-          }
-        ]
-      },
-      {
-        "name": "Alpine",
-        "is_top_four": false,
-        "team_principal": {
-          "name": "Oliver Oakes",
-          "joined": "2027-01-01"
-        },
-        "drivers": [
-          {
-            "name": "Pierre Gasly",
-            "number": 10,
-            "joined": "2027-01-01"
-          },
-          {
-            "name": "Jack Doohan",
-            "number": 7,
-            "joined": "2027-01-01"
-          }
-        ]
-      },
-      {
-        "name": "Williams",
-        "is_top_four": false,
-        "team_principal": {
-          "name": "James Vowles",
-          "joined": "2027-01-01"
-        },
-        "drivers": [
-          {
-            "name": "Carlos Sainz",
-            "number": 55,
-            "joined": "2027-01-01"
-          },
-          {
-            "name": "Alex Albon",
-            "number": 23,
-            "joined": "2027-01-01"
-          }
-        ]
-      },
-      {
-        "name": "RB",
-        "is_top_four": false,
-        "team_principal": {
-          "name": "Laurent Mekies",
-          "joined": "2027-01-01"
-        },
-        "drivers": [
-          {
-            "name": "Yuki Tsunoda",
-            "number": 22,
-            "joined": "2027-01-01"
-          },
-          {
-            "name": "Isack Hadjar",
-            "number": 50,
-            "joined": "2027-01-01"
-          }
-        ]
-      },
-      {
-        "name": "Kick Sauber",
-        "is_top_four": false,
-        "team_principal": {
-          "name": "Mattia Binotto",
-          "joined": "2027-01-01"
-        },
-        "drivers": [
-          {
-            "name": "Nico Hulkenberg",
-            "number": 27,
-            "joined": "2027-01-01"
-          },
-          {
-            "name": "Gabriel Bortoleto",
-            "number": 5,
-            "joined": "2027-01-01"
-          }
-        ]
-      },
-      {
-        "name": "Haas",
-        "is_top_four": false,
-        "team_principal": {
-          "name": "Ayao Komatsu",
-          "joined": "2027-01-01"
-        },
-        "drivers": [
-          {
-            "name": "Esteban Ocon",
-            "number": 31,
-            "joined": "2027-01-01"
-          },
-          {
-            "name": "Oliver Bearman",
-            "number": 87,
-            "joined": "2027-01-01"
-          }
-        ]
-      },
-      {
-        "name": "Cadillac F1",
-        "is_top_four": false,
-        "team_principal": {
-          "name": "TBA",
-          "joined": "2027-01-01"
-        },
-        "drivers": [
-          {
-            "name": "TBA Driver 1",
-            "number": 99,
-            "joined": "2027-01-01"
-          },
-          {
-            "name": "TBA Driver 2",
-            "number": 98,
-            "joined": "2027-01-01"
-          }
-        ]
-      }
-    ],
-    "replacements": []
-  }
+{"2026":{
+  "season_start":"2026-03-15",
+  "prediction_deadline":"2026-02-16T00:00:00Z",
+  "is_active":true,
+  "teams":[
+   {"name":"Red Bull Racing","is_top_four":true},
+  {"name":"Mercedes","is_top_four":true},
+  {"name":"Ferrari","is_top_four":true},
+  {"name":"McLaren","is_top_four":true},
+  {"name":"Aston Martin","is_top_four":false},
+  {"name":"Alpine","is_top_four":false},
+  {"name":"Williams","is_top_four":false},
+  {"name":"RB","is_top_four":false},
+  {"name":"Audi","is_top_four":false},
+  {"name":"Haas","is_top_four":false},
+  {"name":"Cadillac F1","is_top_four":false}
+],
+  "drivers":[
+  {"name":"Max Verstappen","team":"Red Bull Racing"},
+  {"name":"Isack Hadjar","team":"Red Bull Racing"},
+  {"name":"George Russell","team":"Mercedes"},
+  {"name":"Andrea Kimi Antonelli","team":"Mercedes"},
+  {"name":"Charles Leclerc","team":"Ferrari"},
+  {"name":"Lewis Hamilton","team":"Ferrari"},
+  {"name":"Lando Norris","team":"McLaren"},
+  {"name":"Oscar Piastri","team":"McLaren"},
+  {"name":"Fernando Alonso","team":"Aston Martin"},
+  {"name":"Lance Stroll","team":"Aston Martin"},
+  {"name":"Pierre Gasly","team":"Alpine"},
+  {"name":"Jack Doohan","team":"Alpine"},
+  {"name":"Carlos Sainz","team":"Williams"},
+  {"name":"Alex Albon","team":"Williams"},
+  {"name":"Arvid Lindblad","team":"RB"},
+  {"name":"Liam Lawson","team":"RB"},
+  {"name":"Nico Hulkenberg","team":"Audi"},
+  {"name":"Gabriel Bortoleto","team":"Audi"},
+  {"name":"Esteban Ocon","team":"Haas"},
+  {"name":"Oliver Bearman","team":"Haas"},
+  {"name":"Valtteri Bottas","team":"Cadillac F1"},
+  {"name":"Sergio Perez","team":"Cadillac F1"}
+],
+"team_principals":[
+{"name":"Christian Horner","team":"Red Bull Racing"},
+{"name":"Toto Wolff","team":"Mercedes"},
+{"name":"Fred Vasseur","team":"Ferrari"},
+{"name":"Andrea Stella","team":"McLaren"},
+{"name":"Mike Krack","team":"Aston Martin"},
+{"name":"Oliver Oakes","team":"Alpine"},
+{"name":"James Vowles","team":"Williams"},
+{"name":"Laurent Mekies","team":"RB"},
+{"name":"Mattia Binotto","team":"Audi"},
+{"name":"Ayao Komatsu","team":"Haas"},
+{"name":"Graeme Lowdon","team":"Cadillac F1"}
+],
+"replacements":[]
+}
 }

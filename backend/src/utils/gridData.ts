@@ -2,20 +2,17 @@ import gridDataJson from '../db/grid-data.json';
 
 export interface Driver {
   name: string;
-  number: number;
-  joined: string;
+  team: string;
 }
 
 export interface TeamPrincipal {
   name: string;
-  joined: string;
+  team: string;
 }
 
 export interface Team {
   name: string;
   is_top_four: boolean;
-  team_principal: TeamPrincipal;
-  drivers: Driver[];
 }
 
 export interface Replacement {
@@ -32,6 +29,8 @@ export interface SeasonData {
   prediction_deadline: string;
   is_active: boolean;
   teams: Team[];
+  drivers: Driver[];
+  team_principals: TeamPrincipal[];
   replacements: Replacement[];
 }
 
@@ -60,29 +59,31 @@ export function getGridAtDate(year: string, date: Date = new Date()): SeasonData
   );
 
   applicableReplacements.forEach((replacement) => {
-    const team = gridAtDate.teams.find((t) => t.name === replacement.team);
-    if (!team) {
-      console.warn(`Team ${replacement.team} not found for replacement`);
-      return;
-    }
-
     if (replacement.type === 'driver') {
       // Replace driver
-      const driverIndex = team.drivers.findIndex((d) => d.name === replacement.out);
+      const driverIndex = gridAtDate.drivers.findIndex(
+        (d) => d.name === replacement.out && d.team === replacement.team
+      );
       if (driverIndex !== -1) {
-        team.drivers[driverIndex] = {
+        gridAtDate.drivers[driverIndex] = {
           name: replacement.in,
-          number: team.drivers[driverIndex].number, // Keep same number or could add to replacement
-          joined: replacement.date
+          team: replacement.team
         };
+      } else {
+        console.warn(`Driver ${replacement.out} not found in team ${replacement.team} for replacement`);
       }
     } else if (replacement.type === 'team_principal') {
       // Replace team principal
-      if (team.team_principal.name === replacement.out) {
-        team.team_principal = {
+      const principalIndex = gridAtDate.team_principals.findIndex(
+        (tp) => tp.name === replacement.out && tp.team === replacement.team
+      );
+      if (principalIndex !== -1) {
+        gridAtDate.team_principals[principalIndex] = {
           name: replacement.in,
-          joined: replacement.date
+          team: replacement.team
         };
+      } else {
+        console.warn(`Team principal ${replacement.out} not found in team ${replacement.team} for replacement`);
       }
     }
   });
@@ -146,25 +147,15 @@ export function getReplacementsUpToDate(year: string, date: Date = new Date()): 
  */
 export function getAllDriversAtDate(year: string, date: Date = new Date()): Driver[] {
   const grid = getGridAtDate(year, date);
-  const drivers: Driver[] = [];
-
-  grid.teams.forEach((team) => {
-    drivers.push(...team.drivers);
-  });
-
-  return drivers;
+  return grid.drivers;
 }
 
 /**
  * Get a list of all team principals for a season at a given date
  */
-export function getAllTeamPrincipalsAtDate(year: string, date: Date = new Date()): (TeamPrincipal & { team: string })[] {
+export function getAllTeamPrincipalsAtDate(year: string, date: Date = new Date()): TeamPrincipal[] {
   const grid = getGridAtDate(year, date);
-
-  return grid.teams.map((team) => ({
-    ...team.team_principal,
-    team: team.name
-  }));
+  return grid.team_principals;
 }
 
 export default gridData;
