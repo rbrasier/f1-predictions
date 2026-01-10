@@ -158,14 +158,15 @@ cd backend
 ./restart.sh
 ```
 
-## Seeded Data (2027 Season)
+## Seeded Data (2026 & 2027 Seasons)
 
 The database includes:
-- **10 F1 Teams**: Red Bull, Mercedes, Ferrari, McLaren, Aston Martin, Alpine, Williams, RB, Kick Sauber (Audi), Cadillac F1
-- **20 Drivers**: Including Max Verstappen, Lewis Hamilton, Charles Leclerc, Lando Norris, etc.
-- **10 Team Principals**: Christian Horner, Toto Wolff, Fred Vasseur, etc.
-- **24 Races**: Full 2027 F1 calendar with correct dates and sprint weekends
-- **Top 4 Teams Marked**: For midfield hero filtering
+- **11 F1 Teams**: Red Bull, Mercedes, Ferrari, McLaren, Aston Martin, Alpine, Williams, RB, Kick Sauber, Haas, and Cadillac F1 (2027+)
+- **20 Drivers**: 2026 confirmed grid including Max Verstappen, Lewis Hamilton at Ferrari, Liam Lawson at Red Bull, Andrea Kimi Antonelli at Mercedes, etc.
+- **10 Team Principals**: Christian Horner, Toto Wolff, Fred Vasseur, Andrea Stella, Mattia Binotto, etc.
+- **2026 Season** (ACTIVE): Full 24-race calendar with correct dates and 6 sprint weekends
+- **2027 Season** (INACTIVE): Pre-configured for future season predictions
+- **Top 4 Teams Marked**: Red Bull, Mercedes, Ferrari, McLaren for midfield hero filtering
 
 ## Application Status
 
@@ -173,7 +174,7 @@ The database includes:
 
 ### Completed Features
 - ✅ Full backend API with all endpoints
-- ✅ Database schema with 2027 F1 season data
+- ✅ Database schema with 2026 & 2027 F1 season data (2026 active)
 - ✅ Authentication system (login/register)
 - ✅ Season predictions form with drag-and-drop championship orders
 - ✅ Race predictions form with sprint weekend support
