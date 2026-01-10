@@ -3,27 +3,31 @@ import { Link } from 'react-router-dom';
 import { Layout } from '../components/common/Layout';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { CountdownTimer } from '../components/dashboard/CountdownTimer';
-import { getActiveSeason, getNextRace, getRaces } from '../services/api';
-import { Season, Race } from '../types';
+import { getActiveSeason, getNextRace, getRaces, getAllUsers, getAllRacePredictions } from '../services/api';
+import { Season, Race, User, RacePrediction } from '../types';
 
 export const DashboardPage = () => {
   const [season, setSeason] = useState<Season | null>(null);
   const [nextRace, setNextRace] = useState<Race | null>(null);
   const [upcomingRaces, setUpcomingRaces] = useState<Race[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [racePredictions, setRacePredictions] = useState<RacePrediction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [seasonData, raceData, allRaces] = await Promise.all([
+        const [seasonData, raceData, allRaces, allUsers] = await Promise.all([
           getActiveSeason(),
           getNextRace().catch(() => null),
-          getRaces()
+          getRaces(),
+          getAllUsers()
         ]);
 
         setSeason(seasonData);
         setNextRace(raceData);
+        setUsers(allUsers);
 
         // Get upcoming races (next 5)
         const now = new Date();
@@ -31,6 +35,12 @@ export const DashboardPage = () => {
           .filter(r => new Date(r.fp1_start) > now)
           .slice(0, 5);
         setUpcomingRaces(upcoming);
+
+        // Fetch race predictions if there's a next race
+        if (raceData) {
+          const predictions = await getAllRacePredictions(raceData.id);
+          setRacePredictions(predictions);
+        }
       } catch (err: any) {
         setError(err.response?.data?.error || 'Failed to load data');
       } finally {
@@ -62,7 +72,7 @@ export const DashboardPage = () => {
   return (
     <Layout>
       <div className="max-w-6xl mx-auto">
-        <h1 className="text-4xl font-bold text-gray-800 mb-8">Dashboard</h1>
+        <h1 className="text-3xl font-bold text-gray-800 mb-8">Dashboard</h1>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           {season && (
@@ -95,6 +105,70 @@ export const DashboardPage = () => {
             </div>
           )}
         </div>
+
+        {/* Tips Status Section */}
+        {nextRace && users.length > 0 && (
+          <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
+            <h2 className="text-2xl font-bold mb-4 text-gray-800 flex items-center gap-2">
+              <span className="w-1 h-6 bg-f1-red inline-block"></span>
+              Tips Status - {nextRace.name}
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Users who have submitted tips */}
+              <div>
+                <h3 className="text-sm font-bold text-green-600 uppercase mb-3 tracking-wide">
+                  ✓ Tips Submitted ({racePredictions.length})
+                </h3>
+                <div className="space-y-2">
+                  {racePredictions.length > 0 ? (
+                    racePredictions.map((prediction) => {
+                      const user = users.find(u => u.id === prediction.user_id);
+                      if (!user) return null;
+                      return (
+                        <div key={prediction.id} className="flex gap-3 items-center p-2 bg-green-50 rounded-lg border border-green-200">
+                          <div className="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center text-white font-bold text-sm">
+                            {user.display_name.substring(0, 2).toUpperCase()}
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-sm font-semibold text-gray-800">{user.display_name}</p>
+                            <p className="text-xs text-gray-500">
+                              {new Date(prediction.submitted_at).toLocaleDateString()} at{' '}
+                              {new Date(prediction.submitted_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <p className="text-sm text-gray-500 italic">No tips submitted yet</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Users who haven't submitted tips */}
+              <div>
+                <h3 className="text-sm font-bold text-red-600 uppercase mb-3 tracking-wide">
+                  ✗ Tips Outstanding ({users.length - racePredictions.length})
+                </h3>
+                <div className="space-y-2">
+                  {users
+                    .filter(user => !racePredictions.some(p => p.user_id === user.id))
+                    .map((user) => (
+                      <div key={user.id} className="flex gap-3 items-center p-2 bg-red-50 rounded-lg border border-red-200">
+                        <div className="w-8 h-8 rounded-full bg-red-600 flex items-center justify-center text-white font-bold text-sm">
+                          {user.display_name.substring(0, 2).toUpperCase()}
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm font-semibold text-gray-800">{user.display_name}</p>
+                          <p className="text-xs text-gray-500">Waiting for tips...</p>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="bg-white rounded-lg shadow-lg p-6">
           <h2 className="text-2xl font-bold mb-4 text-gray-800">Upcoming Races</h2>
