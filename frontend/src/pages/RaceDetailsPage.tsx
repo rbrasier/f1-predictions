@@ -218,7 +218,7 @@ export const RaceDetailsPage = () => {
             {/* Podium */}
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Podium - Exact Order Required (3 points for perfect, 0 otherwise)
+                Podium - 1 point per correct position (up to 3 points)
               </label>
               <div className="space-y-2">
                 <div>

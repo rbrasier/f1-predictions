@@ -281,13 +281,15 @@ async function calculateRaceScores(raceId: number) {
       points += 1;
     }
 
-    // Podium: 3 points for exact match (all or nothing)
-    if (
-      prediction.podium_first_driver_id === results.podium_first_driver_id &&
-      prediction.podium_second_driver_id === results.podium_second_driver_id &&
-      prediction.podium_third_driver_id === results.podium_third_driver_id
-    ) {
-      points += 3;
+    // Podium: 1 point per correct position (up to 3 points)
+    if (prediction.podium_first_driver_id === results.podium_first_driver_id) {
+      points += 1;
+    }
+    if (prediction.podium_second_driver_id === results.podium_second_driver_id) {
+      points += 1;
+    }
+    if (prediction.podium_third_driver_id === results.podium_third_driver_id) {
+      points += 1;
     }
 
     // Midfield hero: 1 point
