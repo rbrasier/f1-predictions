@@ -1,22 +1,11 @@
-import db, { initializeDatabase } from './database';
-import { getOriginalGrid, getAllSeasons } from '../utils/gridData';
+import { getOriginalGrid, getAllSeasons } from '../../utils/gridData';
 
-function seedDatabase() {
-  console.log('Starting database seed...');
+export const name = 'Seed initial F1 data from grid-data.json';
 
-  // Initialize database tables
-  initializeDatabase();
-
-  // Check if already seeded
-  const existingTeams = db.prepare('SELECT COUNT(*) as count FROM teams').get() as { count: number };
-  if (existingTeams.count > 0) {
-    console.log('Database already seeded. Skipping...');
-    return;
-  }
-
+export function up(db: any) {
   // Load grid data from JSON
   const seasons = getAllSeasons();
-  console.log(`Loading grid data from JSON for ${seasons.length} seasons: ${seasons.join(', ')}`);
+  console.log(`  Loading grid data from JSON for ${seasons.length} seasons: ${seasons.join(', ')}`);
 
   // Collect all unique teams across all seasons
   const allTeamsMap = new Map<string, { name: string; is_top_four: boolean }>();
@@ -37,12 +26,12 @@ function seedDatabase() {
   const insertTeam = db.prepare('INSERT INTO teams (name, is_top_four, is_active) VALUES (?, ?, 1)');
   const teamIds: { [key: string]: number } = {};
 
-  Array.from(allTeamsMap.values()).forEach(team => {
+  Array.from(allTeamsMap.values()).forEach((team: { name: string; is_top_four: boolean }) => {
     const result = insertTeam.run(team.name, team.is_top_four ? 1 : 0);
     teamIds[team.name] = Number(result.lastInsertRowid);
   });
 
-  console.log(`Teams seeded successfully (${allTeamsMap.size} teams)`);
+  console.log(`  Seeded ${allTeamsMap.size} teams`);
 
   // Collect all unique drivers across all seasons
   const allDriversMap = new Map<string, { name: string; team: string }>();
@@ -64,11 +53,11 @@ function seedDatabase() {
   // Seed Drivers
   const insertDriver = db.prepare('INSERT INTO drivers (name, team_id, is_active) VALUES (?, ?, 1)');
 
-  Array.from(allDriversMap.values()).forEach(driver => {
+  Array.from(allDriversMap.values()).forEach((driver: { name: string; team: string }) => {
     insertDriver.run(driver.name, teamIds[driver.team]);
   });
 
-  console.log(`Drivers seeded successfully (${allDriversMap.size} drivers)`);
+  console.log(`  Seeded ${allDriversMap.size} drivers`);
 
   // Collect all unique team principals across all seasons
   const allPrincipalsMap = new Map<string, { name: string; team: string }>();
@@ -88,11 +77,11 @@ function seedDatabase() {
   // Seed Team Principals
   const insertPrincipal = db.prepare('INSERT INTO team_principals (name, team_id, is_active) VALUES (?, ?, 1)');
 
-  Array.from(allPrincipalsMap.values()).forEach(principal => {
+  Array.from(allPrincipalsMap.values()).forEach((principal: { name: string; team: string }) => {
     insertPrincipal.run(principal.name, teamIds[principal.team]);
   });
 
-  console.log(`Team principals seeded successfully (${allPrincipalsMap.size} principals)`);
+  console.log(`  Seeded ${allPrincipalsMap.size} team principals`);
 
   // Seed Seasons from JSON
   const insertSeason = db.prepare('INSERT INTO seasons (year, prediction_deadline, is_active) VALUES (?, ?, ?)');
@@ -102,10 +91,8 @@ function seedDatabase() {
     const grid = getOriginalGrid(year);
     const result = insertSeason.run(parseInt(year), grid.prediction_deadline, grid.is_active ? 1 : 0);
     seasonIds[year] = Number(result.lastInsertRowid);
-    console.log(`  Season ${year} seeded (${grid.is_active ? 'ACTIVE' : 'inactive'})`);
+    console.log(`  Seeded season ${year} (${grid.is_active ? 'ACTIVE' : 'inactive'})`);
   });
-
-  console.log(`Seasons seeded successfully (${seasons.length} seasons)`);
 
   // Reference season IDs for race calendar seeding
   const season2026Id = seasonIds['2026'];
@@ -144,11 +131,11 @@ function seedDatabase() {
     VALUES (?, ?, ?, ?, ?, ?, ?)
   `);
 
-  races2026.forEach(race => {
+  races2026.forEach((race: any) => {
     insertRace.run(season2026Id, race.name, race.round, race.fp1, race.race_date, race.is_sprint ? 1 : 0, race.location);
   });
 
-  console.log('2026 Race calendar seeded successfully');
+  console.log(`  Seeded 2026 race calendar (${races2026.length} races)`);
 
   // Seed 2027 Race Calendar (24 races)
   const races2027 = [
@@ -178,18 +165,9 @@ function seedDatabase() {
     { name: 'Abu Dhabi GP', round: 24, fp1: '2027-12-05T10:30:00Z', race_date: '2027-12-07', location: 'Yas Marina', is_sprint: false }
   ];
 
-  races2027.forEach(race => {
+  races2027.forEach((race: any) => {
     insertRace.run(season2027Id, race.name, race.round, race.fp1, race.race_date, race.is_sprint ? 1 : 0, race.location);
   });
 
-  console.log('2027 Race calendar seeded successfully');
-  console.log('Database seed completed! 2026 is the active season, 2027 is inactive for future predictions.');
+  console.log(`  Seeded 2027 race calendar (${races2027.length} races)`);
 }
-
-// Run seed if called directly
-if (require.main === module) {
-  seedDatabase();
-  db.close();
-}
-
-export { seedDatabase };
