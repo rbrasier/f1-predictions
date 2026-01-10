@@ -113,7 +113,7 @@ npm run seed
 npm run dev
 ```
 
-The backend will run on `http://localhost:3001`
+The backend will run on `http://localhost:4001`
 
 ### Frontend Setup
 
@@ -132,18 +132,30 @@ npm install
 npm run dev
 ```
 
-The frontend will run on `http://localhost:5173`
+The frontend will run on `http://localhost:4000`
 
-### Creating an Admin User
+### Default Admin User
 
-After seeding the database, you can manually update a user to be an admin:
+A default admin user is automatically created when the backend starts. The credentials are configured in the `.env` file:
+
+- **Username**: `admin` (configurable via `ADMIN_USERNAME`)
+- **Password**: `admin123` (configurable via `ADMIN_PASSWORD`)
+- **Display Name**: `Administrator` (configurable via `ADMIN_DISPLAY_NAME`)
+
+**Important**: Change the default password in production by updating the `ADMIN_PASSWORD` in your `.env` file before starting the backend.
+
+### Restart Scripts
+
+Convenient restart scripts are available for both frontend and backend:
 
 ```bash
-# Open SQLite database
-sqlite3 backend/database.sqlite
+# Restart frontend (kills port 4000, rebuilds, starts dev server)
+cd frontend
+./restart.sh
 
-# Make a user admin (replace 'username' with actual username)
-UPDATE users SET is_admin = 1 WHERE username = 'username';
+# Restart backend (kills port 4001, rebuilds, starts dev server)
+cd backend
+./restart.sh
 ```
 
 ## Seeded Data (2027 Season)
