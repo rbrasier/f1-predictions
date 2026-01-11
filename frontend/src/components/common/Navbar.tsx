@@ -46,16 +46,16 @@ export const Navbar = () => {
           {user && (
             <div className="flex items-center space-x-8">
               <Link to="/dashboard" className="text-white hover:text-paddock-red transition uppercase text-sm font-medium tracking-wide">
-                Lobby
+                Dashboard
               </Link>
-              <Link to="/dashboard" className="text-white hover:text-paddock-red transition uppercase text-sm font-medium tracking-wide">
-                Tips
+              <Link to="/season-predictions" className="text-white hover:text-paddock-red transition uppercase text-sm font-medium tracking-wide">
+                Season Predictions
               </Link>
               <Link to="/leaderboard" className="text-white hover:text-paddock-red transition uppercase text-sm font-medium tracking-wide">
-                Standings
+                Leaderboard
               </Link>
               <Link to="/validations" className="hover:text-paddock-red transition uppercase text-sm font-medium tracking-wide relative">
-                <span className={pendingCount > 0 ? 'text-paddock-red' : 'text-white'}>Live Race</span>
+                <span className={pendingCount > 0 ? 'text-paddock-red' : 'text-white'}>Validations</span>
                 {pendingCount > 0 && (
                   <span className="absolute -top-2 -right-3 bg-paddock-red text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
                     {pendingCount}
@@ -69,9 +69,13 @@ export const Navbar = () => {
               )}
               <button
                 onClick={logout}
-                className="bg-white text-paddock-dark px-6 py-2 rounded font-bold hover:bg-gray-200 transition uppercase text-sm tracking-wide"
+                className="bg-white text-paddock-dark px-6 py-2 rounded font-bold hover:bg-gray-200 transition uppercase text-sm tracking-wide flex items-center gap-2"
               >
-                Profile
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M14.4 6L14 4H5v17h2v-7h5.6l.4 2h7V6z"/>
+                  <path d="M0 0h24v24H0z" fill="none"/>
+                </svg>
+                {user.display_name}
               </button>
             </div>
           )}

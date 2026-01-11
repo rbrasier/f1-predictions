@@ -3,12 +3,13 @@ import { Link } from 'react-router-dom';
 import { Layout } from '../components/common/Layout';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { CountdownTimer } from '../components/dashboard/CountdownTimer';
-import { getNextRace, getRaces, getAllUsers, getAllRacePredictions, getLeaderboard } from '../services/api';
-import { Race, User, RacePrediction, LeaderboardEntry } from '../types';
+import { getActiveSeason, getNextRace, getRaces, getAllUsers, getAllRacePredictions, getLeaderboard } from '../services/api';
+import { Season, Race, User, RacePrediction, LeaderboardEntry } from '../types';
 import { useAuth } from '../hooks/useAuth';
 
 export const DashboardPage = () => {
   const { user: currentUser } = useAuth();
+  const [season, setSeason] = useState<Season | null>(null);
   const [nextRace, setNextRace] = useState<Race | null>(null);
   const [upcomingRaces, setUpcomingRaces] = useState<Race[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -23,13 +24,15 @@ export const DashboardPage = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [raceData, allRaces, allUsers, leaderboardData] = await Promise.all([
+        const [seasonData, raceData, allRaces, allUsers, leaderboardData] = await Promise.all([
+          getActiveSeason().catch(() => null),
           getNextRace().catch(() => null),
           getRaces(),
           getAllUsers(),
           getLeaderboard().catch(() => [])
         ]);
 
+        setSeason(seasonData);
         setNextRace(raceData);
         setUsers(allUsers);
         setLeaderboard(leaderboardData);
@@ -96,6 +99,34 @@ export const DashboardPage = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Content - Left Side */}
           <div className="lg:col-span-2 space-y-6">
+            {/* Season Predictions Countdown */}
+            {season && (
+              <div className="bg-gradient-to-r from-purple-900/40 to-black rounded-lg p-6 border border-paddock-lightgray">
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <div className="text-purple-400 text-sm font-bold uppercase tracking-wide mb-2">
+                      Season {season.year}
+                    </div>
+                    <h2 className="text-3xl font-bold text-white mb-2">
+                      SEASON PREDICTIONS
+                    </h2>
+                    <p className="text-gray-400">Championship Predictions Close</p>
+                  </div>
+                  <Link
+                    to="/season-predictions"
+                    className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded font-bold uppercase text-sm tracking-wide transition"
+                  >
+                    Submit Predictions
+                  </Link>
+                </div>
+
+                <CountdownTimer
+                  targetDate={season.prediction_deadline}
+                  label=""
+                />
+              </div>
+            )}
+
             {/* Next Race Card */}
             {nextRace && (
               <div className="bg-gradient-to-r from-red-900/40 to-black rounded-lg p-6 border border-paddock-lightgray">
@@ -174,11 +205,11 @@ export const DashboardPage = () => {
               </div>
             )}
 
-            {/* Paddock Chatter Section */}
+            {/* Paddock Predictions Section */}
             <div>
               <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
                 <span className="w-1 h-6 bg-paddock-red inline-block"></span>
-                PADDOCK CHATTER
+                PADDOCK PREDICTIONS
               </h2>
               <div className="bg-paddock-gray rounded-lg border border-paddock-lightgray">
                 {nextRace && racePredictions.length > 0 ? (
