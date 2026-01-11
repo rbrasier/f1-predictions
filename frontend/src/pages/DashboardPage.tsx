@@ -3,31 +3,36 @@ import { Link } from 'react-router-dom';
 import { Layout } from '../components/common/Layout';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { CountdownTimer } from '../components/dashboard/CountdownTimer';
-import { getActiveSeason, getNextRace, getRaces, getAllUsers, getAllRacePredictions } from '../services/api';
-import { Season, Race, User, RacePrediction } from '../types';
+import { getNextRace, getRaces, getAllUsers, getAllRacePredictions, getLeaderboard } from '../services/api';
+import { Race, User, RacePrediction, LeaderboardEntry } from '../types';
+import { useAuth } from '../hooks/useAuth';
 
 export const DashboardPage = () => {
-  const [season, setSeason] = useState<Season | null>(null);
+  const { user: currentUser } = useAuth();
   const [nextRace, setNextRace] = useState<Race | null>(null);
   const [upcomingRaces, setUpcomingRaces] = useState<Race[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [racePredictions, setRacePredictions] = useState<RacePrediction[]>([]);
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  // Get current user's prediction for the next race
+  const userPrediction = racePredictions.find(p => p.user_id === currentUser?.id);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [seasonData, raceData, allRaces, allUsers] = await Promise.all([
-          getActiveSeason(),
+        const [raceData, allRaces, allUsers, leaderboardData] = await Promise.all([
           getNextRace().catch(() => null),
           getRaces(),
-          getAllUsers()
+          getAllUsers(),
+          getLeaderboard().catch(() => [])
         ]);
 
-        setSeason(seasonData);
         setNextRace(raceData);
         setUsers(allUsers);
+        setLeaderboard(leaderboardData);
 
         // Get upcoming races (next 5)
         const now = new Date();
@@ -49,7 +54,7 @@ export const DashboardPage = () => {
     };
 
     fetchData();
-  }, []);
+  }, [currentUser]);
 
   if (loading) {
     return (
@@ -71,167 +76,233 @@ export const DashboardPage = () => {
 
   return (
     <Layout>
-      <div className="max-w-6xl mx-auto">
-        <h1 className="text-3xl font-bold text-gray-800 mb-8">Dashboard</h1>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          {season && (
-            <div>
-              <CountdownTimer
-                targetDate={season.prediction_deadline}
-                label="Season Predictions Close"
-              />
-              <Link
-                to="/season-predictions"
-                className="block mt-4 bg-white hover:bg-gray-50 border-2 border-f1-red text-f1-red font-bold py-3 px-6 rounded-lg text-center transition"
-              >
-                Make Season Predictions
-              </Link>
-            </div>
-          )}
-
-          {nextRace && (
-            <div>
-              <CountdownTimer
-                targetDate={nextRace.fp1_start}
-                label={`${nextRace.name} - Predictions Close`}
-              />
-              <Link
-                to={`/race/${nextRace.id}`}
-                className="block mt-4 bg-white hover:bg-gray-50 border-2 border-f1-red text-f1-red font-bold py-3 px-6 rounded-lg text-center transition"
-              >
-                Make Race Predictions
-              </Link>
-            </div>
-          )}
+      <div className="max-w-7xl mx-auto px-6 py-8">
+        {/* Hero Section */}
+        <div className="mb-12">
+          <h1 className="text-6xl font-bold mb-4 italic tracking-tight leading-tight">
+            <span className="text-white">LIGHTS OUT</span>
+            <br />
+            <span className="text-white">&</span>{' '}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-paddock-red to-paddock-coral">
+              AWAY WE GO
+            </span>
+          </h1>
+          <p className="text-gray-400 text-lg max-w-2xl">
+            The ultimate tipping battleground for you and your mates. Predict the podium,
+            fastest lap, and DNFs to claim the Championship Trophy.
+          </p>
         </div>
 
-        {/* Tips Status Section */}
-        {nextRace && users.length > 0 && (
-          <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
-            <h2 className="text-2xl font-bold mb-4 text-gray-800 flex items-center gap-2">
-              <span className="w-1 h-6 bg-f1-red inline-block"></span>
-              Tips Status - {nextRace.name}
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Users who have submitted tips */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Main Content - Left Side */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Next Race Card */}
+            {nextRace && (
+              <div className="bg-gradient-to-r from-red-900/40 to-black rounded-lg p-6 border border-paddock-lightgray">
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <div className="text-paddock-coral text-sm font-bold uppercase tracking-wide mb-2">
+                      Round {nextRace.round_number}
+                    </div>
+                    <h2 className="text-3xl font-bold text-white mb-2">
+                      {nextRace.name.toUpperCase()}
+                    </h2>
+                    <p className="text-gray-400">{nextRace.location}</p>
+                  </div>
+                  <Link
+                    to={`/race/${nextRace.id}`}
+                    className="bg-paddock-red hover:bg-red-600 text-white px-6 py-3 rounded font-bold uppercase text-sm tracking-wide transition"
+                  >
+                    Submit Tips
+                  </Link>
+                </div>
+
+                <CountdownTimer
+                  targetDate={nextRace.fp1_start}
+                  label=""
+                />
+              </div>
+            )}
+
+            {/* Your Predictions Section */}
+            {nextRace && userPrediction && (
               <div>
-                <h3 className="text-sm font-bold text-green-600 uppercase mb-3 tracking-wide">
-                  ✓ Tips Submitted ({racePredictions.length})
-                </h3>
-                <div className="space-y-2">
-                  {racePredictions.length > 0 ? (
-                    racePredictions.map((prediction) => {
+                <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
+                  <span className="w-1 h-6 bg-paddock-red inline-block"></span>
+                  YOUR PREDICTIONS
+                </h2>
+                <div className="grid grid-cols-3 gap-4">
+                  {/* Winner Card */}
+                  <div className="bg-paddock-gray rounded-lg p-4 border border-paddock-lightgray">
+                    <div className="text-paddock-coral text-xs font-bold uppercase tracking-wide mb-2">
+                      Winner (P1)
+                    </div>
+                    <div className="text-white font-bold text-lg">
+                      {userPrediction.p1_driver_name || 'Not Set'}
+                    </div>
+                    <div className="text-gray-500 text-sm">
+                      {userPrediction.p1_team_name || ''}
+                    </div>
+                  </div>
+
+                  {/* Podium P2 Card */}
+                  <div className="bg-paddock-gray rounded-lg p-4 border border-paddock-lightgray">
+                    <div className="text-paddock-coral text-xs font-bold uppercase tracking-wide mb-2">
+                      Podium (P2)
+                    </div>
+                    <div className="text-white font-bold text-lg">
+                      {userPrediction.p2_driver_name || 'Not Set'}
+                    </div>
+                    <div className="text-gray-500 text-sm">
+                      {userPrediction.p2_team_name || ''}
+                    </div>
+                  </div>
+
+                  {/* Podium P3 Card */}
+                  <div className="bg-paddock-gray rounded-lg p-4 border border-paddock-lightgray">
+                    <div className="text-paddock-coral text-xs font-bold uppercase tracking-wide mb-2">
+                      Podium (P3)
+                    </div>
+                    <div className="text-white font-bold text-lg">
+                      {userPrediction.p3_driver_name || 'Not Set'}
+                    </div>
+                    <div className="text-gray-500 text-sm">
+                      {userPrediction.p3_team_name || ''}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Paddock Chatter Section */}
+            <div>
+              <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
+                <span className="w-1 h-6 bg-paddock-red inline-block"></span>
+                PADDOCK CHATTER
+              </h2>
+              <div className="bg-paddock-gray rounded-lg border border-paddock-lightgray">
+                {nextRace && racePredictions.length > 0 ? (
+                  <div className="divide-y divide-paddock-lightgray">
+                    {racePredictions.slice(0, 5).map((prediction) => {
                       const user = users.find(u => u.id === prediction.user_id);
                       if (!user) return null;
+
                       return (
-                        <div key={prediction.id} className="flex gap-3 items-center p-2 bg-green-50 rounded-lg border border-green-200">
-                          <div className="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center text-white font-bold text-sm">
-                            {user.display_name.substring(0, 2).toUpperCase()}
-                          </div>
-                          <div className="flex-1">
-                            <p className="text-sm font-semibold text-gray-800">{user.display_name}</p>
-                            <p className="text-xs text-gray-500">
-                              {new Date(prediction.submitted_at).toLocaleDateString()} at{' '}
-                              {new Date(prediction.submitted_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                            </p>
+                        <div key={prediction.id} className="p-4 hover:bg-paddock-lightgray transition">
+                          <div className="flex items-start gap-3">
+                            <div className="w-10 h-10 rounded-full bg-paddock-red flex items-center justify-center text-white font-bold flex-shrink-0">
+                              {user.display_name.substring(0, 2).toUpperCase()}
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="text-white font-bold">{user.display_name}</span>
+                                <span className="text-gray-500 text-xs">
+                                  {new Date(prediction.submitted_at).toLocaleDateString()} at{' '}
+                                  {new Date(prediction.submitted_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                              </div>
+                              <p className="text-gray-300 text-sm">
+                                just locked in his tips. Feeling risky with a {prediction.p1_driver_name} win!
+                              </p>
+                            </div>
                           </div>
                         </div>
                       );
-                    })
-                  ) : (
-                    <p className="text-sm text-gray-500 italic">No tips submitted yet</p>
-                  )}
-                </div>
-              </div>
-
-              {/* Users who haven't submitted tips */}
-              <div>
-                <h3 className="text-sm font-bold text-red-600 uppercase mb-3 tracking-wide">
-                  ✗ Tips Outstanding ({users.length - racePredictions.length})
-                </h3>
-                <div className="space-y-2">
-                  {users
-                    .filter(user => !racePredictions.some(p => p.user_id === user.id))
-                    .map((user) => (
-                      <div key={user.id} className="flex gap-3 items-center p-2 bg-red-50 rounded-lg border border-red-200">
-                        <div className="w-8 h-8 rounded-full bg-red-600 flex items-center justify-center text-white font-bold text-sm">
-                          {user.display_name.substring(0, 2).toUpperCase()}
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-sm font-semibold text-gray-800">{user.display_name}</p>
-                          <p className="text-xs text-gray-500">Waiting for tips...</p>
-                        </div>
-                      </div>
-                    ))}
-                </div>
+                    })}
+                  </div>
+                ) : (
+                  <div className="p-8 text-center text-gray-500">
+                    No tips submitted yet. Be the first!
+                  </div>
+                )}
               </div>
             </div>
           </div>
-        )}
 
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          <h2 className="text-2xl font-bold mb-4 text-gray-800">Upcoming Races</h2>
-          {upcomingRaces.length === 0 ? (
-            <p className="text-gray-600">No upcoming races</p>
-          ) : (
-            <div className="space-y-3">
-              {upcomingRaces.map((race) => (
-                <Link
-                  key={race.id}
-                  to={`/race/${race.id}`}
-                  className="block p-4 border-2 border-gray-200 rounded-lg hover:border-f1-red transition"
-                >
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <h3 className="font-bold text-lg">
-                        Round {race.round_number}: {race.name}
-                      </h3>
-                      <p className="text-sm text-gray-600">
-                        {race.location} • {new Date(race.race_date).toLocaleDateString()}
-                        {race.is_sprint_weekend && (
-                          <span className="ml-2 bg-f1-red text-white text-xs px-2 py-1 rounded">
-                            SPRINT
-                          </span>
-                        )}
-                      </p>
-                    </div>
-                    <div className="text-f1-red font-bold">
-                      →
-                    </div>
+          {/* Right Sidebar */}
+          <div className="space-y-6">
+            {/* The Standings */}
+            <div className="bg-paddock-gray rounded-lg border border-paddock-lightgray overflow-hidden">
+              <div className="bg-paddock-red px-4 py-3">
+                <h2 className="text-white font-bold uppercase tracking-wide italic text-lg">
+                  THE STANDINGS
+                </h2>
+              </div>
+              <div className="p-4">
+                <div className="space-y-1 mb-4">
+                  <div className="flex text-xs text-gray-500 uppercase tracking-wide px-2">
+                    <div className="w-12">POS</div>
+                    <div className="flex-1">PLAYER</div>
+                    <div className="w-16 text-right">PTS</div>
                   </div>
+                  {leaderboard.slice(0, 5).map((entry) => (
+                    <div
+                      key={entry.user_id}
+                      className={`flex items-center py-2 px-2 rounded ${
+                        entry.user_id === currentUser?.id ? 'bg-paddock-red/20' : ''
+                      }`}
+                    >
+                      <div className="w-12 text-white font-bold">
+                        {entry.rank <= 3 ? (
+                          <span className="text-xl">
+                            {entry.rank === 1 ? '🥇' : entry.rank === 2 ? '🥈' : '🥉'}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">0{entry.rank}</span>
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <span className={entry.user_id === currentUser?.id ? 'text-paddock-coral' : 'text-white'}>
+                          {entry.display_name}
+                          {entry.user_id === currentUser?.id && ' (PaddockKing)'}
+                        </span>
+                      </div>
+                      <div className="w-16 text-right text-paddock-coral font-bold">
+                        {entry.total_points}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <Link
+                  to="/leaderboard"
+                  className="block text-center text-paddock-red hover:text-paddock-coral uppercase text-sm font-bold tracking-wide"
+                >
+                  View Full Leaderboard
                 </Link>
-              ))}
+              </div>
             </div>
-          )}
-        </div>
 
-        <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Link
-            to="/leaderboard"
-            className="bg-f1-dark text-white p-6 rounded-lg hover:bg-f1-gray transition text-center"
-          >
-            <div className="text-3xl mb-2">🏆</div>
-            <div className="font-bold">Leaderboard</div>
-          </Link>
-
-          <Link
-            to="/validations"
-            className="bg-f1-dark text-white p-6 rounded-lg hover:bg-f1-gray transition text-center"
-          >
-            <div className="text-3xl mb-2">✅</div>
-            <div className="font-bold">Validate Predictions</div>
-          </Link>
-
-          <a
-            href="/api/leaderboard/export"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="bg-green-600 text-white p-6 rounded-lg hover:bg-green-700 transition text-center"
-          >
-            <div className="text-3xl mb-2">📊</div>
-            <div className="font-bold">Export to Excel</div>
-          </a>
+            {/* Season Stats */}
+            <div className="bg-paddock-gray rounded-lg border border-paddock-lightgray p-4">
+              <h3 className="text-white font-bold uppercase tracking-wide mb-4">
+                Season Stats
+              </h3>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-400">Races Completed</span>
+                  <span className="text-white font-bold">
+                    {upcomingRaces.length > 0 ? (nextRace?.round_number || 1) - 1 : 0}/24
+                  </span>
+                </div>
+                {currentUser && leaderboard.length > 0 && (
+                  <>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-400">Best Prediction</span>
+                      <span className="text-white font-bold">Australia</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-400">Points per Race (Avg)</span>
+                      <span className="text-white font-bold">
+                        {leaderboard.find(e => e.user_id === currentUser.id)
+                          ? Math.round((leaderboard.find(e => e.user_id === currentUser.id)!.race_points / Math.max((nextRace?.round_number || 1) - 1, 1)) * 10) / 10
+                          : '0.0'}
+                      </span>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </Layout>

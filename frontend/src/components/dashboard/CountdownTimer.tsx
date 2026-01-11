@@ -10,9 +10,9 @@ export const CountdownTimer = ({ targetDate, label }: CountdownTimerProps) => {
 
   if (isPast) {
     return (
-      <div className="bg-gray-200 p-6 rounded-lg text-center">
-        <h3 className="text-xl font-bold text-gray-600 mb-2">{label}</h3>
-        <div className="text-red-600 font-bold text-lg">
+      <div className="bg-paddock-gray p-6 rounded-lg text-center border border-paddock-lightgray">
+        {label && <h3 className="text-xl font-bold text-gray-400 mb-2">{label}</h3>}
+        <div className="text-paddock-red font-bold text-lg">
           DEADLINE PASSED
         </div>
       </div>
@@ -20,24 +20,24 @@ export const CountdownTimer = ({ targetDate, label }: CountdownTimerProps) => {
   }
 
   return (
-    <div className="bg-gradient-to-br from-f1-red to-red-700 p-6 rounded-lg text-white text-center shadow-lg">
-      <h3 className="text-xl font-bold mb-4">{label}</h3>
+    <div className="text-center">
+      {label && <h3 className="text-xl font-bold mb-4 text-white">{label}</h3>}
       <div className="grid grid-cols-4 gap-4">
-        <div>
-          <div className="text-4xl font-bold">{days}</div>
-          <div className="text-sm mt-1">Days</div>
+        <div className="bg-black/40 rounded p-3">
+          <div className="text-5xl font-bold text-white tabular-nums">{String(days).padStart(2, '0')}</div>
+          <div className="text-xs mt-2 uppercase tracking-wider text-gray-400">Days</div>
         </div>
-        <div>
-          <div className="text-4xl font-bold">{hours}</div>
-          <div className="text-sm mt-1">Hours</div>
+        <div className="bg-black/40 rounded p-3">
+          <div className="text-5xl font-bold text-white tabular-nums">{String(hours).padStart(2, '0')}</div>
+          <div className="text-xs mt-2 uppercase tracking-wider text-gray-400">Hrs</div>
         </div>
-        <div>
-          <div className="text-4xl font-bold">{minutes}</div>
-          <div className="text-sm mt-1">Minutes</div>
+        <div className="bg-black/40 rounded p-3">
+          <div className="text-5xl font-bold text-white tabular-nums">{String(minutes).padStart(2, '0')}</div>
+          <div className="text-xs mt-2 uppercase tracking-wider text-gray-400">Min</div>
         </div>
-        <div>
-          <div className="text-4xl font-bold">{seconds}</div>
-          <div className="text-sm mt-1">Seconds</div>
+        <div className="bg-black/40 rounded p-3">
+          <div className="text-5xl font-bold text-white tabular-nums">{String(seconds).padStart(2, '0')}</div>
+          <div className="text-xs mt-2 uppercase tracking-wider text-gray-400">Sec</div>
         </div>
       </div>
     </div>

@@ -77,68 +77,67 @@ export const LeaderboardPage = () => {
 
   return (
     <Layout>
-      <div className="max-w-6xl mx-auto">
+      <div className="max-w-6xl mx-auto px-6 py-8">
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-4xl font-bold text-gray-800">Leaderboard</h1>
+          <h1 className="text-4xl font-bold text-white italic">
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-paddock-red to-paddock-coral">
+              THE STANDINGS
+            </span>
+          </h1>
           <button
             onClick={handleExport}
             disabled={exporting}
-            className="bg-green-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="bg-green-600 text-white px-6 py-2 rounded font-bold hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed uppercase text-sm tracking-wide"
           >
             {exporting ? 'Exporting...' : '📊 Export to Excel'}
           </button>
         </div>
 
         {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
+          <div className="bg-red-900/50 border border-red-500 text-red-200 px-4 py-3 rounded mb-6">
             {error}
           </div>
         )}
 
-        <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="bg-paddock-gray rounded-lg border border-paddock-lightgray overflow-hidden">
           <table className="w-full">
-            <thead className="bg-f1-dark text-white">
+            <thead className="bg-paddock-darkgray text-gray-400">
               <tr>
-                <th className="px-6 py-3 text-left text-sm font-bold">Rank</th>
-                <th className="px-6 py-3 text-left text-sm font-bold">Player</th>
-                <th className="px-6 py-3 text-center text-sm font-bold">Season Points</th>
-                <th className="px-6 py-3 text-center text-sm font-bold">Race Points</th>
-                <th className="px-6 py-3 text-center text-sm font-bold">Total Points</th>
-                <th className="px-6 py-3 text-center text-sm font-bold">Details</th>
+                <th className="px-6 py-3 text-left text-xs font-bold uppercase tracking-wider">Rank</th>
+                <th className="px-6 py-3 text-left text-xs font-bold uppercase tracking-wider">Player</th>
+                <th className="px-6 py-3 text-center text-xs font-bold uppercase tracking-wider">Season Points</th>
+                <th className="px-6 py-3 text-center text-xs font-bold uppercase tracking-wider">Race Points</th>
+                <th className="px-6 py-3 text-center text-xs font-bold uppercase tracking-wider">Total Points</th>
+                <th className="px-6 py-3 text-center text-xs font-bold uppercase tracking-wider">Details</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
+            <tbody className="divide-y divide-paddock-lightgray">
               {leaderboard.map((entry) => (
                 <>
                   <tr
                     key={entry.user_id}
-                    className={`hover:bg-gray-50 transition ${
-                      entry.rank <= 3 ? 'bg-yellow-50' : ''
+                    className={`hover:bg-paddock-lightgray transition ${
+                      entry.rank <= 3 ? 'bg-paddock-lightgray/50' : ''
                     }`}
                   >
                     <td className="px-6 py-4">
-                      <span className={`text-2xl font-bold ${
-                        entry.rank === 1 ? 'text-yellow-500' :
-                        entry.rank === 2 ? 'text-gray-400' :
-                        entry.rank === 3 ? 'text-amber-600' :
-                        'text-gray-600'
-                      }`}>
+                      <span className="text-2xl font-bold">
                         {entry.rank === 1 ? '🥇' :
                          entry.rank === 2 ? '🥈' :
                          entry.rank === 3 ? '🥉' :
-                         entry.rank}
+                         <span className="text-gray-400">{String(entry.rank).padStart(2, '0')}</span>}
                       </span>
                     </td>
-                    <td className="px-6 py-4 font-medium">{entry.display_name}</td>
-                    <td className="px-6 py-4 text-center">{entry.season_points}</td>
-                    <td className="px-6 py-4 text-center">{entry.race_points}</td>
-                    <td className="px-6 py-4 text-center font-bold text-f1-red">
+                    <td className="px-6 py-4 font-medium text-white">{entry.display_name}</td>
+                    <td className="px-6 py-4 text-center text-gray-300">{entry.season_points}</td>
+                    <td className="px-6 py-4 text-center text-gray-300">{entry.race_points}</td>
+                    <td className="px-6 py-4 text-center font-bold text-paddock-coral">
                       {entry.total_points}
                     </td>
                     <td className="px-6 py-4 text-center">
                       <button
                         onClick={() => toggleUserExpand(entry.user_id)}
-                        className="text-f1-red hover:underline font-medium"
+                        className="text-paddock-red hover:text-paddock-coral font-medium"
                       >
                         {expandedUserId === entry.user_id ? '▼ Hide' : '▶ Show'}
                       </button>
@@ -146,7 +145,7 @@ export const LeaderboardPage = () => {
                   </tr>
                   {expandedUserId === entry.user_id && (
                     <tr>
-                      <td colSpan={6} className="px-6 py-4 bg-gray-50">
+                      <td colSpan={6} className="px-6 py-4 bg-paddock-darkgray">
                         {loadingBreakdown ? (
                           <div className="flex justify-center py-4">
                             <LoadingSpinner />
@@ -155,17 +154,17 @@ export const LeaderboardPage = () => {
                           <div className="space-y-4">
                             {/* Season Prediction */}
                             {userBreakdown.season_prediction && (
-                              <div className="bg-white p-4 rounded-lg border border-gray-200">
-                                <h4 className="font-bold text-lg mb-2 text-f1-red">
+                              <div className="bg-paddock-gray p-4 rounded-lg border border-paddock-lightgray">
+                                <h4 className="font-bold text-lg mb-2 text-paddock-coral">
                                   Season Prediction - {userBreakdown.season_prediction.points_earned} points
                                 </h4>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                                  <div>
+                                  <div className="text-gray-300">
                                     <span className="font-medium">Submitted:</span>{' '}
                                     {new Date(userBreakdown.season_prediction.submitted_at).toLocaleDateString()}
                                   </div>
                                   {userBreakdown.season_prediction.crazy_prediction && (
-                                    <div className="col-span-2">
+                                    <div className="col-span-2 text-gray-300">
                                       <span className="font-medium">Crazy Prediction:</span>{' '}
                                       {userBreakdown.season_prediction.crazy_prediction}
                                     </div>
@@ -177,15 +176,15 @@ export const LeaderboardPage = () => {
                             {/* Race Predictions */}
                             {userBreakdown.race_predictions && userBreakdown.race_predictions.length > 0 && (
                               <div>
-                                <h4 className="font-bold text-lg mb-2">Race Predictions</h4>
+                                <h4 className="font-bold text-lg mb-2 text-white">Race Predictions</h4>
                                 <div className="space-y-2">
                                   {userBreakdown.race_predictions.map((pred: any) => (
                                     <div
                                       key={pred.id}
-                                      className="bg-white p-3 rounded-lg border border-gray-200 flex justify-between items-center"
+                                      className="bg-paddock-gray p-3 rounded-lg border border-paddock-lightgray flex justify-between items-center"
                                     >
-                                      <div>
-                                        <span className="font-medium">Round {pred.round_number}:</span>{' '}
+                                      <div className="text-gray-300">
+                                        <span className="font-medium text-white">Round {pred.round_number}:</span>{' '}
                                         {pred.name}
                                         <span className="text-xs text-gray-500 ml-2">
                                           {new Date(pred.race_date).toLocaleDateString()}
@@ -193,7 +192,7 @@ export const LeaderboardPage = () => {
                                       </div>
                                       <div className="flex items-center space-x-4">
                                         <span className={`font-bold ${
-                                          pred.points_earned > 0 ? 'text-green-600' : 'text-gray-400'
+                                          pred.points_earned > 0 ? 'text-green-500' : 'text-gray-500'
                                         }`}>
                                           {pred.points_earned} pts
                                         </span>
@@ -223,12 +222,12 @@ export const LeaderboardPage = () => {
         </div>
 
         {/* Legend */}
-        <div className="mt-6 bg-white p-4 rounded-lg shadow">
-          <h3 className="font-bold mb-2">Scoring Legend</h3>
-          <div className="text-sm text-gray-600 space-y-1">
-            <p>• <strong>Season Points:</strong> Championship orders, sackings, grid predictions (1 pt each)</p>
-            <p>• <strong>Race Points:</strong> Pole (1 pt), Podium (3 pts for perfect), Midfield Hero (1 pt), Sprint (1 pt each)</p>
-            <p>• <strong>Crazy Predictions:</strong> Must be validated by peers AND marked as happened by admin (1 pt)</p>
+        <div className="mt-6 bg-paddock-gray p-6 rounded-lg border border-paddock-lightgray">
+          <h3 className="font-bold mb-4 text-white text-lg uppercase tracking-wide">Scoring Legend</h3>
+          <div className="text-sm text-gray-300 space-y-2">
+            <p>• <strong className="text-paddock-coral">Season Points:</strong> Championship orders, sackings, grid predictions (1 pt each)</p>
+            <p>• <strong className="text-paddock-coral">Race Points:</strong> Pole (1 pt), Podium (3 pts for perfect), Midfield Hero (1 pt), Sprint (1 pt each)</p>
+            <p>• <strong className="text-paddock-coral">Crazy Predictions:</strong> Must be validated by peers AND marked as happened by admin (1 pt)</p>
           </div>
         </div>
       </div>

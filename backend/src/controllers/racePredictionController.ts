@@ -154,9 +154,27 @@ export const getAllRacePredictions = (req: AuthRequest, res: Response) => {
     const { raceId } = req.params;
 
     const predictions = db.prepare(`
-      SELECT rp.*, u.display_name
+      SELECT
+        rp.*,
+        u.display_name,
+        d1.name as p1_driver_name,
+        t1.name as p1_team_name,
+        d2.name as p2_driver_name,
+        t2.name as p2_team_name,
+        d3.name as p3_driver_name,
+        t3.name as p3_team_name,
+        d4.name as pole_driver_name,
+        d5.name as midfield_hero_name
       FROM race_predictions rp
       JOIN users u ON rp.user_id = u.id
+      LEFT JOIN drivers d1 ON rp.podium_first_driver_id = d1.id
+      LEFT JOIN drivers d2 ON rp.podium_second_driver_id = d2.id
+      LEFT JOIN drivers d3 ON rp.podium_third_driver_id = d3.id
+      LEFT JOIN drivers d4 ON rp.pole_position_driver_id = d4.id
+      LEFT JOIN drivers d5 ON rp.midfield_hero_driver_id = d5.id
+      LEFT JOIN teams t1 ON d1.team_id = t1.id
+      LEFT JOIN teams t2 ON d2.team_id = t2.id
+      LEFT JOIN teams t3 ON d3.team_id = t3.id
       WHERE rp.race_id = ?
       ORDER BY u.display_name
     `).all(raceId) as (RacePrediction & { display_name: string })[];

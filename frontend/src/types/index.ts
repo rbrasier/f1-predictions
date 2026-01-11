@@ -101,6 +101,15 @@ export interface RacePrediction {
   name?: string;
   round_number?: number;
   race_date?: string;
+  // Optional fields populated when fetching with driver/team details
+  p1_driver_name?: string;
+  p1_team_name?: string;
+  p2_driver_name?: string;
+  p2_team_name?: string;
+  p3_driver_name?: string;
+  p3_team_name?: string;
+  pole_driver_name?: string;
+  midfield_hero_name?: string;
 }
 
 export interface RacePredictionRequest {

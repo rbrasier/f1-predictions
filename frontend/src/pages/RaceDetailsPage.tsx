@@ -10,7 +10,7 @@ import {
   submitRacePrediction,
   getMyRacePrediction
 } from '../services/api';
-import { Driver, Team, Race } from '../types';
+import { Driver, Race } from '../types';
 
 export const RaceDetailsPage = () => {
   const { raceId } = useParams<{ raceId: string }>();

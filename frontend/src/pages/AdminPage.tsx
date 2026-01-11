@@ -56,7 +56,7 @@ export const AdminPage = () => {
   // Season Results Form State
   const [driversOrder, setDriversOrder] = useState<number[]>([]);
   const [constructorsOrder, setConstructorsOrder] = useState<number[]>([]);
-  const [sackings, setSackings] = useState<number[]>([]);
+  const [sackings] = useState<number[]>([]);
   const [audiVsCadillacWinner, setAudiVsCadillacWinner] = useState<'audi' | 'cadillac'>('audi');
 
   useEffect(() => {
