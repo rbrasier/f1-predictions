@@ -2,14 +2,15 @@ import { Response } from 'express';
 import { body, validationResult } from 'express-validator';
 import db from '../db/database';
 import { AuthRequest } from '../middleware/auth';
-import { RacePrediction, RacePredictionRequest, Race } from '../types';
+import { RacePrediction, RacePredictionRequest } from '../types';
+import { f1ApiService } from '../services/f1ApiService';
 
 export const racePredictionValidation = [
-  body('pole_position_driver_id').isInt().withMessage('Pole position driver is required'),
-  body('podium_first_driver_id').isInt().withMessage('First place driver is required'),
-  body('podium_second_driver_id').isInt().withMessage('Second place driver is required'),
-  body('podium_third_driver_id').isInt().withMessage('Third place driver is required'),
-  body('midfield_hero_driver_id').isInt().withMessage('Midfield hero driver is required')
+  body('pole_position_driver_api_id').isString().withMessage('Pole position driver is required'),
+  body('podium_first_driver_api_id').isString().withMessage('First place driver is required'),
+  body('podium_second_driver_api_id').isString().withMessage('Second place driver is required'),
+  body('podium_third_driver_api_id').isString().withMessage('Third place driver is required'),
+  body('midfield_hero_driver_api_id').isString().withMessage('Midfield hero driver is required')
 ];
 
 export const submitRacePrediction = async (req: AuthRequest, res: Response) => {
@@ -19,78 +20,86 @@ export const submitRacePrediction = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { raceId } = req.params;
+    const { year, round } = req.params;
+    const seasonYear = parseInt(year);
+    const roundNumber = parseInt(round);
     const userId = req.user!.id;
 
+    if (isNaN(seasonYear) || isNaN(roundNumber)) {
+      return res.status(400).json({ error: 'Invalid year or round number' });
+    }
+
     const {
-      pole_position_driver_id,
-      podium_first_driver_id,
-      podium_second_driver_id,
-      podium_third_driver_id,
-      midfield_hero_driver_id,
+      pole_position_driver_api_id,
+      podium_first_driver_api_id,
+      podium_second_driver_api_id,
+      podium_third_driver_api_id,
+      midfield_hero_driver_api_id,
       crazy_prediction,
-      sprint_pole_driver_id,
-      sprint_winner_driver_id,
-      sprint_midfield_hero_driver_id
+      sprint_pole_driver_api_id,
+      sprint_winner_driver_api_id,
+      sprint_midfield_hero_driver_api_id
     } = req.body as RacePredictionRequest;
 
-    // Check if race exists and deadline hasn't passed
-    const race = db.prepare(`
-      SELECT fp1_start, is_sprint_weekend
-      FROM races WHERE id = ?
-    `).get(raceId) as Race | undefined;
+    // Get race from F1 API to check deadline
+    const scheduleData = await f1ApiService.fetchSchedule(seasonYear);
+    const races = scheduleData?.MRData?.RaceTable?.Races || [];
+    const race = races.find((r: any) => parseInt(r.round) === roundNumber);
 
     if (!race) {
       return res.status(404).json({ error: 'Race not found' });
     }
 
-    // Check deadline (honor system, but we'll enforce it)
+    // Check deadline - use FirstPractice date/time as deadline
     const now = new Date();
-    const deadline = new Date(race.fp1_start);
+    const fp1DateTime = race.FirstPractice?.date && race.FirstPractice?.time
+      ? new Date(`${race.FirstPractice.date}T${race.FirstPractice.time}`)
+      : new Date(race.date); // Fallback to race date if FP1 not available
 
-    if (now > deadline) {
+    if (now > fp1DateTime) {
       return res.status(400).json({ error: 'Prediction deadline has passed' });
     }
 
     // Validate podium - all three must be different
     if (
-      podium_first_driver_id === podium_second_driver_id ||
-      podium_first_driver_id === podium_third_driver_id ||
-      podium_second_driver_id === podium_third_driver_id
+      podium_first_driver_api_id === podium_second_driver_api_id ||
+      podium_first_driver_api_id === podium_third_driver_api_id ||
+      podium_second_driver_api_id === podium_third_driver_api_id
     ) {
       return res.status(400).json({ error: 'Podium drivers must all be different' });
     }
 
     // Check if prediction already exists
     const existing = db.prepare(`
-      SELECT id FROM race_predictions WHERE user_id = ? AND race_id = ?
-    `).get(userId, raceId) as { id: number } | undefined;
+      SELECT id FROM race_predictions
+      WHERE user_id = ? AND season_year = ? AND round_number = ?
+    `).get(userId, seasonYear, roundNumber) as { id: number } | undefined;
 
     if (existing) {
       // Update existing prediction
       db.prepare(`
         UPDATE race_predictions
-        SET pole_position_driver_id = ?,
-            podium_first_driver_id = ?,
-            podium_second_driver_id = ?,
-            podium_third_driver_id = ?,
-            midfield_hero_driver_id = ?,
+        SET pole_position_driver_api_id = ?,
+            podium_first_driver_api_id = ?,
+            podium_second_driver_api_id = ?,
+            podium_third_driver_api_id = ?,
+            midfield_hero_driver_api_id = ?,
             crazy_prediction = ?,
-            sprint_pole_driver_id = ?,
-            sprint_winner_driver_id = ?,
-            sprint_midfield_hero_driver_id = ?,
+            sprint_pole_driver_api_id = ?,
+            sprint_winner_driver_api_id = ?,
+            sprint_midfield_hero_driver_api_id = ?,
             submitted_at = CURRENT_TIMESTAMP
         WHERE id = ?
       `).run(
-        pole_position_driver_id,
-        podium_first_driver_id,
-        podium_second_driver_id,
-        podium_third_driver_id,
-        midfield_hero_driver_id,
+        pole_position_driver_api_id,
+        podium_first_driver_api_id,
+        podium_second_driver_api_id,
+        podium_third_driver_api_id,
+        midfield_hero_driver_api_id,
         crazy_prediction || null,
-        sprint_pole_driver_id || null,
-        sprint_winner_driver_id || null,
-        sprint_midfield_hero_driver_id || null,
+        sprint_pole_driver_api_id || null,
+        sprint_winner_driver_api_id || null,
+        sprint_midfield_hero_driver_api_id || null,
         existing.id
       );
 
@@ -100,23 +109,26 @@ export const submitRacePrediction = async (req: AuthRequest, res: Response) => {
       // Create new prediction
       const result = db.prepare(`
         INSERT INTO race_predictions (
-          user_id, race_id, pole_position_driver_id, podium_first_driver_id,
-          podium_second_driver_id, podium_third_driver_id, midfield_hero_driver_id,
-          crazy_prediction, sprint_pole_driver_id, sprint_winner_driver_id,
-          sprint_midfield_hero_driver_id
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          user_id, season_year, round_number,
+          pole_position_driver_api_id, podium_first_driver_api_id,
+          podium_second_driver_api_id, podium_third_driver_api_id,
+          midfield_hero_driver_api_id, crazy_prediction,
+          sprint_pole_driver_api_id, sprint_winner_driver_api_id,
+          sprint_midfield_hero_driver_api_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         userId,
-        raceId,
-        pole_position_driver_id,
-        podium_first_driver_id,
-        podium_second_driver_id,
-        podium_third_driver_id,
-        midfield_hero_driver_id,
+        seasonYear,
+        roundNumber,
+        pole_position_driver_api_id,
+        podium_first_driver_api_id,
+        podium_second_driver_api_id,
+        podium_third_driver_api_id,
+        midfield_hero_driver_api_id,
         crazy_prediction || null,
-        sprint_pole_driver_id || null,
-        sprint_winner_driver_id || null,
-        sprint_midfield_hero_driver_id || null
+        sprint_pole_driver_api_id || null,
+        sprint_winner_driver_api_id || null,
+        sprint_midfield_hero_driver_api_id || null
       );
 
       const created = db.prepare('SELECT * FROM race_predictions WHERE id = ?').get(result.lastInsertRowid) as RacePrediction;
@@ -130,13 +142,19 @@ export const submitRacePrediction = async (req: AuthRequest, res: Response) => {
 
 export const getMyRacePrediction = (req: AuthRequest, res: Response) => {
   try {
-    const { raceId } = req.params;
+    const { year, round } = req.params;
+    const seasonYear = parseInt(year);
+    const roundNumber = parseInt(round);
     const userId = req.user!.id;
+
+    if (isNaN(seasonYear) || isNaN(roundNumber)) {
+      return res.status(400).json({ error: 'Invalid year or round number' });
+    }
 
     const prediction = db.prepare(`
       SELECT * FROM race_predictions
-      WHERE user_id = ? AND race_id = ?
-    `).get(userId, raceId) as RacePrediction | undefined;
+      WHERE user_id = ? AND season_year = ? AND round_number = ?
+    `).get(userId, seasonYear, roundNumber) as RacePrediction | undefined;
 
     if (!prediction) {
       return res.status(404).json({ error: 'Prediction not found' });
@@ -151,32 +169,22 @@ export const getMyRacePrediction = (req: AuthRequest, res: Response) => {
 
 export const getAllRacePredictions = (req: AuthRequest, res: Response) => {
   try {
-    const { raceId } = req.params;
+    const { year, round } = req.params;
+    const seasonYear = parseInt(year);
+    const roundNumber = parseInt(round);
     const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
+
+    if (isNaN(seasonYear) || isNaN(roundNumber)) {
+      return res.status(400).json({ error: 'Invalid year or round number' });
+    }
 
     let query = `
       SELECT
         rp.*,
-        u.display_name,
-        d1.name as p1_driver_name,
-        t1.name as p1_team_name,
-        d2.name as p2_driver_name,
-        t2.name as p2_team_name,
-        d3.name as p3_driver_name,
-        t3.name as p3_team_name,
-        d4.name as pole_driver_name,
-        d5.name as midfield_hero_name
+        u.display_name
       FROM race_predictions rp
       JOIN users u ON rp.user_id = u.id
-      LEFT JOIN drivers d1 ON rp.podium_first_driver_id = d1.id
-      LEFT JOIN drivers d2 ON rp.podium_second_driver_id = d2.id
-      LEFT JOIN drivers d3 ON rp.podium_third_driver_id = d3.id
-      LEFT JOIN drivers d4 ON rp.pole_position_driver_id = d4.id
-      LEFT JOIN drivers d5 ON rp.midfield_hero_driver_id = d5.id
-      LEFT JOIN teams t1 ON d1.team_id = t1.id
-      LEFT JOIN teams t2 ON d2.team_id = t2.id
-      LEFT JOIN teams t3 ON d3.team_id = t3.id
-      WHERE rp.race_id = ?
+      WHERE rp.season_year = ? AND rp.round_number = ?
       ORDER BY u.display_name
     `;
 
@@ -184,7 +192,7 @@ export const getAllRacePredictions = (req: AuthRequest, res: Response) => {
       query += ` LIMIT ${limit}`;
     }
 
-    const predictions = db.prepare(query).all(raceId) as (RacePrediction & { display_name: string })[];
+    const predictions = db.prepare(query).all(seasonYear, roundNumber) as (RacePrediction & { display_name: string })[];
 
     res.json(predictions);
   } catch (error) {

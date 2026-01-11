@@ -80,10 +80,10 @@ export const getPendingValidations = (req: AuthRequest, res: Response) => {
       SELECT
         sp.id,
         sp.user_id,
-        sp.season_id,
+        sp.season_year,
         sp.crazy_prediction,
         u.display_name,
-        s.year,
+        sp.season_year as year,
         'season' as prediction_type,
         (SELECT COUNT(*) FROM crazy_prediction_validations
          WHERE prediction_type = 'season'
@@ -91,7 +91,6 @@ export const getPendingValidations = (req: AuthRequest, res: Response) => {
          AND validator_user_id = ?) as already_validated
       FROM season_predictions sp
       JOIN users u ON sp.user_id = u.id
-      JOIN seasons s ON sp.season_id = s.id
       WHERE sp.crazy_prediction IS NOT NULL
       AND sp.user_id != ?
     `).all(userId, userId) as any[];
@@ -101,11 +100,10 @@ export const getPendingValidations = (req: AuthRequest, res: Response) => {
       SELECT
         rp.id,
         rp.user_id,
-        rp.race_id,
+        rp.season_year,
+        rp.round_number,
         rp.crazy_prediction,
         u.display_name,
-        r.name as race_name,
-        r.round_number,
         'race' as prediction_type,
         (SELECT COUNT(*) FROM crazy_prediction_validations
          WHERE prediction_type = 'race'
@@ -113,7 +111,6 @@ export const getPendingValidations = (req: AuthRequest, res: Response) => {
          AND validator_user_id = ?) as already_validated
       FROM race_predictions rp
       JOIN users u ON rp.user_id = u.id
-      JOIN races r ON rp.race_id = r.id
       WHERE rp.crazy_prediction IS NOT NULL
       AND rp.user_id != ?
     `).all(userId, userId) as any[];
