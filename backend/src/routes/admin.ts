@@ -6,7 +6,15 @@ import {
   getSeasonResults,
   recalculateAllScores,
   raceResultValidation,
-  seasonResultValidation
+  seasonResultValidation,
+  refreshSeasonData,
+  refreshRaceResults,
+  getCacheStatus,
+  clearSeasonCache,
+  clearAllCache,
+  importRaceResults,
+  importSeasonStandings,
+  bulkImportSeason
 } from '../controllers/adminController';
 import { authenticate, requireAdmin } from '../middleware/auth';
 
@@ -26,5 +34,17 @@ router.get('/seasons/:seasonId/results', getSeasonResults);
 
 // Scoring
 router.post('/recalculate-scores', recalculateAllScores);
+
+// F1 API Data Management
+router.get('/f1-data/refresh/:year', refreshSeasonData);
+router.get('/f1-data/refresh/:year/:round', refreshRaceResults);
+router.get('/f1-data/cache-status', getCacheStatus);
+router.delete('/f1-data/cache/:year', clearSeasonCache);
+router.delete('/f1-data/cache', clearAllCache);
+
+// F1 Data Import (auto-populate from API)
+router.post('/f1-data/import-race/:year/:round', importRaceResults);
+router.post('/f1-data/import-standings/:year', importSeasonStandings);
+router.post('/f1-data/import-season/:year', bulkImportSeason);
 
 export default router;

@@ -203,4 +203,46 @@ export const recalculateAllScores = async (): Promise<any> => {
   return data;
 };
 
+// Admin - F1 API Data Management
+export const refreshSeasonData = async (year: number): Promise<any> => {
+  const { data } = await api.get(`/admin/f1-data/refresh/${year}`);
+  return data;
+};
+
+export const refreshRaceResults = async (year: number, round: number): Promise<any> => {
+  const { data } = await api.get(`/admin/f1-data/refresh/${year}/${round}`);
+  return data;
+};
+
+export const getCacheStatus = async (): Promise<any> => {
+  const { data } = await api.get('/admin/f1-data/cache-status');
+  return data;
+};
+
+export const clearSeasonCache = async (year: number): Promise<any> => {
+  const { data } = await api.delete(`/admin/f1-data/cache/${year}`);
+  return data;
+};
+
+export const clearAllCache = async (): Promise<any> => {
+  const { data } = await api.delete('/admin/f1-data/cache');
+  return data;
+};
+
+// Admin - F1 Data Import (auto-populate from API)
+export const importRaceResults = async (year: number, round: number): Promise<any> => {
+  const { data } = await api.post(`/admin/f1-data/import-race/${year}/${round}`);
+  return data;
+};
+
+export const importSeasonStandings = async (year: number): Promise<any> => {
+  const { data } = await api.post(`/admin/f1-data/import-standings/${year}`);
+  return data;
+};
+
+export const bulkImportSeason = async (year: number): Promise<any> => {
+  const { data } = await api.post(`/admin/f1-data/import-season/${year}`);
+  return data;
+};
+
 export default api;
