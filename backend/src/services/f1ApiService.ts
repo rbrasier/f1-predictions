@@ -117,8 +117,8 @@ export class F1ApiService {
         this.fetchSchedule(year, true),
         this.fetchDrivers(year, true),
         this.fetchConstructors(year, true),
-        this.fetchDriverStandings(year, true),
-        this.fetchConstructorStandings(year, true)
+        this.fetchDriverStandings(year, undefined, true),
+        this.fetchConstructorStandings(year, undefined, true)
       ]);
 
       console.log(`✓ Successfully refreshed all data for ${year} season`);

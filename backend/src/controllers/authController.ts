@@ -7,7 +7,7 @@ import { AuthRequest } from '../middleware/auth';
 import { User, RegisterRequest, LoginRequest, AuthResponse } from '../types';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'default-secret';
-const JWT_EXPIRES_IN = '7d';
+const JWT_EXPIRES_IN = '365d'; // 1 year
 
 export const registerValidation = [
   body('username')
