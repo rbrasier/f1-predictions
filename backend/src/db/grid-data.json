@@ -2,56 +2,20 @@
   "season_start":"2026-03-15",
   "prediction_deadline":"2026-02-16T00:00:00Z",
   "is_active":true,
-  "teams":[
-   {"name":"Red Bull Racing","is_top_four":true},
-  {"name":"Mercedes","is_top_four":true},
-  {"name":"Ferrari","is_top_four":true},
-  {"name":"McLaren","is_top_four":true},
-  {"name":"Aston Martin","is_top_four":false},
-  {"name":"Alpine","is_top_four":false},
-  {"name":"Williams","is_top_four":false},
-  {"name":"RB","is_top_four":false},
-  {"name":"Audi","is_top_four":false},
-  {"name":"Haas","is_top_four":false},
-  {"name":"Cadillac F1","is_top_four":false}
-],
-  "drivers":[
-  {"name":"Max Verstappen","team":"Red Bull Racing"},
-  {"name":"Isack Hadjar","team":"Red Bull Racing"},
-  {"name":"George Russell","team":"Mercedes"},
-  {"name":"Andrea Kimi Antonelli","team":"Mercedes"},
-  {"name":"Charles Leclerc","team":"Ferrari"},
-  {"name":"Lewis Hamilton","team":"Ferrari"},
-  {"name":"Lando Norris","team":"McLaren"},
-  {"name":"Oscar Piastri","team":"McLaren"},
-  {"name":"Fernando Alonso","team":"Aston Martin"},
-  {"name":"Lance Stroll","team":"Aston Martin"},
-  {"name":"Pierre Gasly","team":"Alpine"},
-  {"name":"Franco Colipinto","team":"Alpine"},
-  {"name":"Carlos Sainz","team":"Williams"},
-  {"name":"Alex Albon","team":"Williams"},
-  {"name":"Arvid Lindblad","team":"RB"},
-  {"name":"Liam Lawson","team":"RB"},
-  {"name":"Nico Hulkenberg","team":"Audi"},
-  {"name":"Gabriel Bortoleto","team":"Audi"},
-  {"name":"Esteban Ocon","team":"Haas"},
-  {"name":"Oliver Bearman","team":"Haas"},
-  {"name":"Valtteri Bottas","team":"Cadillac F1"},
-  {"name":"Sergio Perez","team":"Cadillac F1"}
-],
+  "top_four_teams":[
+  "red_bull","mercedes","ferrari","mclaren"]
+,
 "team_principals":[
-{"name":"Christian Horner","team":"Red Bull Racing"},
-{"name":"Toto Wolff","team":"Mercedes"},
-{"name":"Fred Vasseur","team":"Ferrari"},
-{"name":"Andrea Stella","team":"McLaren"},
-{"name":"Mike Krack","team":"Aston Martin"},
-{"name":"Oliver Oakes","team":"Alpine"},
-{"name":"James Vowles","team":"Williams"},
-{"name":"Laurent Mekies","team":"RB"},
-{"name":"Mattia Binotto","team":"Audi"},
-{"name":"Ayao Komatsu","team":"Haas"},
-{"name":"Graeme Lowdon","team":"Cadillac F1"}
-],
-"replacements":[]
-}
-}
+{"name":"Christian Horner","constructorId":"red_bull"},
+{"name":"Toto Wolff","constructorId":"mercedes"},
+{"name":"Fred Vasseur","constructorId":"ferrari"},
+{"name":"Andrea Stella","constructorId":"mclaren"},
+{"name":"Mike Krack","constructorId":"aston_martin"},
+{"name":"Oliver Oakes","constructorId":"alpine"},
+{"name":"James Vowles","constructorId":"williams"},
+{"name":"Laurent Mekies","constructorId":"rb"},
+{"name":"Mattia Binotto","constructorId":"audi"},
+{"name":"Ayao Komatsu","constructorId":"haas"},
+{"name":"Graeme Lowdon","constructorId":"cadillac"}
+]
+}}
