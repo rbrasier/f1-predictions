@@ -1,27 +1,17 @@
 import { Response } from 'express';
-import db from '../db/database';
 import { AuthRequest } from '../middleware/auth';
-import { Race } from '../types';
+import { f1ApiService } from '../services/f1ApiService';
 
-export const getRaces = (req: AuthRequest, res: Response) => {
+/**
+ * Get races for a specific season from API
+ */
+export const getRaces = async (req: AuthRequest, res: Response) => {
   try {
-    const seasonId = req.query.seasonId;
+    const year = req.query.year ? parseInt(req.query.year as string) : new Date().getFullYear();
 
-    let query = `
-      SELECT id, season_id, name, round_number, fp1_start, race_date, is_sprint_weekend, location
-      FROM races
-    `;
-
-    const params: any[] = [];
-
-    if (seasonId) {
-      query += ' WHERE season_id = ?';
-      params.push(seasonId);
-    }
-
-    query += ' ORDER BY round_number';
-
-    const races = db.prepare(query).all(...params) as Race[];
+    // Fetch schedule from API
+    const data = await f1ApiService.fetchSchedule(year);
+    const races = data?.MRData?.RaceTable?.Races || [];
 
     res.json(races);
   } catch (error) {
@@ -30,15 +20,18 @@ export const getRaces = (req: AuthRequest, res: Response) => {
   }
 };
 
-export const getRace = (req: AuthRequest, res: Response) => {
+/**
+ * Get a specific race by year and round from API
+ */
+export const getRace = async (req: AuthRequest, res: Response) => {
   try {
-    const { raceId } = req.params;
+    const { year, round } = req.params;
 
-    const race = db.prepare(`
-      SELECT id, season_id, name, round_number, fp1_start, race_date, is_sprint_weekend, location
-      FROM races
-      WHERE id = ?
-    `).get(raceId) as Race | undefined;
+    // Fetch schedule from API
+    const data = await f1ApiService.fetchSchedule(parseInt(year));
+    const races = data?.MRData?.RaceTable?.Races || [];
+
+    const race = races.find((r: any) => r.round === round);
 
     if (!race) {
       return res.status(404).json({ error: 'Race not found' });
@@ -51,43 +44,57 @@ export const getRace = (req: AuthRequest, res: Response) => {
   }
 };
 
-export const getNextRace = (req: AuthRequest, res: Response) => {
+/**
+ * Get the next upcoming race from API
+ */
+export const getNextRace = async (req: AuthRequest, res: Response) => {
   try {
-    const now = new Date().toISOString();
+    const now = new Date();
+    const year = now.getFullYear();
 
-    const race = db.prepare(`
-      SELECT id, season_id, name, round_number, fp1_start, race_date, is_sprint_weekend, location
-      FROM races
-      WHERE fp1_start > ?
-      ORDER BY fp1_start
-      LIMIT 1
-    `).get(now) as Race | undefined;
+    // Fetch schedule from API
+    const data = await f1ApiService.fetchSchedule(year);
+    const races = data?.MRData?.RaceTable?.Races || [];
 
-    if (!race) {
+    // Find the next race after current date
+    const nextRace = races.find((race: any) => {
+      const raceDate = new Date(race.date + 'T' + (race.time || '00:00:00'));
+      return raceDate > now;
+    });
+
+    if (!nextRace) {
       return res.status(404).json({ error: 'No upcoming races found' });
     }
 
-    res.json(race);
+    res.json(nextRace);
   } catch (error) {
     console.error('Get next race error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
 
-export const getUpcomingRaces = (req: AuthRequest, res: Response) => {
+/**
+ * Get upcoming races from API
+ */
+export const getUpcomingRaces = async (req: AuthRequest, res: Response) => {
   try {
-    const now = new Date().toISOString();
+    const now = new Date();
+    const year = now.getFullYear();
     const limit = req.query.limit ? parseInt(req.query.limit as string) : 5;
 
-    const races = db.prepare(`
-      SELECT id, season_id, name, round_number, fp1_start, race_date, is_sprint_weekend, location
-      FROM races
-      WHERE fp1_start > ?
-      ORDER BY fp1_start
-      LIMIT ?
-    `).all(now, limit) as Race[];
+    // Fetch schedule from API
+    const data = await f1ApiService.fetchSchedule(year);
+    const races = data?.MRData?.RaceTable?.Races || [];
 
-    res.json(races);
+    // Filter and limit upcoming races
+    const upcomingRaces = races
+      .filter((race: any) => {
+        const raceDate = new Date(race.date + 'T' + (race.time || '00:00:00'));
+        return raceDate > now;
+      })
+      .slice(0, limit);
+
+    res.json(upcomingRaces);
   } catch (error) {
     console.error('Get upcoming races error:', error);
     res.status(500).json({ error: 'Internal server error' });

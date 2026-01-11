@@ -13,70 +13,23 @@ export function up(db: any) {
     )
   `).run();
 
-  // Seasons table
-  db.prepare(`
-    CREATE TABLE IF NOT EXISTS seasons (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      year INTEGER NOT NULL UNIQUE,
-      prediction_deadline TEXT NOT NULL,
-      is_active INTEGER NOT NULL DEFAULT 0
-    )
-  `).run();
-
-  // Teams table
-  db.prepare(`
-    CREATE TABLE IF NOT EXISTS teams (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL UNIQUE,
-      is_top_four INTEGER NOT NULL,
-      is_active INTEGER NOT NULL DEFAULT 1
-    )
-  `).run();
-
-  // Drivers table
-  db.prepare(`
-    CREATE TABLE IF NOT EXISTS drivers (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL UNIQUE,
-      team_id INTEGER NOT NULL,
-      is_active INTEGER NOT NULL DEFAULT 1,
-      FOREIGN KEY (team_id) REFERENCES teams(id)
-    )
-  `).run();
-
-  // Team Principals table
+  // Team Principals table - uses constructorId from API instead of foreign key
   db.prepare(`
     CREATE TABLE IF NOT EXISTS team_principals (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL UNIQUE,
-      team_id INTEGER NOT NULL,
-      is_active INTEGER NOT NULL DEFAULT 1,
-      FOREIGN KEY (team_id) REFERENCES teams(id)
-    )
-  `).run();
-
-  // Races table
-  db.prepare(`
-    CREATE TABLE IF NOT EXISTS races (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      season_id INTEGER NOT NULL,
       name TEXT NOT NULL,
-      round_number INTEGER NOT NULL,
-      fp1_start TEXT NOT NULL,
-      race_date TEXT NOT NULL,
-      is_sprint_weekend INTEGER NOT NULL DEFAULT 0,
-      location TEXT NOT NULL,
-      FOREIGN KEY (season_id) REFERENCES seasons(id),
-      UNIQUE(season_id, round_number)
+      constructor_id TEXT NOT NULL,
+      season_year INTEGER NOT NULL,
+      UNIQUE(name, season_year)
     )
   `).run();
 
-  // Season Predictions table
+  // Season Predictions table - stores API identifiers (driverId, constructorId strings)
   db.prepare(`
     CREATE TABLE IF NOT EXISTS season_predictions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,
-      season_id INTEGER NOT NULL,
+      season_year INTEGER NOT NULL,
       drivers_championship_order TEXT NOT NULL,
       constructors_championship_order TEXT NOT NULL,
       mid_season_sackings TEXT,
@@ -87,65 +40,30 @@ export function up(db: any) {
       points_earned INTEGER DEFAULT 0,
       submitted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (user_id) REFERENCES users(id),
-      FOREIGN KEY (season_id) REFERENCES seasons(id),
-      UNIQUE(user_id, season_id)
+      UNIQUE(user_id, season_year)
     )
   `).run();
 
-  // Race Predictions table
+  // Race Predictions table - stores API identifiers (driverId strings) and race year/round
   db.prepare(`
     CREATE TABLE IF NOT EXISTS race_predictions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,
-      race_id INTEGER NOT NULL,
-      pole_position_driver_id INTEGER,
-      podium_first_driver_id INTEGER,
-      podium_second_driver_id INTEGER,
-      podium_third_driver_id INTEGER,
-      midfield_hero_driver_id INTEGER,
+      season_year INTEGER NOT NULL,
+      round_number INTEGER NOT NULL,
+      pole_position_driver_api_id TEXT,
+      podium_first_driver_api_id TEXT,
+      podium_second_driver_api_id TEXT,
+      podium_third_driver_api_id TEXT,
+      midfield_hero_driver_api_id TEXT,
       crazy_prediction TEXT,
-      sprint_pole_driver_id INTEGER,
-      sprint_winner_driver_id INTEGER,
-      sprint_midfield_hero_driver_id INTEGER,
+      sprint_pole_driver_api_id TEXT,
+      sprint_winner_driver_api_id TEXT,
+      sprint_midfield_hero_driver_api_id TEXT,
       points_earned INTEGER DEFAULT 0,
       submitted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (user_id) REFERENCES users(id),
-      FOREIGN KEY (race_id) REFERENCES races(id),
-      UNIQUE(user_id, race_id)
-    )
-  `).run();
-
-  // Race Results table
-  db.prepare(`
-    CREATE TABLE IF NOT EXISTS race_results (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      race_id INTEGER UNIQUE NOT NULL,
-      pole_position_driver_id INTEGER,
-      podium_first_driver_id INTEGER,
-      podium_second_driver_id INTEGER,
-      podium_third_driver_id INTEGER,
-      midfield_hero_driver_id INTEGER,
-      sprint_pole_driver_id INTEGER,
-      sprint_winner_driver_id INTEGER,
-      sprint_midfield_hero_driver_id INTEGER,
-      entered_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (race_id) REFERENCES races(id)
-    )
-  `).run();
-
-  // Season Results table
-  db.prepare(`
-    CREATE TABLE IF NOT EXISTS season_results (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      season_id INTEGER UNIQUE NOT NULL,
-      drivers_championship_order TEXT NOT NULL,
-      constructors_championship_order TEXT NOT NULL,
-      mid_season_sackings TEXT,
-      audi_vs_cadillac_winner TEXT,
-      actual_grid_2027 TEXT,
-      actual_grid_2028 TEXT,
-      entered_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (season_id) REFERENCES seasons(id)
+      UNIQUE(user_id, season_year, round_number)
     )
   `).run();
 

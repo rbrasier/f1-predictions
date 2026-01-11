@@ -1,17 +1,19 @@
 import { Response } from 'express';
 import db from '../db/database';
 import { AuthRequest } from '../middleware/auth';
-import { Driver, Team, TeamPrincipal } from '../types';
+import { f1ApiService } from '../services/f1ApiService';
+import { getOriginalGrid, getAllSeasons } from '../utils/gridData';
 
-export const getDrivers = (req: AuthRequest, res: Response) => {
+/**
+ * Get drivers for a specific season from API
+ */
+export const getDrivers = async (req: AuthRequest, res: Response) => {
   try {
-    const drivers = db.prepare(`
-      SELECT d.id, d.name, d.team_id, d.is_active, d.image_url, t.name as team_name
-      FROM drivers d
-      LEFT JOIN teams t ON d.team_id = t.id
-      WHERE d.is_active = 1
-      ORDER BY d.name
-    `).all() as (Driver & { team_name: string })[];
+    const year = req.query.year ? parseInt(req.query.year as string) : new Date().getFullYear();
+
+    // Fetch drivers from API
+    const data = await f1ApiService.fetchDrivers(year);
+    const drivers = data?.MRData?.DriverTable?.Drivers || [];
 
     res.json(drivers);
   } catch (error) {
@@ -20,14 +22,25 @@ export const getDrivers = (req: AuthRequest, res: Response) => {
   }
 };
 
-export const getTeams = (req: AuthRequest, res: Response) => {
+/**
+ * Get constructors/teams for a specific season from API
+ */
+export const getTeams = async (req: AuthRequest, res: Response) => {
   try {
-    const teams = db.prepare(`
-      SELECT id, name, is_top_four, is_active
-      FROM teams
-      WHERE is_active = 1
-      ORDER BY name
-    `).all() as Team[];
+    const year = req.query.year ? parseInt(req.query.year as string) : new Date().getFullYear();
+
+    // Fetch constructors from API
+    const data = await f1ApiService.fetchConstructors(year);
+    const constructors = data?.MRData?.ConstructorTable?.Constructors || [];
+
+    // Add is_top_four flag based on grid-data.json
+    const gridData = getOriginalGrid(year.toString());
+    const topFourTeams = gridData?.top_four_teams || [];
+
+    const teams = constructors.map((constructor: any) => ({
+      ...constructor,
+      is_top_four: topFourTeams.includes(constructor.constructorId)
+    }));
 
     res.json(teams);
   } catch (error) {
@@ -36,15 +49,20 @@ export const getTeams = (req: AuthRequest, res: Response) => {
   }
 };
 
+/**
+ * Get team principals for a specific season from grid-data.json
+ */
 export const getTeamPrincipals = (req: AuthRequest, res: Response) => {
   try {
+    const year = req.query.year ? parseInt(req.query.year as string) : new Date().getFullYear();
+
+    // Get principals from database (seeded from grid-data.json)
     const principals = db.prepare(`
-      SELECT tp.id, tp.name, tp.team_id, tp.is_active, t.name as team_name
-      FROM team_principals tp
-      LEFT JOIN teams t ON tp.team_id = t.id
-      WHERE tp.is_active = 1
-      ORDER BY tp.name
-    `).all() as (TeamPrincipal & { team_name: string })[];
+      SELECT id, name, constructor_id, season_year
+      FROM team_principals
+      WHERE season_year = ?
+      ORDER BY name
+    `).all(year);
 
     res.json(principals);
   } catch (error) {
@@ -53,35 +71,46 @@ export const getTeamPrincipals = (req: AuthRequest, res: Response) => {
   }
 };
 
+/**
+ * Get available seasons from grid-data.json
+ */
 export const getSeasons = (req: AuthRequest, res: Response) => {
   try {
-    const seasons = db.prepare(`
-      SELECT id, year, prediction_deadline, is_active
-      FROM seasons
-      ORDER BY year DESC
-    `).all();
+    const seasons = getAllSeasons();
+    const seasonData = seasons.map(year => {
+      const grid = getOriginalGrid(year);
+      return {
+        year: parseInt(year),
+        prediction_deadline: grid.prediction_deadline,
+        is_active: grid.is_active
+      };
+    }).sort((a, b) => b.year - a.year);
 
-    res.json(seasons);
+    res.json(seasonData);
   } catch (error) {
     console.error('Get seasons error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
 
+/**
+ * Get the active season from grid-data.json
+ */
 export const getActiveSeason = (req: AuthRequest, res: Response) => {
   try {
-    const season = db.prepare(`
-      SELECT id, year, prediction_deadline, is_active
-      FROM seasons
-      WHERE is_active = 1
-      LIMIT 1
-    `).get();
-
-    if (!season) {
-      return res.status(404).json({ error: 'No active season found' });
+    const seasons = getAllSeasons();
+    for (const year of seasons) {
+      const grid = getOriginalGrid(year);
+      if (grid.is_active) {
+        return res.json({
+          year: parseInt(year),
+          prediction_deadline: grid.prediction_deadline,
+          is_active: true
+        });
+      }
     }
 
-    res.json(season);
+    return res.status(404).json({ error: 'No active season found' });
   } catch (error) {
     console.error('Get active season error:', error);
     res.status(500).json({ error: 'Internal server error' });
