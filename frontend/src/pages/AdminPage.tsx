@@ -16,7 +16,10 @@ import {
   refreshRaceResults,
   getCacheStatus,
   clearSeasonCache,
-  clearAllCache
+  clearAllCache,
+  importRaceResults,
+  importSeasonStandings,
+  bulkImportSeason
 } from '../services/api';
 import { Race, Driver, Team, Season } from '../types';
 
@@ -280,6 +283,56 @@ export const AdminPage = () => {
       await loadCacheStatus();
     } catch (err: any) {
       setError('Failed to clear cache');
+    } finally {
+      setDataLoading(false);
+    }
+  };
+
+  // Import handlers
+  const handleImportRaceResults = async () => {
+    setDataLoading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      const result = await importRaceResults(refreshYear, refreshRound);
+      setSuccess(result.message);
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to import race results');
+    } finally {
+      setDataLoading(false);
+    }
+  };
+
+  const handleImportSeasonStandings = async () => {
+    setDataLoading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      const result = await importSeasonStandings(refreshYear);
+      setSuccess(result.message);
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to import season standings');
+    } finally {
+      setDataLoading(false);
+    }
+  };
+
+  const handleBulkImportSeason = async () => {
+    if (!confirm(`Import ALL race results for ${refreshYear}? This may take a few minutes.`)) {
+      return;
+    }
+
+    setDataLoading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      const result = await bulkImportSeason(refreshYear);
+      setSuccess(`${result.message} - Imported: ${result.imported}, Failed: ${result.failed}`);
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to bulk import season');
     } finally {
       setDataLoading(false);
     }
@@ -700,6 +753,111 @@ export const AdminPage = () => {
                       className="bg-blue-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-blue-700 disabled:opacity-50"
                     >
                       {dataLoading ? 'Refreshing...' : 'Refresh Race'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Import Data Section */}
+            <div className="bg-white p-6 rounded-lg shadow">
+              <h3 className="text-xl font-bold mb-4">Import & Auto-Populate from API</h3>
+              <p className="text-gray-600 mb-4">
+                Automatically transform API data and populate race results in the database with automatic score calculation.
+              </p>
+
+              <div className="space-y-4">
+                {/* Import Single Race */}
+                <div className="border rounded-lg p-4 bg-green-50 border-green-200">
+                  <h4 className="font-bold mb-3 text-green-800">Import Single Race Results</h4>
+                  <p className="text-sm text-gray-700 mb-3">
+                    Fetches race data from API, auto-populates race_results table, and calculates prediction scores
+                  </p>
+                  <div className="flex items-end space-x-3">
+                    <div className="flex-1">
+                      <label className="block text-sm font-medium mb-1">Season Year</label>
+                      <input
+                        type="number"
+                        value={refreshYear}
+                        onChange={(e) => setRefreshYear(parseInt(e.target.value))}
+                        className="w-full px-3 py-2 border rounded"
+                        min="2020"
+                        max="2030"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <label className="block text-sm font-medium mb-1">Round Number</label>
+                      <input
+                        type="number"
+                        value={refreshRound}
+                        onChange={(e) => setRefreshRound(parseInt(e.target.value))}
+                        className="w-full px-3 py-2 border rounded"
+                        min="1"
+                        max="24"
+                      />
+                    </div>
+                    <button
+                      onClick={handleImportRaceResults}
+                      disabled={dataLoading}
+                      className="bg-green-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-green-700 disabled:opacity-50"
+                    >
+                      {dataLoading ? 'Importing...' : 'Import Race'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Import Season Standings */}
+                <div className="border rounded-lg p-4 bg-green-50 border-green-200">
+                  <h4 className="font-bold mb-3 text-green-800">Import Season Championship Standings</h4>
+                  <p className="text-sm text-gray-700 mb-3">
+                    Imports final driver and constructor standings for a completed season and calculates scores
+                  </p>
+                  <div className="flex items-end space-x-3">
+                    <div className="flex-1">
+                      <label className="block text-sm font-medium mb-1">Season Year</label>
+                      <input
+                        type="number"
+                        value={refreshYear}
+                        onChange={(e) => setRefreshYear(parseInt(e.target.value))}
+                        className="w-full px-3 py-2 border rounded"
+                        min="2020"
+                        max="2030"
+                      />
+                    </div>
+                    <button
+                      onClick={handleImportSeasonStandings}
+                      disabled={dataLoading}
+                      className="bg-green-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-green-700 disabled:opacity-50"
+                    >
+                      {dataLoading ? 'Importing...' : 'Import Standings'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Bulk Import All Races */}
+                <div className="border rounded-lg p-4 bg-yellow-50 border-yellow-300">
+                  <h4 className="font-bold mb-3 text-yellow-900">Bulk Import Entire Season</h4>
+                  <p className="text-sm text-gray-700 mb-3">
+                    <strong>⚠️ Warning:</strong> Imports ALL race results for a season. This may take several minutes and will use multiple API calls.
+                  </p>
+                  <div className="flex items-end space-x-3">
+                    <div className="flex-1">
+                      <label className="block text-sm font-medium mb-1">Season Year</label>
+                      <input
+                        type="number"
+                        value={refreshYear}
+                        onChange={(e) => setRefreshYear(parseInt(e.target.value))}
+                        className="w-full px-3 py-2 border rounded"
+                        min="2020"
+                        max="2030"
+                      />
+                    </div>
+                    <button
+                      onClick={handleBulkImportSeason}
+                      disabled={dataLoading}
+                      className="bg-yellow-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-yellow-700 disabled:opacity-50"
+                    >
+                      {dataLoading ? 'Importing All...' : 'Bulk Import Season'}
                     </button>
                   </div>
                 </div>

@@ -4,6 +4,7 @@ import db from '../db/database';
 import { AuthRequest } from '../middleware/auth';
 import { RaceResult, SeasonResult } from '../types';
 import { f1ApiService } from '../services/f1ApiService';
+import { f1DataTransformer } from '../services/f1DataTransformer';
 
 // Race Results
 export const raceResultValidation = [
@@ -632,6 +633,92 @@ export const clearAllCache = async (req: AuthRequest, res: Response) => {
     console.error('Clear all cache error:', error);
     res.status(500).json({
       error: 'Failed to clear cache',
+      details: error.message
+    });
+  }
+};
+
+// F1 Data Import/Transform Endpoints
+
+/**
+ * Import race results from API and auto-populate database
+ * POST /api/admin/f1-data/import-race/:year/:round
+ */
+export const importRaceResults = async (req: AuthRequest, res: Response) => {
+  try {
+    const { year, round } = req.params;
+    const seasonYear = parseInt(year);
+    const roundNumber = parseInt(round);
+
+    if (isNaN(seasonYear) || isNaN(roundNumber)) {
+      return res.status(400).json({ error: 'Invalid year or round number' });
+    }
+
+    const result = await f1DataTransformer.importRaceResults(seasonYear, roundNumber);
+
+    if (result.success) {
+      res.json(result);
+    } else {
+      res.status(400).json(result);
+    }
+  } catch (error: any) {
+    console.error('Import race results error:', error);
+    res.status(500).json({
+      error: 'Failed to import race results',
+      details: error.message
+    });
+  }
+};
+
+/**
+ * Import season championship standings from API
+ * POST /api/admin/f1-data/import-standings/:year
+ */
+export const importSeasonStandings = async (req: AuthRequest, res: Response) => {
+  try {
+    const { year } = req.params;
+    const seasonYear = parseInt(year);
+
+    if (isNaN(seasonYear) || seasonYear < 1950 || seasonYear > 2100) {
+      return res.status(400).json({ error: 'Invalid year' });
+    }
+
+    const result = await f1DataTransformer.importSeasonStandings(seasonYear);
+
+    if (result.success) {
+      res.json(result);
+    } else {
+      res.status(400).json(result);
+    }
+  } catch (error: any) {
+    console.error('Import season standings error:', error);
+    res.status(500).json({
+      error: 'Failed to import season standings',
+      details: error.message
+    });
+  }
+};
+
+/**
+ * Bulk import all race results for a season
+ * POST /api/admin/f1-data/import-season/:year
+ */
+export const bulkImportSeason = async (req: AuthRequest, res: Response) => {
+  try {
+    const { year } = req.params;
+    const seasonYear = parseInt(year);
+
+    if (isNaN(seasonYear) || seasonYear < 1950 || seasonYear > 2100) {
+      return res.status(400).json({ error: 'Invalid year' });
+    }
+
+    const result = await f1DataTransformer.importAllRacesForSeason(seasonYear);
+
+    res.json(result);
+  } catch (error: any) {
+    console.error('Bulk import season error:', error);
+    res.status(500).json({
+      error: 'Failed to bulk import season',
       details: error.message
     });
   }
