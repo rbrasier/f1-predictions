@@ -6,7 +6,12 @@ import {
   getSeasonResults,
   recalculateAllScores,
   raceResultValidation,
-  seasonResultValidation
+  seasonResultValidation,
+  refreshSeasonData,
+  refreshRaceResults,
+  getCacheStatus,
+  clearSeasonCache,
+  clearAllCache
 } from '../controllers/adminController';
 import { authenticate, requireAdmin } from '../middleware/auth';
 
@@ -26,5 +31,12 @@ router.get('/seasons/:seasonId/results', getSeasonResults);
 
 // Scoring
 router.post('/recalculate-scores', recalculateAllScores);
+
+// F1 API Data Management
+router.get('/f1-data/refresh/:year', refreshSeasonData);
+router.get('/f1-data/refresh/:year/:round', refreshRaceResults);
+router.get('/f1-data/cache-status', getCacheStatus);
+router.delete('/f1-data/cache/:year', clearSeasonCache);
+router.delete('/f1-data/cache', clearAllCache);
 
 export default router;

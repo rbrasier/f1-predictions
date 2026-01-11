@@ -11,12 +11,17 @@ import {
   getAllRacePredictions,
   getAllSeasonPredictions,
   getActiveSeason,
-  recalculateAllScores
+  recalculateAllScores,
+  refreshSeasonData,
+  refreshRaceResults,
+  getCacheStatus,
+  clearSeasonCache,
+  clearAllCache
 } from '../services/api';
 import { Race, Driver, Team, Season } from '../types';
 
 export const AdminPage = () => {
-  const [activeTab, setActiveTab] = useState<'races' | 'season'>('races');
+  const [activeTab, setActiveTab] = useState<'races' | 'season' | 'f1data'>('races');
   const [races, setRaces] = useState<Race[]>([]);
   const [selectedRace, setSelectedRace] = useState<Race | null>(null);
   const [drivers, setDrivers] = useState<Driver[]>([]);
@@ -28,6 +33,12 @@ export const AdminPage = () => {
   const [success, setSuccess] = useState('');
   const [crazyPredictions, setCrazyPredictions] = useState<any[]>([]);
   const [crazyPredictionsHappened, setCrazyPredictionsHappened] = useState<number[]>([]);
+
+  // F1 Data Management State
+  const [cacheStatus, setCacheStatus] = useState<any>(null);
+  const [refreshYear, setRefreshYear] = useState<number>(2024);
+  const [refreshRound, setRefreshRound] = useState<number>(1);
+  const [dataLoading, setDataLoading] = useState(false);
 
   // Race Results Form State
   const [polePosition, setPolePosition] = useState<number>(0);
@@ -192,6 +203,88 @@ export const AdminPage = () => {
     );
   };
 
+  // F1 Data Management Functions
+  const loadCacheStatus = async () => {
+    try {
+      const status = await getCacheStatus();
+      setCacheStatus(status);
+    } catch (err) {
+      console.error('Failed to load cache status');
+    }
+  };
+
+  const handleRefreshSeasonData = async () => {
+    setDataLoading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      await refreshSeasonData(refreshYear);
+      setSuccess(`Successfully refreshed all data for ${refreshYear} season`);
+      await loadCacheStatus();
+    } catch (err: any) {
+      setError(err.response?.data?.details || 'Failed to refresh season data');
+    } finally {
+      setDataLoading(false);
+    }
+  };
+
+  const handleRefreshRaceResults = async () => {
+    setDataLoading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      await refreshRaceResults(refreshYear, refreshRound);
+      setSuccess(`Successfully refreshed results for ${refreshYear} Round ${refreshRound}`);
+      await loadCacheStatus();
+    } catch (err: any) {
+      setError(err.response?.data?.details || 'Failed to refresh race results');
+    } finally {
+      setDataLoading(false);
+    }
+  };
+
+  const handleClearSeasonCache = async (year: number) => {
+    if (!confirm(`Are you sure you want to clear cache for ${year} season?`)) {
+      return;
+    }
+
+    setDataLoading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      await clearSeasonCache(year);
+      setSuccess(`Successfully cleared cache for ${year} season`);
+      await loadCacheStatus();
+    } catch (err: any) {
+      setError('Failed to clear cache');
+    } finally {
+      setDataLoading(false);
+    }
+  };
+
+  const handleClearAllCache = async () => {
+    if (!confirm('Are you sure you want to clear ALL cached F1 data?')) {
+      return;
+    }
+
+    setDataLoading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      await clearAllCache();
+      setSuccess('Successfully cleared all cached F1 data');
+      await loadCacheStatus();
+    } catch (err: any) {
+      setError('Failed to clear cache');
+    } finally {
+      setDataLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <Layout>
@@ -250,6 +343,19 @@ export const AdminPage = () => {
             }`}
           >
             Enter Season Results
+          </button>
+          <button
+            onClick={() => {
+              setActiveTab('f1data');
+              loadCacheStatus();
+            }}
+            className={`px-6 py-3 rounded-lg font-bold ${
+              activeTab === 'f1data'
+                ? 'bg-f1-red text-white'
+                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
+          >
+            F1 Data Management
           </button>
         </div>
 
@@ -517,6 +623,190 @@ export const AdminPage = () => {
               {submitting ? 'Saving...' : 'Save Season Results & Calculate Scores'}
             </button>
           </form>
+        )}
+
+        {/* F1 Data Management Tab */}
+        {activeTab === 'f1data' && (
+          <div className="space-y-6">
+            {/* Refresh Data Section */}
+            <div className="bg-white p-6 rounded-lg shadow">
+              <h3 className="text-xl font-bold mb-4">Refresh F1 Data from Jolpica API</h3>
+              <p className="text-gray-600 mb-4">
+                Pull the latest F1 data from the Jolpica API (https://api.jolpi.ca/ergast).
+                Data is cached for 24 hours to reduce API calls.
+              </p>
+
+              <div className="space-y-4">
+                {/* Refresh Season Data */}
+                <div className="border rounded-lg p-4">
+                  <h4 className="font-bold mb-3">Refresh Full Season Data</h4>
+                  <p className="text-sm text-gray-600 mb-3">
+                    Fetches schedule, drivers, constructors, and standings for a season
+                  </p>
+                  <div className="flex items-end space-x-3">
+                    <div className="flex-1">
+                      <label className="block text-sm font-medium mb-1">Season Year</label>
+                      <input
+                        type="number"
+                        value={refreshYear}
+                        onChange={(e) => setRefreshYear(parseInt(e.target.value))}
+                        className="w-full px-3 py-2 border rounded"
+                        min="2020"
+                        max="2030"
+                      />
+                    </div>
+                    <button
+                      onClick={handleRefreshSeasonData}
+                      disabled={dataLoading}
+                      className="bg-blue-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      {dataLoading ? 'Refreshing...' : 'Refresh Season'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Refresh Race Results */}
+                <div className="border rounded-lg p-4">
+                  <h4 className="font-bold mb-3">Refresh Race Results</h4>
+                  <p className="text-sm text-gray-600 mb-3">
+                    Fetches race results, qualifying, and sprint data for a specific race
+                  </p>
+                  <div className="flex items-end space-x-3">
+                    <div className="flex-1">
+                      <label className="block text-sm font-medium mb-1">Season Year</label>
+                      <input
+                        type="number"
+                        value={refreshYear}
+                        onChange={(e) => setRefreshYear(parseInt(e.target.value))}
+                        className="w-full px-3 py-2 border rounded"
+                        min="2020"
+                        max="2030"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <label className="block text-sm font-medium mb-1">Round Number</label>
+                      <input
+                        type="number"
+                        value={refreshRound}
+                        onChange={(e) => setRefreshRound(parseInt(e.target.value))}
+                        className="w-full px-3 py-2 border rounded"
+                        min="1"
+                        max="24"
+                      />
+                    </div>
+                    <button
+                      onClick={handleRefreshRaceResults}
+                      disabled={dataLoading}
+                      className="bg-blue-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      {dataLoading ? 'Refreshing...' : 'Refresh Race'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Cache Status Section */}
+            <div className="bg-white p-6 rounded-lg shadow">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-bold">Cache Status</h3>
+                <button
+                  onClick={loadCacheStatus}
+                  disabled={dataLoading}
+                  className="bg-gray-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-gray-700 disabled:opacity-50"
+                >
+                  Refresh Status
+                </button>
+              </div>
+
+              {cacheStatus ? (
+                <div className="space-y-4">
+                  {/* Summary */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg">
+                    <div>
+                      <div className="text-sm text-gray-600">Total Records</div>
+                      <div className="text-2xl font-bold">{cacheStatus.summary.total_records}</div>
+                    </div>
+                    <div>
+                      <div className="text-sm text-gray-600">Cache Size</div>
+                      <div className="text-2xl font-bold">
+                        {(cacheStatus.summary.total_size_bytes / 1024).toFixed(1)} KB
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-sm text-gray-600">Data Types</div>
+                      <div className="text-2xl font-bold">
+                        {Object.keys(cacheStatus.summary.by_type).length}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* By Season */}
+                  {Object.keys(cacheStatus.summary.by_season).length > 0 && (
+                    <div>
+                      <h4 className="font-bold mb-2">Cached Seasons</h4>
+                      <div className="space-y-2">
+                        {Object.values(cacheStatus.summary.by_season).map((season: any) => (
+                          <div key={season.year} className="flex justify-between items-center p-3 border rounded">
+                            <div>
+                              <span className="font-bold">{season.year}</span>
+                              <span className="text-sm text-gray-600 ml-3">
+                                {season.record_count} records
+                              </span>
+                              <span className="text-sm text-gray-600 ml-3">
+                                Last updated: {new Date(season.last_updated).toLocaleString()}
+                              </span>
+                            </div>
+                            <button
+                              onClick={() => handleClearSeasonCache(season.year)}
+                              disabled={dataLoading}
+                              className="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700 disabled:opacity-50"
+                            >
+                              Clear
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Clear All Button */}
+                  <button
+                    onClick={handleClearAllCache}
+                    disabled={dataLoading}
+                    className="w-full bg-red-600 text-white py-2 px-4 rounded-lg font-bold hover:bg-red-700 disabled:opacity-50"
+                  >
+                    Clear All Cache
+                  </button>
+                </div>
+              ) : (
+                <div className="text-center text-gray-500 py-8">
+                  Click "Refresh Status" to load cache information
+                </div>
+              )}
+            </div>
+
+            {/* Documentation */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+              <h3 className="text-lg font-bold mb-2">About the Jolpica F1 API</h3>
+              <div className="text-sm text-gray-700 space-y-2">
+                <p>
+                  <strong>Base URL:</strong> https://api.jolpi.ca/ergast/f1/
+                </p>
+                <p>
+                  <strong>Rate Limit:</strong> 200 requests per hour (unauthenticated)
+                </p>
+                <p>
+                  <strong>Cache Duration:</strong> Data is cached for 24 hours to minimize API calls
+                </p>
+                <p className="pt-2">
+                  The Jolpica API is the successor to the Ergast F1 API, providing comprehensive
+                  Formula 1 data including race schedules, results, standings, driver and constructor
+                  information.
+                </p>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </Layout>

@@ -3,6 +3,7 @@ import { body, validationResult } from 'express-validator';
 import db from '../db/database';
 import { AuthRequest } from '../middleware/auth';
 import { RaceResult, SeasonResult } from '../types';
+import { f1ApiService } from '../services/f1ApiService';
 
 // Race Results
 export const raceResultValidation = [
@@ -462,5 +463,176 @@ export const recalculateAllScores = async (req: AuthRequest, res: Response) => {
   } catch (error) {
     console.error('Recalculate scores error:', error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// F1 API Data Refresh Endpoints
+
+/**
+ * Refresh all F1 data for a specific season
+ * GET /api/admin/f1-data/refresh/:year
+ */
+export const refreshSeasonData = async (req: AuthRequest, res: Response) => {
+  try {
+    const { year } = req.params;
+    const seasonYear = parseInt(year);
+
+    if (isNaN(seasonYear) || seasonYear < 1950 || seasonYear > 2100) {
+      return res.status(400).json({ error: 'Invalid year' });
+    }
+
+    await f1ApiService.refreshSeasonData(seasonYear);
+
+    res.json({
+      success: true,
+      message: `Successfully refreshed all data for ${seasonYear} season`,
+      year: seasonYear
+    });
+  } catch (error: any) {
+    console.error('Refresh season data error:', error);
+    res.status(500).json({
+      error: 'Failed to refresh season data',
+      details: error.message
+    });
+  }
+};
+
+/**
+ * Refresh race results for a specific round
+ * GET /api/admin/f1-data/refresh/:year/:round
+ */
+export const refreshRaceResults = async (req: AuthRequest, res: Response) => {
+  try {
+    const { year, round } = req.params;
+    const seasonYear = parseInt(year);
+    const roundNumber = parseInt(round);
+
+    if (isNaN(seasonYear) || isNaN(roundNumber)) {
+      return res.status(400).json({ error: 'Invalid year or round number' });
+    }
+
+    await f1ApiService.refreshRaceResults(seasonYear, roundNumber);
+
+    res.json({
+      success: true,
+      message: `Successfully refreshed results for ${seasonYear} Round ${roundNumber}`,
+      year: seasonYear,
+      round: roundNumber
+    });
+  } catch (error: any) {
+    console.error('Refresh race results error:', error);
+    res.status(500).json({
+      error: 'Failed to refresh race results',
+      details: error.message
+    });
+  }
+};
+
+/**
+ * Get F1 API cache status
+ * GET /api/admin/f1-data/cache-status
+ */
+export const getCacheStatus = async (req: AuthRequest, res: Response) => {
+  try {
+    const cacheRecords = db.prepare(`
+      SELECT
+        resource_type,
+        season_year,
+        round_number,
+        last_fetched_at,
+        LENGTH(data_json) as data_size
+      FROM f1_api_cache
+      ORDER BY season_year DESC, resource_type, round_number
+    `).all() as any[];
+
+    const summary = {
+      total_records: cacheRecords.length,
+      total_size_bytes: cacheRecords.reduce((sum, r) => sum + (r.data_size || 0), 0),
+      by_season: {} as Record<number, any>,
+      by_type: {} as Record<string, number>
+    };
+
+    // Group by season
+    for (const record of cacheRecords) {
+      if (record.season_year) {
+        if (!summary.by_season[record.season_year]) {
+          summary.by_season[record.season_year] = {
+            year: record.season_year,
+            record_count: 0,
+            last_updated: record.last_fetched_at
+          };
+        }
+        summary.by_season[record.season_year].record_count++;
+
+        // Track most recent update
+        if (record.last_fetched_at > summary.by_season[record.season_year].last_updated) {
+          summary.by_season[record.season_year].last_updated = record.last_fetched_at;
+        }
+      }
+
+      // Count by resource type
+      if (!summary.by_type[record.resource_type]) {
+        summary.by_type[record.resource_type] = 0;
+      }
+      summary.by_type[record.resource_type]++;
+    }
+
+    res.json({
+      summary,
+      records: cacheRecords
+    });
+  } catch (error) {
+    console.error('Get cache status error:', error);
+    res.status(500).json({ error: 'Failed to get cache status' });
+  }
+};
+
+/**
+ * Clear F1 API cache for a season
+ * DELETE /api/admin/f1-data/cache/:year
+ */
+export const clearSeasonCache = async (req: AuthRequest, res: Response) => {
+  try {
+    const { year } = req.params;
+    const seasonYear = parseInt(year);
+
+    if (isNaN(seasonYear)) {
+      return res.status(400).json({ error: 'Invalid year' });
+    }
+
+    f1ApiService.clearSeasonCache(seasonYear);
+
+    res.json({
+      success: true,
+      message: `Successfully cleared cache for ${seasonYear} season`,
+      year: seasonYear
+    });
+  } catch (error: any) {
+    console.error('Clear season cache error:', error);
+    res.status(500).json({
+      error: 'Failed to clear cache',
+      details: error.message
+    });
+  }
+};
+
+/**
+ * Clear all F1 API cache
+ * DELETE /api/admin/f1-data/cache
+ */
+export const clearAllCache = async (req: AuthRequest, res: Response) => {
+  try {
+    f1ApiService.clearCache();
+
+    res.json({
+      success: true,
+      message: 'Successfully cleared all cached F1 API data'
+    });
+  } catch (error: any) {
+    console.error('Clear all cache error:', error);
+    res.status(500).json({
+      error: 'Failed to clear cache',
+      details: error.message
+    });
   }
 };
