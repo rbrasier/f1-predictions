@@ -7,47 +7,25 @@ export interface User {
   created_at: string;
 }
 
-export interface Season {
-  id: number;
-  year: number;
-  prediction_deadline: string;
-  is_active: boolean;
-}
-
-export interface Driver {
-  id: number;
-  name: string;
-  team_id: number | null;
-  is_active: boolean;
-  image_url: string | null;
-}
-
-export interface Team {
-  id: number;
-  name: string;
-  is_top_four: boolean;
-  is_active: boolean;
-}
-
 export interface TeamPrincipal {
   id: number;
   name: string;
-  team_id: number | null;
-  is_active: boolean;
+  constructor_id: string;
+  season_year: number;
 }
 
 export interface DriverTeamPairing {
-  driver_id: number;
-  team_id: number;
+  driver_api_id: string;
+  constructor_api_id: string;
 }
 
 export interface SeasonPrediction {
   id: number;
   user_id: number;
-  season_id: number;
-  drivers_championship_order: string; // JSON array of driver IDs
-  constructors_championship_order: string; // JSON array of team IDs
-  mid_season_sackings: string | null; // JSON array of driver/principal IDs
+  season_year: number;
+  drivers_championship_order: string; // JSON array of driver API IDs
+  constructors_championship_order: string; // JSON array of constructor API IDs
+  mid_season_sackings: string | null; // JSON array of principal/driver API IDs
   audi_vs_cadillac: string;
   crazy_prediction: string | null;
   grid_2027: string; // JSON array of DriverTeamPairing
@@ -56,53 +34,44 @@ export interface SeasonPrediction {
   submitted_at: string;
 }
 
-export interface Race {
-  id: number;
-  season_id: number;
-  name: string;
-  round_number: number;
-  fp1_start: string;
-  race_date: string;
-  is_sprint_weekend: boolean;
-  location: string;
-}
-
 export interface RacePrediction {
   id: number;
   user_id: number;
-  race_id: number;
-  pole_position_driver_id: number | null;
-  podium_first_driver_id: number | null;
-  podium_second_driver_id: number | null;
-  podium_third_driver_id: number | null;
-  midfield_hero_driver_id: number | null;
+  season_year: number;
+  round_number: number;
+  pole_position_driver_api_id: string | null;
+  podium_first_driver_api_id: string | null;
+  podium_second_driver_api_id: string | null;
+  podium_third_driver_api_id: string | null;
+  midfield_hero_driver_api_id: string | null;
   crazy_prediction: string | null;
-  sprint_pole_driver_id: number | null;
-  sprint_winner_driver_id: number | null;
-  sprint_midfield_hero_driver_id: number | null;
+  sprint_pole_driver_api_id: string | null;
+  sprint_winner_driver_api_id: string | null;
+  sprint_midfield_hero_driver_api_id: string | null;
   points_earned: number;
   submitted_at: string;
 }
 
 export interface RaceResult {
   id: number;
-  race_id: number;
-  pole_position_driver_id: number | null;
-  podium_first_driver_id: number | null;
-  podium_second_driver_id: number | null;
-  podium_third_driver_id: number | null;
-  midfield_hero_driver_id: number | null;
-  sprint_pole_driver_id: number | null;
-  sprint_winner_driver_id: number | null;
-  sprint_midfield_hero_driver_id: number | null;
+  season_year: number;
+  round_number: number;
+  pole_position_driver_api_id: string | null;
+  podium_first_driver_api_id: string | null;
+  podium_second_driver_api_id: string | null;
+  podium_third_driver_api_id: string | null;
+  midfield_hero_driver_api_id: string | null;
+  sprint_pole_driver_api_id: string | null;
+  sprint_winner_driver_api_id: string | null;
+  sprint_midfield_hero_driver_api_id: string | null;
   entered_at: string;
 }
 
 export interface SeasonResult {
   id: number;
-  season_id: number;
-  drivers_championship_order: string;
-  constructors_championship_order: string;
+  season_year: number;
+  drivers_championship_order: string; // JSON array of driver API IDs
+  constructors_championship_order: string; // JSON array of constructor API IDs
   mid_season_sackings: string | null;
   audi_vs_cadillac_winner: string;
   actual_grid_2027: string | null;
@@ -150,9 +119,9 @@ export interface AuthResponse {
 }
 
 export interface SeasonPredictionRequest {
-  drivers_championship_order: number[];
-  constructors_championship_order: number[];
-  mid_season_sackings: number[];
+  drivers_championship_order: string[]; // Array of driver API IDs
+  constructors_championship_order: string[]; // Array of constructor API IDs
+  mid_season_sackings: string[]; // Array of principal/driver API IDs
   audi_vs_cadillac: 'audi' | 'cadillac';
   crazy_prediction: string;
   grid_2027: DriverTeamPairing[];
@@ -160,15 +129,15 @@ export interface SeasonPredictionRequest {
 }
 
 export interface RacePredictionRequest {
-  pole_position_driver_id: number;
-  podium_first_driver_id: number;
-  podium_second_driver_id: number;
-  podium_third_driver_id: number;
-  midfield_hero_driver_id: number;
+  pole_position_driver_api_id: string;
+  podium_first_driver_api_id: string;
+  podium_second_driver_api_id: string;
+  podium_third_driver_api_id: string;
+  midfield_hero_driver_api_id: string;
   crazy_prediction: string;
-  sprint_pole_driver_id?: number;
-  sprint_winner_driver_id?: number;
-  sprint_midfield_hero_driver_id?: number;
+  sprint_pole_driver_api_id?: string;
+  sprint_winner_driver_api_id?: string;
+  sprint_midfield_hero_driver_api_id?: string;
 }
 
 export interface LeaderboardEntry {

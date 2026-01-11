@@ -3,6 +3,7 @@ import { body, validationResult } from 'express-validator';
 import db from '../db/database';
 import { AuthRequest } from '../middleware/auth';
 import { SeasonPrediction, SeasonPredictionRequest } from '../types';
+import gridData from '../utils/gridData';
 
 export const seasonPredictionValidation = [
   body('drivers_championship_order')
@@ -32,8 +33,13 @@ export const submitSeasonPrediction = async (req: AuthRequest, res: Response) =>
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { seasonId } = req.params;
+    const { year } = req.params;
+    const seasonYear = parseInt(year);
     const userId = req.user!.id;
+
+    if (isNaN(seasonYear)) {
+      return res.status(400).json({ error: 'Invalid year' });
+    }
 
     const {
       drivers_championship_order,
@@ -45,16 +51,15 @@ export const submitSeasonPrediction = async (req: AuthRequest, res: Response) =>
       grid_2028
     } = req.body as SeasonPredictionRequest;
 
-    // Check if season exists and deadline hasn't passed
-    const season = db.prepare('SELECT prediction_deadline FROM seasons WHERE id = ?').get(seasonId) as { prediction_deadline: string } | undefined;
-
-    if (!season) {
+    // Get season info from grid-data.json
+    const seasonData = gridData[year];
+    if (!seasonData) {
       return res.status(404).json({ error: 'Season not found' });
     }
 
-    // Note: Deadline enforcement is honor system as per spec, but we'll check anyway
+    // Check deadline
     const now = new Date();
-    const deadline = new Date(season.prediction_deadline);
+    const deadline = new Date(seasonData.prediction_deadline);
 
     if (now > deadline) {
       return res.status(400).json({ error: 'Prediction deadline has passed' });
@@ -62,8 +67,8 @@ export const submitSeasonPrediction = async (req: AuthRequest, res: Response) =>
 
     // Check if prediction already exists
     const existing = db.prepare(`
-      SELECT id FROM season_predictions WHERE user_id = ? AND season_id = ?
-    `).get(userId, seasonId) as { id: number } | undefined;
+      SELECT id FROM season_predictions WHERE user_id = ? AND season_year = ?
+    `).get(userId, seasonYear) as { id: number } | undefined;
 
     const driversJson = JSON.stringify(drivers_championship_order);
     const constructorsJson = JSON.stringify(constructors_championship_order);
@@ -101,12 +106,12 @@ export const submitSeasonPrediction = async (req: AuthRequest, res: Response) =>
       // Create new prediction
       const result = db.prepare(`
         INSERT INTO season_predictions (
-          user_id, season_id, drivers_championship_order, constructors_championship_order,
+          user_id, season_year, drivers_championship_order, constructors_championship_order,
           mid_season_sackings, audi_vs_cadillac, crazy_prediction, grid_2027, grid_2028
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         userId,
-        seasonId,
+        seasonYear,
         driversJson,
         constructorsJson,
         sackingsJson,
@@ -127,13 +132,18 @@ export const submitSeasonPrediction = async (req: AuthRequest, res: Response) =>
 
 export const getMySeasonPrediction = (req: AuthRequest, res: Response) => {
   try {
-    const { seasonId } = req.params;
+    const { year } = req.params;
+    const seasonYear = parseInt(year);
     const userId = req.user!.id;
+
+    if (isNaN(seasonYear)) {
+      return res.status(400).json({ error: 'Invalid year' });
+    }
 
     const prediction = db.prepare(`
       SELECT * FROM season_predictions
-      WHERE user_id = ? AND season_id = ?
-    `).get(userId, seasonId) as SeasonPrediction | undefined;
+      WHERE user_id = ? AND season_year = ?
+    `).get(userId, seasonYear) as SeasonPrediction | undefined;
 
     if (!prediction) {
       return res.status(404).json({ error: 'Prediction not found' });
@@ -148,15 +158,20 @@ export const getMySeasonPrediction = (req: AuthRequest, res: Response) => {
 
 export const getAllSeasonPredictions = (req: AuthRequest, res: Response) => {
   try {
-    const { seasonId } = req.params;
+    const { year } = req.params;
+    const seasonYear = parseInt(year);
+
+    if (isNaN(seasonYear)) {
+      return res.status(400).json({ error: 'Invalid year' });
+    }
 
     const predictions = db.prepare(`
       SELECT sp.*, u.display_name
       FROM season_predictions sp
       JOIN users u ON sp.user_id = u.id
-      WHERE sp.season_id = ?
+      WHERE sp.season_year = ?
       ORDER BY u.display_name
-    `).all(seasonId) as (SeasonPrediction & { display_name: string })[];
+    `).all(seasonYear) as (SeasonPrediction & { display_name: string })[];
 
     res.json(predictions);
   } catch (error) {

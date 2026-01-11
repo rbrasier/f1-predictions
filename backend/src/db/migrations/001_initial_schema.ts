@@ -91,5 +91,39 @@ export function up(db: any) {
     )
   `).run();
 
+  // Race Results table - stores actual race results using API identifiers
+  db.prepare(`
+    CREATE TABLE IF NOT EXISTS race_results (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      season_year INTEGER NOT NULL,
+      round_number INTEGER NOT NULL,
+      pole_position_driver_api_id TEXT,
+      podium_first_driver_api_id TEXT,
+      podium_second_driver_api_id TEXT,
+      podium_third_driver_api_id TEXT,
+      midfield_hero_driver_api_id TEXT,
+      sprint_pole_driver_api_id TEXT,
+      sprint_winner_driver_api_id TEXT,
+      sprint_midfield_hero_driver_api_id TEXT,
+      entered_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(season_year, round_number)
+    )
+  `).run();
+
+  // Season Results table - stores actual season championship results using API identifiers
+  db.prepare(`
+    CREATE TABLE IF NOT EXISTS season_results (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      season_year INTEGER NOT NULL UNIQUE,
+      drivers_championship_order TEXT NOT NULL,
+      constructors_championship_order TEXT NOT NULL,
+      mid_season_sackings TEXT,
+      audi_vs_cadillac_winner TEXT,
+      actual_grid_2027 TEXT,
+      actual_grid_2028 TEXT,
+      entered_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `).run();
+
   console.log('  Created all database tables');
 }

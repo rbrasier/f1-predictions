@@ -5,7 +5,7 @@ import { AuthRequest } from '../middleware/auth';
 
 export const getLeaderboard = (req: AuthRequest, res: Response) => {
   try {
-    const seasonId = req.query.seasonId;
+    const seasonYear = req.query.seasonYear ? parseInt(req.query.seasonYear as string) : undefined;
     const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
 
     // Get all users with their total points
@@ -17,9 +17,8 @@ export const getLeaderboard = (req: AuthRequest, res: Response) => {
         COALESCE(SUM(rp.points_earned), 0) as race_points,
         COALESCE(sp.points_earned, 0) + COALESCE(SUM(rp.points_earned), 0) as total_points
       FROM users u
-      LEFT JOIN season_predictions sp ON u.id = sp.user_id ${seasonId ? 'AND sp.season_id = ?' : ''}
-      LEFT JOIN race_predictions rp ON u.id = rp.user_id
-      LEFT JOIN races r ON rp.race_id = r.id ${seasonId ? 'AND r.season_id = ?' : ''}
+      LEFT JOIN season_predictions sp ON u.id = sp.user_id ${seasonYear ? 'AND sp.season_year = ?' : ''}
+      LEFT JOIN race_predictions rp ON u.id = rp.user_id ${seasonYear ? 'AND rp.season_year = ?' : ''}
       WHERE u.is_admin = 0
       GROUP BY u.id, u.display_name, sp.points_earned
       ORDER BY total_points DESC, u.display_name
@@ -29,7 +28,7 @@ export const getLeaderboard = (req: AuthRequest, res: Response) => {
       query += ` LIMIT ${limit}`;
     }
 
-    const params = seasonId ? [seasonId, seasonId] : [];
+    const params = seasonYear ? [seasonYear, seasonYear] : [];
     const leaderboard = db.prepare(query).all(...params);
 
     // Add rank
@@ -48,25 +47,23 @@ export const getLeaderboard = (req: AuthRequest, res: Response) => {
 export const getUserBreakdown = (req: AuthRequest, res: Response) => {
   try {
     const { userId } = req.params;
-    const seasonId = req.query.seasonId;
+    const seasonYear = req.query.seasonYear ? parseInt(req.query.seasonYear as string) : undefined;
 
     // Get season prediction
-    const seasonPredictionParams = seasonId ? [userId, seasonId] : [userId];
+    const seasonPredictionParams = seasonYear ? [userId, seasonYear] : [userId];
     const seasonPrediction = db.prepare(`
-      SELECT sp.*, s.year
+      SELECT sp.*
       FROM season_predictions sp
-      JOIN seasons s ON sp.season_id = s.id
-      WHERE sp.user_id = ? ${seasonId ? 'AND sp.season_id = ?' : ''}
+      WHERE sp.user_id = ? ${seasonYear ? 'AND sp.season_year = ?' : ''}
     `).get(...seasonPredictionParams);
 
     // Get race predictions
-    const racePredictionParams = seasonId ? [userId, seasonId] : [userId];
+    const racePredictionParams = seasonYear ? [userId, seasonYear] : [userId];
     const racePredictions = db.prepare(`
-      SELECT rp.*, r.name, r.round_number, r.race_date
+      SELECT rp.*
       FROM race_predictions rp
-      JOIN races r ON rp.race_id = r.id
-      WHERE rp.user_id = ? ${seasonId ? 'AND r.season_id = ?' : ''}
-      ORDER BY r.round_number
+      WHERE rp.user_id = ? ${seasonYear ? 'AND rp.season_year = ?' : ''}
+      ORDER BY rp.round_number
     `).all(...racePredictionParams);
 
     res.json({
@@ -81,7 +78,7 @@ export const getUserBreakdown = (req: AuthRequest, res: Response) => {
 
 export const exportToExcel = async (req: AuthRequest, res: Response) => {
   try {
-    const seasonId = req.query.seasonId as string | undefined;
+    const seasonYear = req.query.seasonYear ? parseInt(req.query.seasonYear as string) : undefined;
 
     const workbook = new ExcelJS.Workbook();
     workbook.creator = 'F1 Tipping Competition';
@@ -105,15 +102,14 @@ export const exportToExcel = async (req: AuthRequest, res: Response) => {
         COALESCE(SUM(rp.points_earned), 0) as race_points,
         COALESCE(sp.points_earned, 0) + COALESCE(SUM(rp.points_earned), 0) as total_points
       FROM users u
-      LEFT JOIN season_predictions sp ON u.id = sp.user_id ${seasonId ? 'AND sp.season_id = ?' : ''}
-      LEFT JOIN race_predictions rp ON u.id = rp.user_id
-      LEFT JOIN races r ON rp.race_id = r.id ${seasonId ? 'AND r.season_id = ?' : ''}
+      LEFT JOIN season_predictions sp ON u.id = sp.user_id ${seasonYear ? 'AND sp.season_year = ?' : ''}
+      LEFT JOIN race_predictions rp ON u.id = rp.user_id ${seasonYear ? 'AND rp.season_year = ?' : ''}
       WHERE u.is_admin = 0
       GROUP BY u.id, u.display_name, sp.points_earned
       ORDER BY total_points DESC, u.display_name
     `;
 
-    const params = seasonId ? [seasonId, seasonId] : [];
+    const params = seasonYear ? [seasonYear, seasonYear] : [];
     const leaderboard = db.prepare(leaderboardQuery).all(...params) as any[];
 
     leaderboard.forEach((entry, index) => {
@@ -147,9 +143,9 @@ export const exportToExcel = async (req: AuthRequest, res: Response) => {
       SELECT sp.*, u.display_name
       FROM season_predictions sp
       JOIN users u ON sp.user_id = u.id
-      ${seasonId ? 'WHERE sp.season_id = ?' : ''}
+      ${seasonYear ? 'WHERE sp.season_year = ?' : ''}
       ORDER BY u.display_name
-    `).all(...(seasonId ? [seasonId] : [])) as any[];
+    `).all(...(seasonYear ? [seasonYear] : [])) as any[];
 
     seasonPredictions.forEach(pred => {
       const driversOrder = JSON.parse(pred.drivers_championship_order);
@@ -174,15 +170,16 @@ export const exportToExcel = async (req: AuthRequest, res: Response) => {
     };
 
     // Sheet 3+: Race by Race
-    const races = db.prepare(`
-      SELECT id, name, round_number
-      FROM races
-      ${seasonId ? 'WHERE season_id = ?' : ''}
-      ORDER BY round_number
-    `).all(...(seasonId ? [seasonId] : [])) as any[];
+    // Get unique race rounds from predictions
+    const raceRounds = db.prepare(`
+      SELECT DISTINCT season_year, round_number
+      FROM race_predictions
+      ${seasonYear ? 'WHERE season_year = ?' : ''}
+      ORDER BY season_year, round_number
+    `).all(...(seasonYear ? [seasonYear] : [])) as any[];
 
-    for (const race of races) {
-      const raceSheet = workbook.addWorksheet(`R${race.round_number}: ${race.name.substring(0, 20)}`);
+    for (const raceRound of raceRounds) {
+      const raceSheet = workbook.addWorksheet(`${raceRound.season_year} R${raceRound.round_number}`);
       raceSheet.columns = [
         { header: 'Player', key: 'display_name', width: 25 },
         { header: 'Pole', key: 'pole', width: 20 },
@@ -196,16 +193,16 @@ export const exportToExcel = async (req: AuthRequest, res: Response) => {
         SELECT rp.*, u.display_name
         FROM race_predictions rp
         JOIN users u ON rp.user_id = u.id
-        WHERE rp.race_id = ?
+        WHERE rp.season_year = ? AND rp.round_number = ?
         ORDER BY u.display_name
-      `).all(race.id) as any[];
+      `).all(raceRound.season_year, raceRound.round_number) as any[];
 
       predictions.forEach(pred => {
         raceSheet.addRow({
           display_name: pred.display_name,
-          pole: pred.pole_position_driver_id,
-          podium: `${pred.podium_first_driver_id}, ${pred.podium_second_driver_id}, ${pred.podium_third_driver_id}`,
-          midfield: pred.midfield_hero_driver_id,
+          pole: pred.pole_position_driver_api_id || '',
+          podium: `${pred.podium_first_driver_api_id || ''}, ${pred.podium_second_driver_api_id || ''}, ${pred.podium_third_driver_api_id || ''}`,
+          midfield: pred.midfield_hero_driver_api_id || '',
           crazy: pred.crazy_prediction || '',
           points: pred.points_earned
         });

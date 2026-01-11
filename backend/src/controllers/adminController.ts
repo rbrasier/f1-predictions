@@ -4,16 +4,14 @@ import db from '../db/database';
 import { AuthRequest } from '../middleware/auth';
 import { RaceResult, SeasonResult } from '../types';
 import { f1ApiService } from '../services/f1ApiService';
-import { f1DataTransformer } from '../services/f1DataTransformer';
-import { driverImageService } from '../services/driverImageService';
 
 // Race Results
 export const raceResultValidation = [
-  body('pole_position_driver_id').isInt().withMessage('Pole position driver is required'),
-  body('podium_first_driver_id').isInt().withMessage('First place driver is required'),
-  body('podium_second_driver_id').isInt().withMessage('Second place driver is required'),
-  body('podium_third_driver_id').isInt().withMessage('Third place driver is required'),
-  body('midfield_hero_driver_id').isInt().withMessage('Midfield hero driver is required')
+  body('pole_position_driver_api_id').isString().withMessage('Pole position driver is required'),
+  body('podium_first_driver_api_id').isString().withMessage('First place driver is required'),
+  body('podium_second_driver_api_id').isString().withMessage('Second place driver is required'),
+  body('podium_third_driver_api_id').isString().withMessage('Third place driver is required'),
+  body('midfield_hero_driver_api_id').isString().withMessage('Midfield hero driver is required')
 ];
 
 export const enterRaceResults = async (req: AuthRequest, res: Response) => {
@@ -23,65 +21,78 @@ export const enterRaceResults = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { raceId } = req.params;
+    const { year, round } = req.params;
+    const seasonYear = parseInt(year);
+    const roundNumber = parseInt(round);
+
+    if (isNaN(seasonYear) || isNaN(roundNumber)) {
+      return res.status(400).json({ error: 'Invalid year or round number' });
+    }
+
     const {
-      pole_position_driver_id,
-      podium_first_driver_id,
-      podium_second_driver_id,
-      podium_third_driver_id,
-      midfield_hero_driver_id,
-      sprint_pole_driver_id,
-      sprint_winner_driver_id,
-      sprint_midfield_hero_driver_id,
+      pole_position_driver_api_id,
+      podium_first_driver_api_id,
+      podium_second_driver_api_id,
+      podium_third_driver_api_id,
+      midfield_hero_driver_api_id,
+      sprint_pole_driver_api_id,
+      sprint_winner_driver_api_id,
+      sprint_midfield_hero_driver_api_id,
       crazy_predictions_happened
     } = req.body;
 
     // Check if results already exist
-    const existing = db.prepare('SELECT id FROM race_results WHERE race_id = ?').get(raceId) as { id: number } | undefined;
+    const existing = db.prepare(`
+      SELECT id FROM race_results
+      WHERE season_year = ? AND round_number = ?
+    `).get(seasonYear, roundNumber) as { id: number } | undefined;
 
     if (existing) {
       // Update existing results
       db.prepare(`
         UPDATE race_results
-        SET pole_position_driver_id = ?,
-            podium_first_driver_id = ?,
-            podium_second_driver_id = ?,
-            podium_third_driver_id = ?,
-            midfield_hero_driver_id = ?,
-            sprint_pole_driver_id = ?,
-            sprint_winner_driver_id = ?,
-            sprint_midfield_hero_driver_id = ?,
+        SET pole_position_driver_api_id = ?,
+            podium_first_driver_api_id = ?,
+            podium_second_driver_api_id = ?,
+            podium_third_driver_api_id = ?,
+            midfield_hero_driver_api_id = ?,
+            sprint_pole_driver_api_id = ?,
+            sprint_winner_driver_api_id = ?,
+            sprint_midfield_hero_driver_api_id = ?,
             entered_at = CURRENT_TIMESTAMP
         WHERE id = ?
       `).run(
-        pole_position_driver_id,
-        podium_first_driver_id,
-        podium_second_driver_id,
-        podium_third_driver_id,
-        midfield_hero_driver_id,
-        sprint_pole_driver_id || null,
-        sprint_winner_driver_id || null,
-        sprint_midfield_hero_driver_id || null,
+        pole_position_driver_api_id,
+        podium_first_driver_api_id,
+        podium_second_driver_api_id,
+        podium_third_driver_api_id,
+        midfield_hero_driver_api_id,
+        sprint_pole_driver_api_id || null,
+        sprint_winner_driver_api_id || null,
+        sprint_midfield_hero_driver_api_id || null,
         existing.id
       );
     } else {
       // Insert new results
       db.prepare(`
         INSERT INTO race_results (
-          race_id, pole_position_driver_id, podium_first_driver_id,
-          podium_second_driver_id, podium_third_driver_id, midfield_hero_driver_id,
-          sprint_pole_driver_id, sprint_winner_driver_id, sprint_midfield_hero_driver_id
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          season_year, round_number,
+          pole_position_driver_api_id, podium_first_driver_api_id,
+          podium_second_driver_api_id, podium_third_driver_api_id,
+          midfield_hero_driver_api_id, sprint_pole_driver_api_id,
+          sprint_winner_driver_api_id, sprint_midfield_hero_driver_api_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
-        raceId,
-        pole_position_driver_id,
-        podium_first_driver_id,
-        podium_second_driver_id,
-        podium_third_driver_id,
-        midfield_hero_driver_id,
-        sprint_pole_driver_id || null,
-        sprint_winner_driver_id || null,
-        sprint_midfield_hero_driver_id || null
+        seasonYear,
+        roundNumber,
+        pole_position_driver_api_id,
+        podium_first_driver_api_id,
+        podium_second_driver_api_id,
+        podium_third_driver_api_id,
+        midfield_hero_driver_api_id,
+        sprint_pole_driver_api_id || null,
+        sprint_winner_driver_api_id || null,
+        sprint_midfield_hero_driver_api_id || null
       );
     }
 
@@ -109,9 +120,13 @@ export const enterRaceResults = async (req: AuthRequest, res: Response) => {
     }
 
     // Calculate scores for this race
-    await calculateRaceScores(parseInt(raceId));
+    await calculateRaceScores(seasonYear, roundNumber);
 
-    const results = db.prepare('SELECT * FROM race_results WHERE race_id = ?').get(raceId);
+    const results = db.prepare(`
+      SELECT * FROM race_results
+      WHERE season_year = ? AND round_number = ?
+    `).get(seasonYear, roundNumber);
+
     res.json(results);
   } catch (error) {
     console.error('Enter race results error:', error);
@@ -121,9 +136,18 @@ export const enterRaceResults = async (req: AuthRequest, res: Response) => {
 
 export const getRaceResults = (req: AuthRequest, res: Response) => {
   try {
-    const { raceId } = req.params;
+    const { year, round } = req.params;
+    const seasonYear = parseInt(year);
+    const roundNumber = parseInt(round);
 
-    const results = db.prepare('SELECT * FROM race_results WHERE race_id = ?').get(raceId) as RaceResult | undefined;
+    if (isNaN(seasonYear) || isNaN(roundNumber)) {
+      return res.status(400).json({ error: 'Invalid year or round number' });
+    }
+
+    const results = db.prepare(`
+      SELECT * FROM race_results
+      WHERE season_year = ? AND round_number = ?
+    `).get(seasonYear, roundNumber) as RaceResult | undefined;
 
     if (!results) {
       return res.status(404).json({ error: 'Results not found' });
@@ -156,7 +180,13 @@ export const enterSeasonResults = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { seasonId } = req.params;
+    const { year } = req.params;
+    const seasonYear = parseInt(year);
+
+    if (isNaN(seasonYear)) {
+      return res.status(400).json({ error: 'Invalid year' });
+    }
+
     const {
       drivers_championship_order,
       constructors_championship_order,
@@ -174,7 +204,9 @@ export const enterSeasonResults = async (req: AuthRequest, res: Response) => {
     const grid2028Json = actual_grid_2028 ? JSON.stringify(actual_grid_2028) : null;
 
     // Check if results already exist
-    const existing = db.prepare('SELECT id FROM season_results WHERE season_id = ?').get(seasonId) as { id: number } | undefined;
+    const existing = db.prepare(`
+      SELECT id FROM season_results WHERE season_year = ?
+    `).get(seasonYear) as { id: number } | undefined;
 
     if (existing) {
       // Update existing results
@@ -201,11 +233,11 @@ export const enterSeasonResults = async (req: AuthRequest, res: Response) => {
       // Insert new results
       db.prepare(`
         INSERT INTO season_results (
-          season_id, drivers_championship_order, constructors_championship_order,
+          season_year, drivers_championship_order, constructors_championship_order,
           mid_season_sackings, audi_vs_cadillac_winner, actual_grid_2027, actual_grid_2028
         ) VALUES (?, ?, ?, ?, ?, ?, ?)
       `).run(
-        seasonId,
+        seasonYear,
         driversJson,
         constructorsJson,
         sackingsJson,
@@ -239,9 +271,12 @@ export const enterSeasonResults = async (req: AuthRequest, res: Response) => {
     }
 
     // Calculate scores for season predictions
-    await calculateSeasonScores(parseInt(seasonId));
+    await calculateSeasonScores(seasonYear);
 
-    const results = db.prepare('SELECT * FROM season_results WHERE season_id = ?').get(seasonId);
+    const results = db.prepare(`
+      SELECT * FROM season_results WHERE season_year = ?
+    `).get(seasonYear);
+
     res.json(results);
   } catch (error) {
     console.error('Enter season results error:', error);
@@ -251,9 +286,16 @@ export const enterSeasonResults = async (req: AuthRequest, res: Response) => {
 
 export const getSeasonResults = (req: AuthRequest, res: Response) => {
   try {
-    const { seasonId } = req.params;
+    const { year } = req.params;
+    const seasonYear = parseInt(year);
 
-    const results = db.prepare('SELECT * FROM season_results WHERE season_id = ?').get(seasonId) as SeasonResult | undefined;
+    if (isNaN(seasonYear)) {
+      return res.status(400).json({ error: 'Invalid year' });
+    }
+
+    const results = db.prepare(`
+      SELECT * FROM season_results WHERE season_year = ?
+    `).get(seasonYear) as SeasonResult | undefined;
 
     if (!results) {
       return res.status(404).json({ error: 'Results not found' });
@@ -267,51 +309,57 @@ export const getSeasonResults = (req: AuthRequest, res: Response) => {
 };
 
 // Scoring functions
-async function calculateRaceScores(raceId: number) {
-  const results = db.prepare('SELECT * FROM race_results WHERE race_id = ?').get(raceId) as RaceResult | undefined;
+async function calculateRaceScores(seasonYear: number, roundNumber: number) {
+  const results = db.prepare(`
+    SELECT * FROM race_results
+    WHERE season_year = ? AND round_number = ?
+  `).get(seasonYear, roundNumber) as any;
 
   if (!results) {
     return;
   }
 
-  const predictions = db.prepare('SELECT * FROM race_predictions WHERE race_id = ?').all(raceId) as any[];
+  const predictions = db.prepare(`
+    SELECT * FROM race_predictions
+    WHERE season_year = ? AND round_number = ?
+  `).all(seasonYear, roundNumber) as any[];
 
   for (const prediction of predictions) {
     let points = 0;
 
     // Pole position: 1 point
-    if (prediction.pole_position_driver_id === results.pole_position_driver_id) {
+    if (prediction.pole_position_driver_api_id === results.pole_position_driver_api_id) {
       points += 1;
     }
 
     // Podium: 1 point per correct position (up to 3 points)
-    if (prediction.podium_first_driver_id === results.podium_first_driver_id) {
+    if (prediction.podium_first_driver_api_id === results.podium_first_driver_api_id) {
       points += 1;
     }
-    if (prediction.podium_second_driver_id === results.podium_second_driver_id) {
+    if (prediction.podium_second_driver_api_id === results.podium_second_driver_api_id) {
       points += 1;
     }
-    if (prediction.podium_third_driver_id === results.podium_third_driver_id) {
+    if (prediction.podium_third_driver_api_id === results.podium_third_driver_api_id) {
       points += 1;
     }
 
     // Midfield hero: 1 point
-    if (prediction.midfield_hero_driver_id === results.midfield_hero_driver_id) {
+    if (prediction.midfield_hero_driver_api_id === results.midfield_hero_driver_api_id) {
       points += 1;
     }
 
     // Sprint pole: 1 point
-    if (prediction.sprint_pole_driver_id && prediction.sprint_pole_driver_id === results.sprint_pole_driver_id) {
+    if (prediction.sprint_pole_driver_api_id && prediction.sprint_pole_driver_api_id === results.sprint_pole_driver_api_id) {
       points += 1;
     }
 
     // Sprint winner: 1 point
-    if (prediction.sprint_winner_driver_id && prediction.sprint_winner_driver_id === results.sprint_winner_driver_id) {
+    if (prediction.sprint_winner_driver_api_id && prediction.sprint_winner_driver_api_id === results.sprint_winner_driver_api_id) {
       points += 1;
     }
 
     // Sprint midfield hero: 1 point
-    if (prediction.sprint_midfield_hero_driver_id && prediction.sprint_midfield_hero_driver_id === results.sprint_midfield_hero_driver_id) {
+    if (prediction.sprint_midfield_hero_driver_api_id && prediction.sprint_midfield_hero_driver_api_id === results.sprint_midfield_hero_driver_api_id) {
       points += 1;
     }
 
@@ -330,14 +378,18 @@ async function calculateRaceScores(raceId: number) {
   }
 }
 
-async function calculateSeasonScores(seasonId: number) {
-  const results = db.prepare('SELECT * FROM season_results WHERE season_id = ?').get(seasonId) as SeasonResult | undefined;
+async function calculateSeasonScores(seasonYear: number) {
+  const results = db.prepare(`
+    SELECT * FROM season_results WHERE season_year = ?
+  `).get(seasonYear) as any;
 
   if (!results) {
     return;
   }
 
-  const predictions = db.prepare('SELECT * FROM season_predictions WHERE season_id = ?').all(seasonId) as any[];
+  const predictions = db.prepare(`
+    SELECT * FROM season_predictions WHERE season_year = ?
+  `).all(seasonYear) as any[];
 
   const actualDriversOrder = JSON.parse(results.drivers_championship_order);
   const actualConstructorsOrder = JSON.parse(results.constructors_championship_order);
@@ -382,7 +434,7 @@ async function calculateSeasonScores(seasonId: number) {
       const predictedGrid2027 = JSON.parse(prediction.grid_2027);
       for (const pairing of predictedGrid2027) {
         const match = actualGrid2027.find(
-          (actual: any) => actual.driver_id === pairing.driver_id && actual.team_id === pairing.team_id
+          (actual: any) => actual.driver_api_id === pairing.driver_api_id && actual.constructor_api_id === pairing.constructor_api_id
         );
         if (match) {
           points += 1;
@@ -395,7 +447,7 @@ async function calculateSeasonScores(seasonId: number) {
       const predictedGrid2028 = JSON.parse(prediction.grid_2028);
       for (const pairing of predictedGrid2028) {
         const match = actualGrid2028.find(
-          (actual: any) => actual.driver_id === pairing.driver_id && actual.team_id === pairing.team_id
+          (actual: any) => actual.driver_api_id === pairing.driver_api_id && actual.constructor_api_id === pairing.constructor_api_id
         );
         if (match) {
           points += 1;
@@ -448,17 +500,21 @@ async function didCrazyPredictionHappen(type: string, predictionId: number): Pro
 export const recalculateAllScores = async (req: AuthRequest, res: Response) => {
   try {
     // Recalculate all race scores
-    const raceResults = db.prepare('SELECT race_id FROM race_results').all() as { race_id: number }[];
+    const raceResults = db.prepare(`
+      SELECT season_year, round_number FROM race_results
+    `).all() as { season_year: number; round_number: number }[];
 
     for (const result of raceResults) {
-      await calculateRaceScores(result.race_id);
+      await calculateRaceScores(result.season_year, result.round_number);
     }
 
     // Recalculate all season scores
-    const seasonResults = db.prepare('SELECT season_id FROM season_results').all() as { season_id: number }[];
+    const seasonResults = db.prepare(`
+      SELECT season_year FROM season_results
+    `).all() as { season_year: number }[];
 
     for (const result of seasonResults) {
-      await calculateSeasonScores(result.season_id);
+      await calculateSeasonScores(result.season_year);
     }
 
     res.json({ message: 'All scores recalculated successfully' });
@@ -634,122 +690,6 @@ export const clearAllCache = async (req: AuthRequest, res: Response) => {
     console.error('Clear all cache error:', error);
     res.status(500).json({
       error: 'Failed to clear cache',
-      details: error.message
-    });
-  }
-};
-
-// F1 Data Import/Transform Endpoints
-
-/**
- * Import race results from API and auto-populate database
- * POST /api/admin/f1-data/import-race/:year/:round
- */
-export const importRaceResults = async (req: AuthRequest, res: Response) => {
-  try {
-    const { year, round } = req.params;
-    const seasonYear = parseInt(year);
-    const roundNumber = parseInt(round);
-
-    if (isNaN(seasonYear) || isNaN(roundNumber)) {
-      return res.status(400).json({ error: 'Invalid year or round number' });
-    }
-
-    const result = await f1DataTransformer.importRaceResults(seasonYear, roundNumber);
-
-    if (result.success) {
-      res.json(result);
-    } else {
-      res.status(400).json(result);
-    }
-  } catch (error: any) {
-    console.error('Import race results error:', error);
-    res.status(500).json({
-      error: 'Failed to import race results',
-      details: error.message
-    });
-  }
-};
-
-/**
- * Import season championship standings from API
- * POST /api/admin/f1-data/import-standings/:year
- */
-export const importSeasonStandings = async (req: AuthRequest, res: Response) => {
-  try {
-    const { year } = req.params;
-    const seasonYear = parseInt(year);
-
-    if (isNaN(seasonYear) || seasonYear < 1950 || seasonYear > 2100) {
-      return res.status(400).json({ error: 'Invalid year' });
-    }
-
-    const result = await f1DataTransformer.importSeasonStandings(seasonYear);
-
-    if (result.success) {
-      res.json(result);
-    } else {
-      res.status(400).json(result);
-    }
-  } catch (error: any) {
-    console.error('Import season standings error:', error);
-    res.status(500).json({
-      error: 'Failed to import season standings',
-      details: error.message
-    });
-  }
-};
-
-/**
- * Bulk import all race results for a season
- * POST /api/admin/f1-data/import-season/:year
- */
-export const bulkImportSeason = async (req: AuthRequest, res: Response) => {
-  try {
-    const { year } = req.params;
-    const seasonYear = parseInt(year);
-
-    if (isNaN(seasonYear) || seasonYear < 1950 || seasonYear > 2100) {
-      return res.status(400).json({ error: 'Invalid year' });
-    }
-
-    const result = await f1DataTransformer.importAllRacesForSeason(seasonYear);
-
-    res.json(result);
-  } catch (error: any) {
-    console.error('Bulk import season error:', error);
-    res.status(500).json({
-      error: 'Failed to bulk import season',
-      details: error.message
-    });
-  }
-};
-
-/**
- * Populate driver profile images from cached API data
- * POST /api/admin/f1-data/populate-driver-images/:year
- */
-export const populateDriverImages = async (req: AuthRequest, res: Response) => {
-  try {
-    const { year } = req.params;
-    const seasonYear = parseInt(year);
-
-    if (isNaN(seasonYear) || seasonYear < 1950 || seasonYear > 2100) {
-      return res.status(400).json({ error: 'Invalid year' });
-    }
-
-    const updatedCount = await driverImageService.populateDriverImages(seasonYear);
-
-    res.json({
-      success: true,
-      message: `Successfully populated images for ${updatedCount} drivers`,
-      year: seasonYear,
-      updatedCount
-    });
-  } catch (error: any) {
-    console.error('Populate driver images error:', error);
-    res.status(500).json({
-      error: 'Failed to populate driver images',
       details: error.message
     });
   }
