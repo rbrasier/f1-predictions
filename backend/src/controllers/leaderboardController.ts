@@ -6,9 +6,10 @@ import { AuthRequest } from '../middleware/auth';
 export const getLeaderboard = (req: AuthRequest, res: Response) => {
   try {
     const seasonId = req.query.seasonId;
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
 
     // Get all users with their total points
-    const query = `
+    let query = `
       SELECT
         u.id as user_id,
         u.display_name,
@@ -23,6 +24,10 @@ export const getLeaderboard = (req: AuthRequest, res: Response) => {
       GROUP BY u.id, u.display_name, sp.points_earned
       ORDER BY total_points DESC, u.display_name
     `;
+
+    if (limit && limit > 0) {
+      query += ` LIMIT ${limit}`;
+    }
 
     const params = seasonId ? [seasonId, seasonId] : [];
     const leaderboard = db.prepare(query).all(...params);

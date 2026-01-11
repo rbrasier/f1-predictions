@@ -32,7 +32,6 @@ export const SeasonPredictionsPage = () => {
   const [audiVsCadillac, setAudiVsCadillac] = useState<'audi' | 'cadillac'>('audi');
   const [crazyPrediction, setCrazyPrediction] = useState('');
   const [grid2027, setGrid2027] = useState<DriverTeamPairing[]>([]);
-  const [grid2028, setGrid2028] = useState<DriverTeamPairing[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -59,7 +58,6 @@ export const SeasonPredictionsPage = () => {
           team_id: d.team_id || teamsData[0].id
         }));
         setGrid2027(initialGrid);
-        setGrid2028(initialGrid);
 
         // Try to load existing prediction
         try {
@@ -70,7 +68,6 @@ export const SeasonPredictionsPage = () => {
           setAudiVsCadillac(existing.audi_vs_cadillac as 'audi' | 'cadillac');
           setCrazyPrediction(existing.crazy_prediction || '');
           setGrid2027(JSON.parse(existing.grid_2027));
-          setGrid2028(JSON.parse(existing.grid_2028));
         } catch (err) {
           // No existing prediction, use defaults
         }
@@ -99,8 +96,7 @@ export const SeasonPredictionsPage = () => {
         mid_season_sackings: sackings,
         audi_vs_cadillac: audiVsCadillac,
         crazy_prediction: crazyPrediction,
-        grid_2027: grid2027,
-        grid_2028: grid2028
+        grid_2027: grid2027
       });
 
       setSuccess('Season predictions saved successfully!');
@@ -118,9 +114,8 @@ export const SeasonPredictionsPage = () => {
     );
   };
 
-  const updateGridPairing = (year: 2027 | 2028, index: number, field: 'driver_id' | 'team_id', value: number) => {
-    const setter = year === 2027 ? setGrid2027 : setGrid2028;
-    setter(prev => {
+  const updateGridPairing = (index: number, field: 'driver_id' | 'team_id', value: number) => {
+    setGrid2027(prev => {
       const newGrid = [...prev];
       newGrid[index] = { ...newGrid[index], [field]: value };
       return newGrid;
@@ -294,7 +289,7 @@ export const SeasonPredictionsPage = () => {
                   <span className="text-sm font-medium w-8">{index + 1}.</span>
                   <select
                     value={pairing.driver_id}
-                    onChange={(e) => updateGridPairing(2027, index, 'driver_id', parseInt(e.target.value))}
+                    onChange={(e) => updateGridPairing(index, 'driver_id', parseInt(e.target.value))}
                     className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm"
                   >
                     {drivers.map(d => (
@@ -304,41 +299,7 @@ export const SeasonPredictionsPage = () => {
                   <span className="text-gray-400">@</span>
                   <select
                     value={pairing.team_id}
-                    onChange={(e) => updateGridPairing(2027, index, 'team_id', parseInt(e.target.value))}
-                    className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm"
-                  >
-                    {teams.map(t => (
-                      <option key={t.id} value={t.id}>{t.name}</option>
-                    ))}
-                  </select>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* 2028 Grid */}
-          <div className="bg-white p-6 rounded-lg shadow text-gray-900">
-            <h3 className="text-xl font-bold mb-4 text-gray-900">2028 Grid Predictions</h3>
-            <p className="text-sm text-gray-600 mb-4">
-              Predict the driver-team pairings for the 2028 season
-            </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {grid2028.map((pairing, index) => (
-                <div key={index} className="flex items-center space-x-2">
-                  <span className="text-sm font-medium w-8">{index + 1}.</span>
-                  <select
-                    value={pairing.driver_id}
-                    onChange={(e) => updateGridPairing(2028, index, 'driver_id', parseInt(e.target.value))}
-                    className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm"
-                  >
-                    {drivers.map(d => (
-                      <option key={d.id} value={d.id}>{d.name}</option>
-                    ))}
-                  </select>
-                  <span className="text-gray-400">@</span>
-                  <select
-                    value={pairing.team_id}
-                    onChange={(e) => updateGridPairing(2028, index, 'team_id', parseInt(e.target.value))}
+                    onChange={(e) => updateGridPairing(index, 'team_id', parseInt(e.target.value))}
                     className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm"
                   >
                     {teams.map(t => (

@@ -3,8 +3,8 @@ import { Link } from 'react-router-dom';
 import { Layout } from '../components/common/Layout';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { CountdownTimer } from '../components/dashboard/CountdownTimer';
-import { getActiveSeason, getNextRace, getRaces, getAllUsers, getAllRacePredictions, getLeaderboard } from '../services/api';
-import { Season, Race, User, RacePrediction, LeaderboardEntry } from '../types';
+import { getActiveSeason, getNextRace, getUpcomingRaces, getAllUsers, getAllRacePredictions, getLeaderboard, getPendingValidations } from '../services/api';
+import { Season, Race, User, RacePrediction, LeaderboardEntry, PendingValidation } from '../types';
 import { useAuth } from '../hooks/useAuth';
 
 export const DashboardPage = () => {
@@ -15,6 +15,7 @@ export const DashboardPage = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [racePredictions, setRacePredictions] = useState<RacePrediction[]>([]);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [pendingValidations, setPendingValidations] = useState<PendingValidation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -24,30 +25,32 @@ export const DashboardPage = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [seasonData, raceData, allRaces, allUsers, leaderboardData] = await Promise.all([
+        const [seasonData, raceData, upcomingRacesData, allUsers, leaderboardData] = await Promise.all([
           getActiveSeason().catch(() => null),
           getNextRace().catch(() => null),
-          getRaces(),
+          getUpcomingRaces(5),
           getAllUsers(),
           getLeaderboard().catch(() => [])
         ]);
 
         setSeason(seasonData);
         setNextRace(raceData);
+        setUpcomingRaces(upcomingRacesData);
         setUsers(allUsers);
         setLeaderboard(leaderboardData);
 
-        // Get upcoming races (next 5)
-        const now = new Date();
-        const upcoming = allRaces
-          .filter(r => new Date(r.fp1_start) > now)
-          .slice(0, 5);
-        setUpcomingRaces(upcoming);
-
-        // Fetch race predictions if there's a next race
+        // Fetch race predictions if there's a next race (limit to 5 for dashboard)
         if (raceData) {
-          const predictions = await getAllRacePredictions(raceData.id);
+          const predictions = await getAllRacePredictions(raceData.id, 5);
           setRacePredictions(predictions);
+        }
+
+        // Fetch pending crazy prediction validations
+        try {
+          const validations = await getPendingValidations();
+          setPendingValidations(validations);
+        } catch (err) {
+          // Ignore errors for pending validations
         }
       } catch (err: any) {
         setError(err.response?.data?.error || 'Failed to load data');
@@ -155,6 +158,49 @@ export const DashboardPage = () => {
               </div>
             )}
 
+            {/* Upcoming Races Section */}
+            {upcomingRaces.length > 1 && (
+              <div>
+                <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
+                  <span className="w-1 h-6 bg-paddock-red inline-block"></span>
+                  UPCOMING RACES
+                </h2>
+                <div className="bg-paddock-gray rounded-lg border border-paddock-lightgray">
+                  <div className="divide-y divide-paddock-lightgray">
+                    {upcomingRaces.slice(1).map((race) => (
+                      <Link
+                        key={race.id}
+                        to={`/race/${race.id}`}
+                        className="flex items-center justify-between p-4 hover:bg-paddock-lightgray transition"
+                      >
+                        <div className="flex-1">
+                          <div className="text-paddock-coral text-xs font-bold uppercase tracking-wide mb-1">
+                            Round {race.round_number}
+                          </div>
+                          <div className="text-white font-bold text-lg">
+                            {race.name}
+                          </div>
+                          <div className="text-gray-400 text-sm">
+                            {race.location}
+                          </div>
+                          <div className="text-gray-500 text-xs mt-1">
+                            {new Date(race.fp1_start).toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric'
+                            })}
+                          </div>
+                        </div>
+                        <div className="text-paddock-red hover:text-paddock-coral font-bold uppercase text-sm">
+                          Predict →
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Your Predictions Section */}
             {nextRace && userPrediction && (
               <div>
@@ -212,9 +258,41 @@ export const DashboardPage = () => {
                 PADDOCK PREDICTIONS
               </h2>
               <div className="bg-paddock-gray rounded-lg border border-paddock-lightgray">
-                {nextRace && racePredictions.length > 0 ? (
+                {(pendingValidations.length > 0 || (nextRace && racePredictions.length > 0)) ? (
                   <div className="divide-y divide-paddock-lightgray">
-                    {racePredictions.slice(0, 5).map((prediction) => {
+                    {/* Crazy Predictions Needing Validation */}
+                    {pendingValidations.slice(0, 3).map((validation) => (
+                      <Link
+                        key={`${validation.prediction_type}-${validation.id}`}
+                        to="/validations"
+                        className="block p-4 hover:bg-paddock-lightgray transition"
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className="w-10 h-10 rounded-full bg-purple-600 flex items-center justify-center text-white font-bold flex-shrink-0">
+                            {validation.display_name.substring(0, 2).toUpperCase()}
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-white font-bold">{validation.display_name}</span>
+                              <span className="bg-purple-600 text-white text-xs px-2 py-0.5 rounded uppercase font-bold">
+                                Needs Validation
+                              </span>
+                            </div>
+                            <p className="text-gray-300 text-sm mb-1">
+                              "{validation.crazy_prediction}"
+                            </p>
+                            <p className="text-gray-500 text-xs">
+                              {validation.prediction_type === 'season'
+                                ? `Season ${validation.year}`
+                                : `${validation.race_name} (Round ${validation.round_number})`}
+                            </p>
+                          </div>
+                        </div>
+                      </Link>
+                    ))}
+
+                    {/* Race Predictions */}
+                    {nextRace && racePredictions.slice(0, 5 - Math.min(pendingValidations.length, 3)).map((prediction) => {
                       const user = users.find(u => u.id === prediction.user_id);
                       if (!user) return null;
 

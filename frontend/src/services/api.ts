@@ -97,6 +97,12 @@ export const getNextRace = async (): Promise<Race> => {
   return data;
 };
 
+export const getUpcomingRaces = async (limit?: number): Promise<Race[]> => {
+  const params = limit ? { limit: limit.toString() } : {};
+  const { data } = await api.get('/races/upcoming', { params });
+  return data;
+};
+
 // Season Predictions
 export const submitSeasonPrediction = async (seasonId: number, prediction: SeasonPredictionRequest): Promise<SeasonPrediction> => {
   const { data } = await api.post(`/seasons/${seasonId}/predictions`, prediction);
@@ -124,8 +130,9 @@ export const getMyRacePrediction = async (raceId: number): Promise<RacePredictio
   return data;
 };
 
-export const getAllRacePredictions = async (raceId: number): Promise<RacePrediction[]> => {
-  const { data } = await api.get(`/races/${raceId}/predictions`);
+export const getAllRacePredictions = async (raceId: number, limit?: number): Promise<RacePrediction[]> => {
+  const params = limit ? { limit: limit.toString() } : {};
+  const { data } = await api.get(`/races/${raceId}/predictions`, { params });
   return data;
 };
 
@@ -157,8 +164,11 @@ export const getValidationsForPrediction = async (
 };
 
 // Leaderboard
-export const getLeaderboard = async (seasonId?: number): Promise<LeaderboardEntry[]> => {
-  const { data } = await api.get('/leaderboard', { params: { seasonId } });
+export const getLeaderboard = async (seasonId?: number, limit?: number): Promise<LeaderboardEntry[]> => {
+  const params: any = {};
+  if (seasonId) params.seasonId = seasonId;
+  if (limit) params.limit = limit;
+  const { data } = await api.get('/leaderboard', { params });
   return data;
 };
 

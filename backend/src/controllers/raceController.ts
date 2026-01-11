@@ -73,3 +73,23 @@ export const getNextRace = (req: AuthRequest, res: Response) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 };
+
+export const getUpcomingRaces = (req: AuthRequest, res: Response) => {
+  try {
+    const now = new Date().toISOString();
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : 5;
+
+    const races = db.prepare(`
+      SELECT id, season_id, name, round_number, fp1_start, race_date, is_sprint_weekend, location
+      FROM races
+      WHERE fp1_start > ?
+      ORDER BY fp1_start
+      LIMIT ?
+    `).all(now, limit) as Race[];
+
+    res.json(races);
+  } catch (error) {
+    console.error('Get upcoming races error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};

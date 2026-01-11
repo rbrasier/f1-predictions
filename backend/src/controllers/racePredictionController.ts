@@ -152,8 +152,9 @@ export const getMyRacePrediction = (req: AuthRequest, res: Response) => {
 export const getAllRacePredictions = (req: AuthRequest, res: Response) => {
   try {
     const { raceId } = req.params;
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
 
-    const predictions = db.prepare(`
+    let query = `
       SELECT
         rp.*,
         u.display_name,
@@ -177,7 +178,13 @@ export const getAllRacePredictions = (req: AuthRequest, res: Response) => {
       LEFT JOIN teams t3 ON d3.team_id = t3.id
       WHERE rp.race_id = ?
       ORDER BY u.display_name
-    `).all(raceId) as (RacePrediction & { display_name: string })[];
+    `;
+
+    if (limit && limit > 0) {
+      query += ` LIMIT ${limit}`;
+    }
+
+    const predictions = db.prepare(query).all(raceId) as (RacePrediction & { display_name: string })[];
 
     res.json(predictions);
   } catch (error) {
