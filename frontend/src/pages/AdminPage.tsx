@@ -416,8 +416,8 @@ export const AdminPage = () => {
         {activeTab === 'races' && (
           <div className="space-y-6">
             {/* Race Selector */}
-            <div className="bg-white p-6 rounded-lg shadow">
-              <h3 className="text-xl font-bold mb-4">Select Race</h3>
+            <div className="bg-white p-6 rounded-lg shadow text-gray-900">
+              <h3 className="text-xl font-bold mb-4 text-gray-900">Select Race</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 {races.map(race => (
                   <button
@@ -444,8 +444,8 @@ export const AdminPage = () => {
             {/* Race Results Form */}
             {selectedRace && (
               <form onSubmit={handleSubmitRaceResults} className="space-y-6">
-                <div className="bg-white p-6 rounded-lg shadow">
-                  <h3 className="text-xl font-bold mb-4">
+                <div className="bg-white p-6 rounded-lg shadow text-gray-900">
+                  <h3 className="text-xl font-bold mb-4 text-gray-900">
                     {selectedRace.name} Results
                   </h3>
 
@@ -568,8 +568,8 @@ export const AdminPage = () => {
 
                 {/* Crazy Predictions */}
                 {crazyPredictions.length > 0 && (
-                  <div className="bg-white p-6 rounded-lg shadow">
-                    <h3 className="text-xl font-bold mb-4">Crazy Predictions - Mark Which Actually Happened</h3>
+                  <div className="bg-white p-6 rounded-lg shadow text-gray-900">
+                    <h3 className="text-xl font-bold mb-4 text-gray-900">Crazy Predictions - Mark Which Actually Happened</h3>
                     <div className="space-y-3">
                       {crazyPredictions.map(pred => (
                         <label key={pred.id} className="flex items-start space-x-3 p-3 border rounded hover:bg-gray-50 cursor-pointer">
@@ -622,8 +622,8 @@ export const AdminPage = () => {
               title="Final Constructors Championship Order"
             />
 
-            <div className="bg-white p-6 rounded-lg shadow">
-              <h3 className="text-xl font-bold mb-4">Audi vs Cadillac Winner</h3>
+            <div className="bg-white p-6 rounded-lg shadow text-gray-900">
+              <h3 className="text-xl font-bold mb-4 text-gray-900">Audi vs Cadillac Winner</h3>
               <div className="flex space-x-6">
                 <label className="flex items-center space-x-2 cursor-pointer">
                   <input
@@ -647,8 +647,8 @@ export const AdminPage = () => {
             </div>
 
             {crazyPredictions.length > 0 && (
-              <div className="bg-white p-6 rounded-lg shadow">
-                <h3 className="text-xl font-bold mb-4">Season Crazy Predictions - Mark Which Actually Happened</h3>
+              <div className="bg-white p-6 rounded-lg shadow text-gray-900">
+                <h3 className="text-xl font-bold mb-4 text-gray-900">Season Crazy Predictions - Mark Which Actually Happened</h3>
                 <div className="space-y-3">
                   {crazyPredictions.map(pred => (
                     <label key={pred.id} className="flex items-start space-x-3 p-3 border rounded hover:bg-gray-50 cursor-pointer">
@@ -682,8 +682,8 @@ export const AdminPage = () => {
         {activeTab === 'f1data' && (
           <div className="space-y-6">
             {/* Refresh Data Section */}
-            <div className="bg-white p-6 rounded-lg shadow">
-              <h3 className="text-xl font-bold mb-4">Refresh F1 Data from Jolpica API</h3>
+            <div className="bg-white p-6 rounded-lg shadow text-gray-900">
+              <h3 className="text-xl font-bold mb-4 text-gray-900">Refresh F1 Data from Jolpica API</h3>
               <p className="text-gray-600 mb-4">
                 Pull the latest F1 data from the Jolpica API (https://api.jolpi.ca/ergast).
                 Data is cached for 24 hours to reduce API calls.
@@ -760,8 +760,8 @@ export const AdminPage = () => {
             </div>
 
             {/* Import Data Section */}
-            <div className="bg-white p-6 rounded-lg shadow">
-              <h3 className="text-xl font-bold mb-4">Import & Auto-Populate from API</h3>
+            <div className="bg-white p-6 rounded-lg shadow text-gray-900">
+              <h3 className="text-xl font-bold mb-4 text-gray-900">Import & Auto-Populate from API</h3>
               <p className="text-gray-600 mb-4">
                 Automatically transform API data and populate race results in the database with automatic score calculation.
               </p>
@@ -865,7 +865,7 @@ export const AdminPage = () => {
             </div>
 
             {/* Cache Status Section */}
-            <div className="bg-white p-6 rounded-lg shadow">
+            <div className="bg-white p-6 rounded-lg shadow text-gray-900">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-xl font-bold">Cache Status</h3>
                 <button

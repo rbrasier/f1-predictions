@@ -158,7 +158,7 @@ export const RaceDetailsPage = () => {
     <Layout>
       <div className="max-w-4xl mx-auto">
         <div className="mb-6">
-          <h1 className="text-4xl font-bold text-gray-800 mb-2">
+          <h1 className="text-4xl font-bold text-white mb-2">
             Round {race.round_number}: {race.name}
           </h1>
           <p className="text-gray-600">
@@ -195,8 +195,8 @@ export const RaceDetailsPage = () => {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Race Predictions */}
-          <div className="bg-white p-6 rounded-lg shadow">
-            <h3 className="text-xl font-bold mb-4">Race Predictions</h3>
+          <div className="bg-white p-6 rounded-lg shadow text-gray-900">
+            <h3 className="text-xl font-bold mb-4 text-gray-900">Race Predictions</h3>
 
             {/* Pole Position */}
             <div className="mb-4">
@@ -337,8 +337,8 @@ export const RaceDetailsPage = () => {
           )}
 
           {/* Crazy Prediction */}
-          <div className="bg-white p-6 rounded-lg shadow">
-            <h3 className="text-xl font-bold mb-4">Crazy Prediction (Optional)</h3>
+          <div className="bg-white p-6 rounded-lg shadow text-gray-900">
+            <h3 className="text-xl font-bold mb-4 text-gray-900">Crazy Prediction</h3>
             <p className="text-sm text-gray-600 mb-4">
               Make a wild prediction for this race. Other players will vote on whether it happened! (1 point if validated and happened)
             </p>

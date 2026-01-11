@@ -70,7 +70,7 @@ export const ValidationsPage = () => {
   return (
     <Layout>
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-4xl font-bold text-gray-800 mb-2">Crazy Prediction Validations</h1>
+        <h1 className="text-4xl font-bold text-white mb-2">Crazy Prediction Validations</h1>
         <p className="text-gray-600 mb-6">
           Review crazy predictions from other players and vote on whether they make sense.
           No vote = automatically accepted. Predictions must be validated AND marked as "happened" by admin to score points.

@@ -82,7 +82,7 @@ export const DashboardPage = () => {
       <div className="max-w-7xl mx-auto px-6 py-8">
         {/* Hero Section */}
         <div className="mb-12">
-          <h1 className="text-6xl font-bold mb-4 italic tracking-tight leading-tight">
+          <h1 className="text-4xl font-bold mb-4 italic tracking-tight leading-tight">
             <span className="text-white">LIGHTS OUT</span>
             <br />
             <span className="text-white">&</span>{' '}
@@ -92,7 +92,7 @@ export const DashboardPage = () => {
           </h1>
           <p className="text-gray-400 text-lg max-w-2xl">
             The ultimate tipping battleground for you and your mates. Predict the podium,
-            fastest lap, and DNFs to claim the Championship Trophy.
+            best of the rest, and crazy outcomes to claim the Championship Trophy.
           </p>
         </div>
 

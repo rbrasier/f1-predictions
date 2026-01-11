@@ -69,7 +69,7 @@ const SortableItem = ({ item, index }: SortableItemProps) => {
           <span className="text-2xl font-bold text-f1-red min-w-[60px]">
             {getPositionLabel(index)}
           </span>
-          <span className="text-lg font-medium">{item.name}</span>
+          <span className="text-lg font-medium text-gray-900">{item.name}</span>
         </div>
         <div className="text-gray-400">
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -114,7 +114,7 @@ export const ChampionshipOrderPicker = ({ items, onChange, title }: Championship
 
   return (
     <div className="mb-6">
-      <h3 className="text-xl font-bold mb-4 text-gray-800">{title}</h3>
+      <h3 className="text-xl font-bold mb-4 text-white">{title}</h3>
       <div className="bg-gray-50 p-4 rounded-lg">
         <p className="text-sm text-gray-600 mb-4">
           Drag and drop to reorder. Position matters - you earn 1 point for each correct position.

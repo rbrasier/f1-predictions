@@ -149,8 +149,8 @@ export const SeasonPredictionsPage = () => {
 
   return (
     <Layout>
-      <div className="max-w-6xl mx-auto">
-        <h1 className="text-4xl font-bold text-gray-800 mb-4">Season {season.year} Predictions</h1>
+      <div className="max-w-6xl mx-auto px-6 py-8">
+        <h1 className="text-4xl font-bold text-white mb-4">Season {season.year} Predictions</h1>
 
         <div className="mb-6">
           <CountdownTimer targetDate={season.prediction_deadline} label="Deadline" />
@@ -196,14 +196,14 @@ export const SeasonPredictionsPage = () => {
           />
 
           {/* Mid-Season Sackings */}
-          <div className="bg-white p-6 rounded-lg shadow">
-            <h3 className="text-xl font-bold mb-4">Mid-Season Sackings</h3>
+          <div className="bg-white p-6 rounded-lg shadow text-gray-900">
+            <h3 className="text-xl font-bold mb-4 text-gray-900">Mid-Season Sackings</h3>
             <p className="text-sm text-gray-600 mb-4">
               Select drivers or team principals you think will be sacked/replaced mid-season
             </p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <h4 className="font-bold mb-2">Drivers</h4>
+                <h4 className="font-bold mb-2 text-gray-900">Drivers</h4>
                 {drivers.map(driver => (
                   <label key={driver.id} className="flex items-center space-x-2 mb-2 cursor-pointer">
                     <input
@@ -212,12 +212,12 @@ export const SeasonPredictionsPage = () => {
                       onChange={() => toggleSacking(driver.id)}
                       className="w-4 h-4"
                     />
-                    <span>{driver.name}</span>
+                    <span className="text-gray-900">{driver.name}</span>
                   </label>
                 ))}
               </div>
               <div>
-                <h4 className="font-bold mb-2">Team Principals</h4>
+                <h4 className="font-bold mb-2 text-gray-900">Team Principals</h4>
                 {principals.map(principal => (
                   <label key={principal.id} className="flex items-center space-x-2 mb-2 cursor-pointer">
                     <input
@@ -226,7 +226,7 @@ export const SeasonPredictionsPage = () => {
                       onChange={() => toggleSacking(principal.id)}
                       className="w-4 h-4"
                     />
-                    <span>{principal.name}</span>
+                    <span className="text-gray-900">{principal.name}</span>
                   </label>
                 ))}
               </div>
@@ -234,8 +234,8 @@ export const SeasonPredictionsPage = () => {
           </div>
 
           {/* Audi vs Cadillac */}
-          <div className="bg-white p-6 rounded-lg shadow">
-            <h3 className="text-xl font-bold mb-4">Audi vs Cadillac</h3>
+          <div className="bg-white p-6 rounded-lg shadow text-gray-900">
+            <h3 className="text-xl font-bold mb-4 text-gray-900">Audi vs Cadillac</h3>
             <p className="text-sm text-gray-600 mb-4">
               Which new team will finish higher in the Constructors Championship?
             </p>
@@ -249,7 +249,7 @@ export const SeasonPredictionsPage = () => {
                   onChange={() => setAudiVsCadillac('audi')}
                   className="w-4 h-4"
                 />
-                <span className="font-medium">Audi (Kick Sauber)</span>
+                <span className="font-medium text-gray-900">Audi (Kick Sauber)</span>
               </label>
               <label className="flex items-center space-x-2 cursor-pointer">
                 <input
@@ -260,14 +260,14 @@ export const SeasonPredictionsPage = () => {
                   onChange={() => setAudiVsCadillac('cadillac')}
                   className="w-4 h-4"
                 />
-                <span className="font-medium">Cadillac F1</span>
+                <span className="font-medium text-gray-900">Cadillac F1</span>
               </label>
             </div>
           </div>
 
           {/* Crazy Prediction */}
-          <div className="bg-white p-6 rounded-lg shadow">
-            <h3 className="text-xl font-bold mb-4">Crazy Prediction (Optional)</h3>
+          <div className="bg-white p-6 rounded-lg shadow text-gray-900">
+            <h3 className="text-xl font-bold mb-4 text-gray-900">Crazy Prediction (Optional)</h3>
             <p className="text-sm text-gray-600 mb-4">
               Make a wild prediction for the season. Other players will vote on whether it happened!
             </p>
@@ -283,8 +283,8 @@ export const SeasonPredictionsPage = () => {
           </div>
 
           {/* 2027 Grid */}
-          <div className="bg-white p-6 rounded-lg shadow">
-            <h3 className="text-xl font-bold mb-4">2027 Grid Predictions</h3>
+          <div className="bg-white p-6 rounded-lg shadow text-gray-900">
+            <h3 className="text-xl font-bold mb-4 text-gray-900">2027 Grid Predictions</h3>
             <p className="text-sm text-gray-600 mb-4">
               Predict the driver-team pairings for the 2027 season
             </p>
@@ -317,8 +317,8 @@ export const SeasonPredictionsPage = () => {
           </div>
 
           {/* 2028 Grid */}
-          <div className="bg-white p-6 rounded-lg shadow">
-            <h3 className="text-xl font-bold mb-4">2028 Grid Predictions</h3>
+          <div className="bg-white p-6 rounded-lg shadow text-gray-900">
+            <h3 className="text-xl font-bold mb-4 text-gray-900">2028 Grid Predictions</h3>
             <p className="text-sm text-gray-600 mb-4">
               Predict the driver-team pairings for the 2028 season
             </p>
