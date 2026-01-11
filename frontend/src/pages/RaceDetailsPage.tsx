@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Layout } from '../components/common/Layout';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { CountdownTimer } from '../components/dashboard/CountdownTimer';
+import { DriverAutocomplete } from '../components/predictions/DriverAutocomplete';
 import {
   getRace,
   getDrivers,
@@ -199,139 +200,89 @@ export const RaceDetailsPage = () => {
             <h3 className="text-xl font-bold mb-4 text-gray-900">Race Predictions</h3>
 
             {/* Pole Position */}
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Pole Position (1 point)
-              </label>
-              <select
-                value={polePosition}
-                onChange={(e) => setPolePosition(parseInt(e.target.value))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-f1-red"
+            <div className="mb-6">
+              <DriverAutocomplete
+                drivers={drivers}
+                selectedDriverId={polePosition}
+                onSelect={setPolePosition}
+                label="Pole Position (1 point)"
                 required
-              >
-                {drivers.map(d => (
-                  <option key={d.id} value={d.id}>{d.name} ({d.team_name})</option>
-                ))}
-              </select>
+              />
             </div>
 
             {/* Podium */}
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Podium - 1 point per correct position (up to 3 points)
-              </label>
-              <div className="space-y-2">
-                <div>
-                  <label className="text-xs text-gray-600">1st Place</label>
-                  <select
-                    value={podiumFirst}
-                    onChange={(e) => setPodiumFirst(parseInt(e.target.value))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-f1-red"
-                    required
-                  >
-                    {drivers.map(d => (
-                      <option key={d.id} value={d.id}>{d.name} ({d.team_name})</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs text-gray-600">2nd Place</label>
-                  <select
-                    value={podiumSecond}
-                    onChange={(e) => setPodiumSecond(parseInt(e.target.value))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-f1-red"
-                    required
-                  >
-                    {drivers.map(d => (
-                      <option key={d.id} value={d.id}>{d.name} ({d.team_name})</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs text-gray-600">3rd Place</label>
-                  <select
-                    value={podiumThird}
-                    onChange={(e) => setPodiumThird(parseInt(e.target.value))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-f1-red"
-                    required
-                  >
-                    {drivers.map(d => (
-                      <option key={d.id} value={d.id}>{d.name} ({d.team_name})</option>
-                    ))}
-                  </select>
-                </div>
+            <div className="mb-6">
+              <div className="mb-4">
+                <h4 className="text-sm font-bold text-gray-900 mb-3">
+                  Podium - 1 point per correct position (up to 3 points)
+                </h4>
+              </div>
+
+              <div className="space-y-6">
+                <DriverAutocomplete
+                  drivers={drivers}
+                  selectedDriverId={podiumFirst}
+                  onSelect={setPodiumFirst}
+                  label="1st Place"
+                  required
+                />
+
+                <DriverAutocomplete
+                  drivers={drivers}
+                  selectedDriverId={podiumSecond}
+                  onSelect={setPodiumSecond}
+                  label="2nd Place"
+                  required
+                />
+
+                <DriverAutocomplete
+                  drivers={drivers}
+                  selectedDriverId={podiumThird}
+                  onSelect={setPodiumThird}
+                  label="3rd Place"
+                  required
+                />
               </div>
             </div>
 
             {/* Midfield Hero */}
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Midfield Hero - Best non-top-4 team driver (1 point)
-              </label>
-              <select
-                value={midfieldHero}
-                onChange={(e) => setMidfieldHero(parseInt(e.target.value))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-f1-red"
+            <div className="mb-6">
+              <DriverAutocomplete
+                drivers={midfieldDrivers}
+                selectedDriverId={midfieldHero}
+                onSelect={setMidfieldHero}
+                label="Midfield Hero - Best non-top-4 team driver (1 point)"
                 required
-              >
-                {midfieldDrivers.map(d => (
-                  <option key={d.id} value={d.id}>{d.name} ({d.team_name})</option>
-                ))}
-              </select>
+              />
             </div>
           </div>
 
           {/* Sprint Weekend Predictions */}
           {race.is_sprint_weekend && (
-            <div className="bg-white p-6 rounded-lg shadow border-2 border-f1-red">
+            <div className="bg-white p-6 rounded-lg shadow border-2 border-f1-red text-gray-900">
               <h3 className="text-xl font-bold mb-4 text-f1-red">Sprint Predictions</h3>
 
-              {/* Sprint Pole */}
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Sprint Pole Position (1 point)
-                </label>
-                <select
-                  value={sprintPole}
-                  onChange={(e) => setSprintPole(parseInt(e.target.value))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-f1-red"
-                >
-                  {drivers.map(d => (
-                    <option key={d.id} value={d.id}>{d.name} ({d.team_name})</option>
-                  ))}
-                </select>
-              </div>
+              <div className="space-y-6">
+                <DriverAutocomplete
+                  drivers={drivers}
+                  selectedDriverId={sprintPole}
+                  onSelect={setSprintPole}
+                  label="Sprint Pole Position (1 point)"
+                />
 
-              {/* Sprint Winner */}
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Sprint Winner (1 point)
-                </label>
-                <select
-                  value={sprintWinner}
-                  onChange={(e) => setSprintWinner(parseInt(e.target.value))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-f1-red"
-                >
-                  {drivers.map(d => (
-                    <option key={d.id} value={d.id}>{d.name} ({d.team_name})</option>
-                  ))}
-                </select>
-              </div>
+                <DriverAutocomplete
+                  drivers={drivers}
+                  selectedDriverId={sprintWinner}
+                  onSelect={setSprintWinner}
+                  label="Sprint Winner (1 point)"
+                />
 
-              {/* Sprint Midfield Hero */}
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Sprint Midfield Hero (1 point)
-                </label>
-                <select
-                  value={sprintMidfieldHero}
-                  onChange={(e) => setSprintMidfieldHero(parseInt(e.target.value))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-f1-red"
-                >
-                  {midfieldDrivers.map(d => (
-                    <option key={d.id} value={d.id}>{d.name} ({d.team_name})</option>
-                  ))}
-                </select>
+                <DriverAutocomplete
+                  drivers={midfieldDrivers}
+                  selectedDriverId={sprintMidfieldHero}
+                  onSelect={setSprintMidfieldHero}
+                  label="Sprint Midfield Hero (1 point)"
+                />
               </div>
             </div>
           )}

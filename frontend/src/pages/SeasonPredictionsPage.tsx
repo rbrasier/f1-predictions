@@ -4,6 +4,7 @@ import { Layout } from '../components/common/Layout';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { ChampionshipOrderPicker } from '../components/predictions/ChampionshipOrderPicker';
 import { CountdownTimer } from '../components/dashboard/CountdownTimer';
+import { DriverAutocomplete } from '../components/predictions/DriverAutocomplete';
 import {
   getActiveSeason,
   getDrivers,
@@ -174,7 +175,7 @@ export const SeasonPredictionsPage = () => {
           <ChampionshipOrderPicker
             items={driversOrder.map(id => {
               const driver = drivers.find(d => d.id === id)!;
-              return { id: driver.id, name: driver.name };
+              return { id: driver.id, name: driver.name, image_url: driver.image_url };
             })}
             onChange={setDriversOrder}
             title="Drivers Championship Order"
@@ -281,33 +282,54 @@ export const SeasonPredictionsPage = () => {
           <div className="bg-white p-6 rounded-lg shadow text-gray-900">
             <h3 className="text-xl font-bold mb-4 text-gray-900">2027 Grid Predictions</h3>
             <p className="text-sm text-gray-600 mb-4">
-              Predict the driver-team pairings for the 2027 season
+              Predict the driver-team pairings for the 2027 season (20 seats)
             </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {grid2027.map((pairing, index) => (
-                <div key={index} className="flex items-center space-x-2">
-                  <span className="text-sm font-medium w-8">{index + 1}.</span>
-                  <select
-                    value={pairing.driver_id}
-                    onChange={(e) => updateGridPairing(index, 'driver_id', parseInt(e.target.value))}
-                    className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm"
-                  >
-                    {drivers.map(d => (
-                      <option key={d.id} value={d.id}>{d.name}</option>
-                    ))}
-                  </select>
-                  <span className="text-gray-400">@</span>
-                  <select
-                    value={pairing.team_id}
-                    onChange={(e) => updateGridPairing(index, 'team_id', parseInt(e.target.value))}
-                    className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm"
-                  >
-                    {teams.map(t => (
-                      <option key={t.id} value={t.id}>{t.name}</option>
-                    ))}
-                  </select>
-                </div>
-              ))}
+            <div className="space-y-6">
+              {grid2027.map((pairing, index) => {
+                const selectedDriver = drivers.find(d => d.id === pairing.driver_id);
+                const selectedTeam = teams.find(t => t.id === pairing.team_id);
+
+                return (
+                  <div key={index} className="border border-gray-200 rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-lg font-bold text-f1-red">Position {index + 1}</span>
+                      {selectedDriver && selectedTeam && (
+                        <span className="text-sm text-gray-600">
+                          {selectedDriver.name} @ {selectedTeam.name}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-xs font-bold text-gray-700 mb-2">
+                          Select Driver
+                        </label>
+                        <DriverAutocomplete
+                          drivers={drivers}
+                          selectedDriverId={pairing.driver_id}
+                          onSelect={(driverId) => updateGridPairing(index, 'driver_id', driverId)}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-gray-700 mb-2">
+                          Select Team
+                        </label>
+                        <select
+                          value={pairing.team_id}
+                          onChange={(e) => updateGridPairing(index, 'team_id', parseInt(e.target.value))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-f1-red text-sm"
+                        >
+                          {teams.map(t => (
+                            <option key={t.id} value={t.id}>{t.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
 

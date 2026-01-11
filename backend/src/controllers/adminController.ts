@@ -5,6 +5,7 @@ import { AuthRequest } from '../middleware/auth';
 import { RaceResult, SeasonResult } from '../types';
 import { f1ApiService } from '../services/f1ApiService';
 import { f1DataTransformer } from '../services/f1DataTransformer';
+import { driverImageService } from '../services/driverImageService';
 
 // Race Results
 export const raceResultValidation = [
@@ -719,6 +720,36 @@ export const bulkImportSeason = async (req: AuthRequest, res: Response) => {
     console.error('Bulk import season error:', error);
     res.status(500).json({
       error: 'Failed to bulk import season',
+      details: error.message
+    });
+  }
+};
+
+/**
+ * Populate driver profile images from cached API data
+ * POST /api/admin/f1-data/populate-driver-images/:year
+ */
+export const populateDriverImages = async (req: AuthRequest, res: Response) => {
+  try {
+    const { year } = req.params;
+    const seasonYear = parseInt(year);
+
+    if (isNaN(seasonYear) || seasonYear < 1950 || seasonYear > 2100) {
+      return res.status(400).json({ error: 'Invalid year' });
+    }
+
+    const updatedCount = await driverImageService.populateDriverImages(seasonYear);
+
+    res.json({
+      success: true,
+      message: `Successfully populated images for ${updatedCount} drivers`,
+      year: seasonYear,
+      updatedCount
+    });
+  } catch (error: any) {
+    console.error('Populate driver images error:', error);
+    res.status(500).json({
+      error: 'Failed to populate driver images',
       details: error.message
     });
   }

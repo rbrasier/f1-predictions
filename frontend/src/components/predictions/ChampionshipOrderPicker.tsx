@@ -20,6 +20,7 @@ import { CSS } from '@dnd-kit/utilities';
 interface Item {
   id: number;
   name: string;
+  image_url?: string | null;
 }
 
 interface SortableItemProps {
@@ -54,6 +55,10 @@ const SortableItem = ({ item, index }: SortableItemProps) => {
     return `${idx + 1}th`;
   };
 
+  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    e.currentTarget.src = 'https://via.placeholder.com/48/E10600/FFFFFF?text=F1';
+  };
+
   return (
     <div
       ref={setNodeRef}
@@ -69,6 +74,19 @@ const SortableItem = ({ item, index }: SortableItemProps) => {
           <span className="text-2xl font-bold text-f1-red min-w-[60px]">
             {getPositionLabel(index)}
           </span>
+
+          {/* Driver Image (if available) */}
+          {item.image_url && (
+            <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-gray-300 flex-shrink-0">
+              <img
+                src={item.image_url}
+                alt={item.name}
+                className="w-full h-full object-cover"
+                onError={handleImageError}
+              />
+            </div>
+          )}
+
           <span className="text-lg font-medium text-gray-900">{item.name}</span>
         </div>
         <div className="text-gray-400">

@@ -14,7 +14,8 @@ import {
   clearAllCache,
   importRaceResults,
   importSeasonStandings,
-  bulkImportSeason
+  bulkImportSeason,
+  populateDriverImages
 } from '../controllers/adminController';
 import { authenticate, requireAdmin } from '../middleware/auth';
 
@@ -46,5 +47,6 @@ router.delete('/f1-data/cache', clearAllCache);
 router.post('/f1-data/import-race/:year/:round', importRaceResults);
 router.post('/f1-data/import-standings/:year', importSeasonStandings);
 router.post('/f1-data/import-season/:year', bulkImportSeason);
+router.post('/f1-data/populate-driver-images/:year', populateDriverImages);
 
 export default router;

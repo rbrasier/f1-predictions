@@ -19,6 +19,7 @@ export interface Driver {
   name: string;
   team_id: number | null;
   is_active: boolean;
+  image_url: string | null;
 }
 
 export interface Team {

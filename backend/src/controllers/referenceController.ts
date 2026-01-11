@@ -6,7 +6,7 @@ import { Driver, Team, TeamPrincipal } from '../types';
 export const getDrivers = (req: AuthRequest, res: Response) => {
   try {
     const drivers = db.prepare(`
-      SELECT d.id, d.name, d.team_id, d.is_active, t.name as team_name
+      SELECT d.id, d.name, d.team_id, d.is_active, d.image_url, t.name as team_name
       FROM drivers d
       LEFT JOIN teams t ON d.team_id = t.id
       WHERE d.is_active = 1
