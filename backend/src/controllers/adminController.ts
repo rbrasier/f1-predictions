@@ -694,3 +694,442 @@ export const clearAllCache = async (req: AuthRequest, res: Response) => {
     });
   }
 };
+
+// F1 Data Import Functions (using cached API data)
+
+/**
+ * Import race results from cached F1 API data
+ * POST /api/admin/f1-data/import-race/:year/:round
+ */
+export const importRaceResults = async (req: AuthRequest, res: Response) => {
+  try {
+    const { year, round } = req.params;
+    const seasonYear = parseInt(year);
+    const roundNumber = parseInt(round);
+
+    if (isNaN(seasonYear) || isNaN(roundNumber)) {
+      return res.status(400).json({ error: 'Invalid year or round number' });
+    }
+
+    // Get cached race results
+    const resultsData = f1ApiService.getCachedData('results', seasonYear, roundNumber);
+    const qualifyingData = f1ApiService.getCachedData('qualifying', seasonYear, roundNumber);
+    const sprintData = f1ApiService.getCachedData('sprint', seasonYear, roundNumber);
+
+    if (!resultsData) {
+      return res.status(404).json({
+        error: 'No cached race results found. Please refresh the data first.',
+        year: seasonYear,
+        round: roundNumber
+      });
+    }
+
+    // Extract race results from API response
+    const race = resultsData.MRData?.RaceTable?.Races?.[0];
+    if (!race || !race.Results) {
+      return res.status(404).json({ error: 'Invalid race results data format' });
+    }
+
+    // Get podium (top 3 finishers)
+    const podium = race.Results.slice(0, 3);
+    const podiumFirst = podium[0]?.Driver?.driverId;
+    const podiumSecond = podium[1]?.Driver?.driverId;
+    const podiumThird = podium[2]?.Driver?.driverId;
+
+    // Get pole position from qualifying
+    let polePosition = null;
+    if (qualifyingData) {
+      const qualifyingRace = qualifyingData.MRData?.RaceTable?.Races?.[0];
+      if (qualifyingRace?.QualifyingResults?.[0]) {
+        polePosition = qualifyingRace.QualifyingResults[0].Driver?.driverId;
+      }
+    }
+
+    // Get midfield hero (best finisher from positions 6-10)
+    const midfieldResults = race.Results.slice(5, 10);
+    const midfieldHero = midfieldResults[0]?.Driver?.driverId;
+
+    // Get sprint data if available
+    let sprintPole = null;
+    let sprintWinner = null;
+    let sprintMidfieldHero = null;
+
+    if (sprintData) {
+      const sprintRace = sprintData.MRData?.RaceTable?.Races?.[0];
+      if (sprintRace?.SprintResults) {
+        sprintWinner = sprintRace.SprintResults[0]?.Driver?.driverId;
+        const sprintMidfield = sprintRace.SprintResults.slice(5, 10);
+        sprintMidfieldHero = sprintMidfield[0]?.Driver?.driverId;
+        // Sprint pole would need sprint qualifying data - skip for now
+      }
+    }
+
+    // Check if results already exist
+    const existing = db.prepare(`
+      SELECT id FROM race_results
+      WHERE season_year = ? AND round_number = ?
+    `).get(seasonYear, roundNumber) as { id: number } | undefined;
+
+    if (existing) {
+      // Update existing results
+      db.prepare(`
+        UPDATE race_results
+        SET pole_position_driver_api_id = ?,
+            podium_first_driver_api_id = ?,
+            podium_second_driver_api_id = ?,
+            podium_third_driver_api_id = ?,
+            midfield_hero_driver_api_id = ?,
+            sprint_pole_driver_api_id = ?,
+            sprint_winner_driver_api_id = ?,
+            sprint_midfield_hero_driver_api_id = ?,
+            entered_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `).run(
+        polePosition,
+        podiumFirst,
+        podiumSecond,
+        podiumThird,
+        midfieldHero,
+        sprintPole,
+        sprintWinner,
+        sprintMidfieldHero,
+        existing.id
+      );
+    } else {
+      // Insert new results
+      db.prepare(`
+        INSERT INTO race_results (
+          season_year, round_number,
+          pole_position_driver_api_id, podium_first_driver_api_id,
+          podium_second_driver_api_id, podium_third_driver_api_id,
+          midfield_hero_driver_api_id, sprint_pole_driver_api_id,
+          sprint_winner_driver_api_id, sprint_midfield_hero_driver_api_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        seasonYear,
+        roundNumber,
+        polePosition,
+        podiumFirst,
+        podiumSecond,
+        podiumThird,
+        midfieldHero,
+        sprintPole,
+        sprintWinner,
+        sprintMidfieldHero
+      );
+    }
+
+    // Calculate scores for this race
+    await calculateRaceScores(seasonYear, roundNumber);
+
+    const results = db.prepare(`
+      SELECT * FROM race_results
+      WHERE season_year = ? AND round_number = ?
+    `).get(seasonYear, roundNumber);
+
+    res.json({
+      success: true,
+      message: `Successfully imported results for ${seasonYear} Round ${roundNumber}`,
+      data: results
+    });
+  } catch (error: any) {
+    console.error('Import race results error:', error);
+    res.status(500).json({
+      error: 'Failed to import race results',
+      details: error.message
+    });
+  }
+};
+
+/**
+ * Import season standings from cached F1 API data
+ * POST /api/admin/f1-data/import-standings/:year
+ */
+export const importSeasonStandings = async (req: AuthRequest, res: Response) => {
+  try {
+    const { year } = req.params;
+    const seasonYear = parseInt(year);
+
+    if (isNaN(seasonYear)) {
+      return res.status(400).json({ error: 'Invalid year' });
+    }
+
+    // Get cached driver and constructor standings
+    const driverStandingsData = f1ApiService.getCachedData('driverStandings', seasonYear);
+    const constructorStandingsData = f1ApiService.getCachedData('constructorStandings', seasonYear);
+
+    if (!driverStandingsData || !constructorStandingsData) {
+      return res.status(404).json({
+        error: 'No cached standings found. Please refresh the data first.',
+        year: seasonYear
+      });
+    }
+
+    // Extract driver standings
+    const driverStandings = driverStandingsData.MRData?.StandingsTable?.StandingsLists?.[0]?.DriverStandings;
+    if (!driverStandings || driverStandings.length === 0) {
+      return res.status(404).json({ error: 'Invalid driver standings data format' });
+    }
+
+    // Extract constructor standings
+    const constructorStandings = constructorStandingsData.MRData?.StandingsTable?.StandingsLists?.[0]?.ConstructorStandings;
+    if (!constructorStandings || constructorStandings.length === 0) {
+      return res.status(404).json({ error: 'Invalid constructor standings data format' });
+    }
+
+    // Build ordered arrays of driver and constructor IDs
+    const driversOrder = driverStandings
+      .sort((a: any, b: any) => parseInt(a.position) - parseInt(b.position))
+      .map((standing: any) => standing.Driver.driverId);
+
+    const constructorsOrder = constructorStandings
+      .sort((a: any, b: any) => parseInt(a.position) - parseInt(b.position))
+      .map((standing: any) => standing.Constructor.constructorId);
+
+    const driversJson = JSON.stringify(driversOrder);
+    const constructorsJson = JSON.stringify(constructorsOrder);
+
+    // Check if results already exist
+    const existing = db.prepare(`
+      SELECT id FROM season_results WHERE season_year = ?
+    `).get(seasonYear) as { id: number } | undefined;
+
+    if (existing) {
+      // Update existing results
+      db.prepare(`
+        UPDATE season_results
+        SET drivers_championship_order = ?,
+            constructors_championship_order = ?,
+            entered_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `).run(driversJson, constructorsJson, existing.id);
+    } else {
+      // Insert new results (with empty arrays for other fields)
+      db.prepare(`
+        INSERT INTO season_results (
+          season_year, drivers_championship_order, constructors_championship_order,
+          mid_season_sackings
+        ) VALUES (?, ?, ?, ?)
+      `).run(seasonYear, driversJson, constructorsJson, '[]');
+    }
+
+    // Calculate scores for season predictions
+    await calculateSeasonScores(seasonYear);
+
+    const results = db.prepare(`
+      SELECT * FROM season_results WHERE season_year = ?
+    `).get(seasonYear);
+
+    res.json({
+      success: true,
+      message: `Successfully imported standings for ${seasonYear}`,
+      data: results
+    });
+  } catch (error: any) {
+    console.error('Import season standings error:', error);
+    res.status(500).json({
+      error: 'Failed to import season standings',
+      details: error.message
+    });
+  }
+};
+
+/**
+ * Bulk import all races for a season from cached data
+ * POST /api/admin/f1-data/import-season/:year
+ */
+export const bulkImportSeason = async (req: AuthRequest, res: Response) => {
+  try {
+    const { year } = req.params;
+    const seasonYear = parseInt(year);
+
+    if (isNaN(seasonYear)) {
+      return res.status(400).json({ error: 'Invalid year' });
+    }
+
+    // Get cached schedule to know how many rounds there are
+    const scheduleData = f1ApiService.getCachedData('schedule', seasonYear);
+
+    if (!scheduleData) {
+      return res.status(404).json({
+        error: 'No cached schedule found. Please refresh the data first.',
+        year: seasonYear
+      });
+    }
+
+    const races = scheduleData.MRData?.RaceTable?.Races;
+    if (!races || races.length === 0) {
+      return res.status(404).json({ error: 'Invalid schedule data format' });
+    }
+
+    const importedRaces = [];
+    const failedRaces = [];
+
+    // Import results for each race
+    for (const race of races) {
+      const round = parseInt(race.round);
+
+      try {
+        // Check if results are available for this race
+        const resultsData = f1ApiService.getCachedData('results', seasonYear, round);
+
+        if (resultsData) {
+          // Import this race (reuse logic from importRaceResults)
+          const raceData = resultsData.MRData?.RaceTable?.Races?.[0];
+          if (raceData?.Results) {
+            const qualifyingData = f1ApiService.getCachedData('qualifying', seasonYear, round);
+            const sprintData = f1ApiService.getCachedData('sprint', seasonYear, round);
+
+            const podium = raceData.Results.slice(0, 3);
+            const podiumFirst = podium[0]?.Driver?.driverId;
+            const podiumSecond = podium[1]?.Driver?.driverId;
+            const podiumThird = podium[2]?.Driver?.driverId;
+
+            let polePosition = null;
+            if (qualifyingData) {
+              const qualifyingRace = qualifyingData.MRData?.RaceTable?.Races?.[0];
+              if (qualifyingRace?.QualifyingResults?.[0]) {
+                polePosition = qualifyingRace.QualifyingResults[0].Driver?.driverId;
+              }
+            }
+
+            const midfieldResults = raceData.Results.slice(5, 10);
+            const midfieldHero = midfieldResults[0]?.Driver?.driverId;
+
+            let sprintWinner = null;
+            let sprintMidfieldHero = null;
+            if (sprintData) {
+              const sprintRace = sprintData.MRData?.RaceTable?.Races?.[0];
+              if (sprintRace?.SprintResults) {
+                sprintWinner = sprintRace.SprintResults[0]?.Driver?.driverId;
+                const sprintMidfield = sprintRace.SprintResults.slice(5, 10);
+                sprintMidfieldHero = sprintMidfield[0]?.Driver?.driverId;
+              }
+            }
+
+            const existing = db.prepare(`
+              SELECT id FROM race_results
+              WHERE season_year = ? AND round_number = ?
+            `).get(seasonYear, round) as { id: number } | undefined;
+
+            if (existing) {
+              db.prepare(`
+                UPDATE race_results
+                SET pole_position_driver_api_id = ?,
+                    podium_first_driver_api_id = ?,
+                    podium_second_driver_api_id = ?,
+                    podium_third_driver_api_id = ?,
+                    midfield_hero_driver_api_id = ?,
+                    sprint_winner_driver_api_id = ?,
+                    sprint_midfield_hero_driver_api_id = ?,
+                    entered_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+              `).run(
+                polePosition,
+                podiumFirst,
+                podiumSecond,
+                podiumThird,
+                midfieldHero,
+                sprintWinner,
+                sprintMidfieldHero,
+                existing.id
+              );
+            } else {
+              db.prepare(`
+                INSERT INTO race_results (
+                  season_year, round_number,
+                  pole_position_driver_api_id, podium_first_driver_api_id,
+                  podium_second_driver_api_id, podium_third_driver_api_id,
+                  midfield_hero_driver_api_id, sprint_winner_driver_api_id,
+                  sprint_midfield_hero_driver_api_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+              `).run(
+                seasonYear,
+                round,
+                polePosition,
+                podiumFirst,
+                podiumSecond,
+                podiumThird,
+                midfieldHero,
+                sprintWinner,
+                sprintMidfieldHero
+              );
+            }
+
+            await calculateRaceScores(seasonYear, round);
+            importedRaces.push({ round, raceName: race.raceName });
+          }
+        } else {
+          failedRaces.push({ round, raceName: race.raceName, reason: 'No results data in cache' });
+        }
+      } catch (error: any) {
+        failedRaces.push({ round, raceName: race.raceName, reason: error.message });
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Bulk import completed for ${seasonYear}`,
+      imported: importedRaces.length,
+      failed: failedRaces.length,
+      importedRaces,
+      failedRaces
+    });
+  } catch (error: any) {
+    console.error('Bulk import season error:', error);
+    res.status(500).json({
+      error: 'Failed to bulk import season',
+      details: error.message
+    });
+  }
+};
+
+/**
+ * Populate driver images from cached F1 API data
+ * POST /api/admin/f1-data/populate-driver-images/:year
+ */
+export const populateDriverImages = async (req: AuthRequest, res: Response) => {
+  try {
+    const { year } = req.params;
+    const seasonYear = parseInt(year);
+
+    if (isNaN(seasonYear)) {
+      return res.status(400).json({ error: 'Invalid year' });
+    }
+
+    // Get cached drivers data
+    const driversData = f1ApiService.getCachedData('drivers', seasonYear);
+
+    if (!driversData) {
+      return res.status(404).json({
+        error: 'No cached drivers found. Please refresh the data first.',
+        year: seasonYear
+      });
+    }
+
+    const drivers = driversData.MRData?.DriverTable?.Drivers;
+    if (!drivers || drivers.length === 0) {
+      return res.status(404).json({ error: 'Invalid drivers data format' });
+    }
+
+    // Note: The Jolpica F1 API doesn't include driver images
+    // This endpoint would need to be extended to fetch images from another source
+    // or to store placeholder data
+
+    res.json({
+      success: true,
+      message: `Driver images functionality not yet implemented. API does not provide image URLs.`,
+      driverCount: drivers.length,
+      drivers: drivers.map((d: any) => ({
+        driverId: d.driverId,
+        name: `${d.givenName} ${d.familyName}`
+      }))
+    });
+  } catch (error: any) {
+    console.error('Populate driver images error:', error);
+    res.status(500).json({
+      error: 'Failed to populate driver images',
+      details: error.message
+    });
+  }
+};

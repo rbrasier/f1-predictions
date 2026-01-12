@@ -43,7 +43,7 @@ function loadMigrations(): Migration[] {
   }
 
   const files = fs.readdirSync(migrationsDir)
-    .filter(f => f.endsWith('.ts') || f.endsWith('.js'))
+    .filter(f => (f.endsWith('.ts') || f.endsWith('.js')) && !f.endsWith('.d.ts'))
     .sort();
 
   return files.map(file => {
