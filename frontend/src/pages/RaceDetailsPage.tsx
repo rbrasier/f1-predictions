@@ -4,6 +4,7 @@ import { Layout } from '../components/common/Layout';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { CountdownTimer } from '../components/dashboard/CountdownTimer';
 import { DriverAutocomplete } from '../components/predictions/DriverAutocomplete';
+import { useToast } from '../contexts/ToastContext';
 import {
   getRace,
   getDrivers,
@@ -15,6 +16,7 @@ import { Driver, Race } from '../types';
 export const RaceDetailsPage = () => {
   const { raceId } = useParams<{ raceId: string }>();
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const [race, setRace] = useState<Race | null>(null);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [midfieldDrivers, setMidfieldDrivers] = useState<Driver[]>([]);
@@ -126,8 +128,8 @@ export const RaceDetailsPage = () => {
 
       await submitRacePrediction(raceId, prediction);
 
-      setSuccess('Race predictions saved successfully!');
-      setTimeout(() => navigate('/dashboard'), 2000);
+      showToast('Race predictions saved successfully!', 'success');
+      setTimeout(() => navigate('/dashboard'), 1000);
     } catch (err: any) {
       setError(err.response?.data?.error || err.message || 'Failed to submit prediction');
     } finally {

@@ -3,8 +3,8 @@ import { Link } from 'react-router-dom';
 import { Layout } from '../components/common/Layout';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { CountdownTimer } from '../components/dashboard/CountdownTimer';
-import { getActiveSeason, getNextRace, getUpcomingRaces, getAllUsers, getLeaderboard, getPendingValidations, getDrivers } from '../services/api';
-import { Season, Race, User, RacePrediction, LeaderboardEntry, PendingValidation, Driver } from '../types';
+import { getActiveSeason, getNextRace, getUpcomingRaces, getAllUsers, getLeaderboard, getPendingValidations, getDrivers, getMyRacePrediction, getMySeasonPrediction, getAllRacePredictions, getValidationsForPrediction, getLastRoundResults, validateCrazyPrediction } from '../services/api';
+import { Season, Race, User, RacePrediction, LeaderboardEntry, PendingValidation, Driver, SeasonPrediction } from '../types';
 import { useAuth } from '../hooks/useAuth';
 
 export const DashboardPage = () => {
@@ -14,9 +14,14 @@ export const DashboardPage = () => {
   const [upcomingRaces, setUpcomingRaces] = useState<Race[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
-  const [racePredictions] = useState<RacePrediction[]>([]);
+  const [racePredictions, setRacePredictions] = useState<RacePrediction[]>([]);
+  const [myRacePrediction, setMyRacePrediction] = useState<RacePrediction | null>(null);
+  const [mySeasonPrediction, setMySeasonPrediction] = useState<SeasonPrediction | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [pendingValidations, setPendingValidations] = useState<PendingValidation[]>([]);
+  const [crazyPredictionsWithValidations, setCrazyPredictionsWithValidations] = useState<any[]>([]);
+  const [lastRoundData, setLastRoundData] = useState<any>(null);
+  const [votingOnPrediction, setVotingOnPrediction] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -43,8 +48,23 @@ export const DashboardPage = () => {
     return `${race.FirstPractice.date}T${race.FirstPractice.time}`;
   };
 
-  // Get current user's prediction for the next race
-  const userPrediction = racePredictions.find(p => p.user_id === currentUser?.id);
+  // Handle voting on crazy prediction
+  const handleVoteCrazyPrediction = async (predictionId: number, isValid: boolean) => {
+    try {
+      setVotingOnPrediction(predictionId);
+      await validateCrazyPrediction('race', predictionId, isValid);
+
+      // Refresh last round data to show updated validations
+      if (season) {
+        const lastRound = await getLastRoundResults(season.year);
+        setLastRoundData(lastRound);
+      }
+    } catch (err) {
+      console.error('Error voting on crazy prediction:', err);
+    } finally {
+      setVotingOnPrediction(null);
+    }
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -65,13 +85,45 @@ export const DashboardPage = () => {
         setLeaderboard(leaderboardData);
         setDrivers(driversData);
 
-        // Fetch race predictions if there's a next race (limit to 5 for dashboard)
+        // Fetch race predictions if there's a next race
         if (raceData) {
-          // Note: getAllRacePredictions API needs to support season/round
-          // For now, skip loading predictions or use a temporary solution
-          console.log('Would load predictions for:', raceData.season, raceData.round);
-          // const predictions = await getAllRacePredictions(raceData.season, raceData.round, 5);
-          // setRacePredictions(predictions);
+          try {
+            const raceId = `${raceData.season}-${raceData.round}`;
+            const [myPrediction, allPredictions] = await Promise.all([
+              getMyRacePrediction(raceId).catch(() => null),
+              getAllRacePredictions(raceId, 10).catch(() => [])
+            ]);
+            setMyRacePrediction(myPrediction);
+            setRacePredictions(allPredictions);
+
+            // Fetch crazy predictions with validation counts
+            const predictionsWithValidations = await Promise.all(
+              allPredictions
+                .filter(p => p.crazy_prediction)
+                .map(async (p) => {
+                  try {
+                    const validations = await getValidationsForPrediction('race', p.id);
+                    const agreeCount = validations.filter(v => v.is_validated).length;
+                    return { ...p, agreeCount };
+                  } catch {
+                    return { ...p, agreeCount: 0 };
+                  }
+                })
+            );
+            setCrazyPredictionsWithValidations(predictionsWithValidations);
+          } catch (err) {
+            console.error('Error loading race predictions:', err);
+          }
+        }
+
+        // Fetch season prediction
+        if (seasonData) {
+          try {
+            const mySeasonPred = await getMySeasonPrediction(seasonData.year);
+            setMySeasonPrediction(mySeasonPred);
+          } catch (err) {
+            // No season prediction yet
+          }
         }
 
         // Fetch pending crazy prediction validations
@@ -80,6 +132,17 @@ export const DashboardPage = () => {
           setPendingValidations(validations);
         } catch (err) {
           // Ignore errors for pending validations
+        }
+
+        // Fetch last round results if season exists
+        if (seasonData) {
+          try {
+            const lastRound = await getLastRoundResults(seasonData.year);
+            setLastRoundData(lastRound);
+          } catch (err) {
+            // No last round data available yet (no completed races or results not entered)
+            console.log('No last round data available');
+          }
         }
       } catch (err: any) {
         setError(err.response?.data?.error || 'Failed to load data');
@@ -109,6 +172,8 @@ export const DashboardPage = () => {
     );
   }
 
+  const seasonDeadlinePassed = season && new Date() > new Date(season.prediction_deadline);
+
   return (
     <Layout>
       <div className="max-w-7xl mx-auto px-6 py-8">
@@ -131,8 +196,8 @@ export const DashboardPage = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Content - Left Side */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Season Predictions Countdown */}
-            {season && (
+            {/* Season Predictions Countdown - only show if deadline hasn't passed or no prediction submitted */}
+            {season && !seasonDeadlinePassed && (
               <div className="bg-gradient-to-r from-purple-900/40 to-black rounded-lg p-6 border border-paddock-lightgray">
                 <div className="flex justify-between items-start mb-4">
                   <div>
@@ -148,7 +213,7 @@ export const DashboardPage = () => {
                     to="/season-predictions"
                     className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded font-bold uppercase text-sm tracking-wide transition"
                   >
-                    Submit Predictions
+                    {mySeasonPrediction ? 'Edit Predictions' : 'Submit Predictions'}
                   </Link>
                 </div>
 
@@ -159,33 +224,256 @@ export const DashboardPage = () => {
               </div>
             )}
 
-            {/* Next Race Card */}
-            {nextRace && (
-              <div className="bg-gradient-to-r from-red-900/40 to-black rounded-lg p-6 border border-paddock-lightgray">
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <div className="text-paddock-coral text-sm font-bold uppercase tracking-wide mb-2">
-                      Round {nextRace.round}
-                    </div>
-                    <h2 className="text-3xl font-bold text-white mb-2">
-                      {nextRace.raceName.toUpperCase()}
-                    </h2>
-                    <p className="text-gray-400">{getRaceLocation(nextRace)}</p>
-                  </div>
-                  <Link
-                    to={`/race/${getRaceId(nextRace)}`}
-                    className="bg-paddock-red hover:bg-red-600 text-white px-6 py-3 rounded font-bold uppercase text-sm tracking-wide transition"
-                  >
-                    Submit Tips
-                  </Link>
-                </div>
+            {/* PADDOCK PREDICTIONS Section - moved above races */}
+            <div>
+              <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
+                <span className="w-1 h-6 bg-paddock-red inline-block"></span>
+                PADDOCK PREDICTIONS
+              </h2>
 
-                {getFP1Start(nextRace) && (
-                  <CountdownTimer
-                    targetDate={getFP1Start(nextRace)!}
-                    label=""
-                  />
-                )}
+              {/* Current Round - Show user tips if submitted */}
+              {nextRace && (
+                <div className="bg-gradient-to-r from-red-900/40 to-black rounded-lg p-4 border border-paddock-lightgray mb-4">
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <div className="text-paddock-coral text-xs font-bold uppercase tracking-wide mb-1">
+                        Round {nextRace.round}
+                      </div>
+                      <h3 className="text-xl font-bold text-white mb-1">
+                        {nextRace.raceName.toUpperCase()}
+                      </h3>
+                      <p className="text-gray-400 text-sm">{getRaceLocation(nextRace)}</p>
+                    </div>
+                    <Link
+                      to={`/race/${getRaceId(nextRace)}`}
+                      className="bg-paddock-red hover:bg-red-600 text-white px-4 py-2 rounded font-bold uppercase text-xs tracking-wide transition"
+                    >
+                      {myRacePrediction ? 'Edit Tips' : 'Submit Tips'}
+                    </Link>
+                  </div>
+
+                  {myRacePrediction ? (
+                    <div>
+                      <div className="grid grid-cols-3 gap-2 mb-2">
+                        <div className="bg-paddock-gray rounded p-2 border border-paddock-lightgray">
+                          <div className="text-paddock-coral text-xs font-bold uppercase mb-1">P1</div>
+                          <div className="text-white font-bold text-sm">
+                            {getDriverName(myRacePrediction.podium_first_driver_api_id)}
+                          </div>
+                        </div>
+                        <div className="bg-paddock-gray rounded p-2 border border-paddock-lightgray">
+                          <div className="text-paddock-coral text-xs font-bold uppercase mb-1">P2</div>
+                          <div className="text-white font-bold text-sm">
+                            {getDriverName(myRacePrediction.podium_second_driver_api_id)}
+                          </div>
+                        </div>
+                        <div className="bg-paddock-gray rounded p-2 border border-paddock-lightgray">
+                          <div className="text-paddock-coral text-xs font-bold uppercase mb-1">P3</div>
+                          <div className="text-white font-bold text-sm">
+                            {getDriverName(myRacePrediction.podium_third_driver_api_id)}
+                          </div>
+                        </div>
+                      </div>
+                      {getFP1Start(nextRace) && (
+                        <div className="text-xs">
+                          <CountdownTimer targetDate={getFP1Start(nextRace)!} label="" />
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    getFP1Start(nextRace) && (
+                      <CountdownTimer targetDate={getFP1Start(nextRace)!} label="" />
+                    )
+                  )}
+                </div>
+              )}
+
+              {/* Crazy Predictions from Others */}
+              {crazyPredictionsWithValidations.length > 0 && (
+                <div className="bg-paddock-gray rounded-lg border border-paddock-lightgray mb-4">
+                  <div className="p-3 bg-purple-900/40 border-b border-paddock-lightgray">
+                    <h4 className="text-white font-bold text-sm uppercase">Crazy Predictions This Round</h4>
+                  </div>
+                  <div className="divide-y divide-paddock-lightgray">
+                    {crazyPredictionsWithValidations.slice(0, 3).map((prediction) => {
+                      const user = users.find(u => u.id === prediction.user_id);
+                      if (!user) return null;
+
+                      return (
+                        <div key={prediction.id} className="p-3">
+                          <div className="flex items-start gap-2">
+                            <div className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+                              {user.display_name.substring(0, 2).toUpperCase()}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="text-white font-bold text-sm">{user.display_name}</span>
+                                <span className="text-green-400 text-xs">
+                                  {prediction.agreeCount} {prediction.agreeCount === 1 ? 'agrees' : 'agree'}
+                                </span>
+                              </div>
+                              <p className="text-gray-300 text-xs italic">
+                                "{prediction.crazy_prediction}"
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Last Round Results & Voting */}
+              {lastRoundData && lastRoundData.predictions && lastRoundData.predictions.length > 0 && (
+                <div className="bg-paddock-gray rounded-lg border border-paddock-lightgray">
+                  <div className="p-3 bg-green-900/40 border-b border-paddock-lightgray">
+                    <h4 className="text-white font-bold text-sm uppercase">Last Round Results (Round {lastRoundData.round})</h4>
+                  </div>
+
+                  {/* Leaderboard for last round */}
+                  <div className="p-3 bg-paddock-darkgray border-b border-paddock-lightgray">
+                    <div className="text-xs text-gray-400 mb-2">Points Scored</div>
+                    <div className="space-y-1">
+                      {lastRoundData.predictions.slice(0, 5).map((pred: any, idx: number) => (
+                        <div key={pred.id} className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className={`text-xs font-bold ${idx === 0 ? 'text-yellow-400' : 'text-gray-400'}`}>
+                              {idx + 1}.
+                            </span>
+                            <span className={`text-sm ${pred.user_id === currentUser?.id ? 'text-paddock-coral font-bold' : 'text-white'}`}>
+                              {pred.display_name}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-green-400 font-bold">{pred.calculated_score} pts</span>
+                            {pred.score_breakdown && (
+                              <div className="flex gap-1">
+                                {pred.score_breakdown.pole && <span className="text-xs text-gray-400" title="Pole">P</span>}
+                                {pred.score_breakdown.p1 && <span className="text-xs text-yellow-400" title="P1">1</span>}
+                                {pred.score_breakdown.p2 && <span className="text-xs text-gray-300" title="P2">2</span>}
+                                {pred.score_breakdown.p3 && <span className="text-xs text-orange-400" title="P3">3</span>}
+                                {pred.score_breakdown.midfield && <span className="text-xs text-blue-400" title="Midfield">M</span>}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Crazy Predictions Voting */}
+                  {lastRoundData.predictions.filter((p: any) => p.crazy_prediction).length > 0 && (
+                    <div className="divide-y divide-paddock-lightgray">
+                      <div className="p-3 bg-purple-900/20">
+                        <h5 className="text-white text-xs font-bold uppercase mb-2">Vote on Crazy Predictions</h5>
+                        <p className="text-gray-400 text-xs">Did these predictions come true?</p>
+                      </div>
+                      {lastRoundData.predictions
+                        .filter((p: any) => p.crazy_prediction)
+                        .map((pred: any) => {
+                          const user = users.find(u => u.id === pred.user_id);
+                          const validations = lastRoundData.crazy_validations.filter(
+                            (v: any) => v.prediction_id === pred.id
+                          );
+                          const yesVotes = validations.filter((v: any) => v.is_validated).length;
+                          const noVotes = validations.filter((v: any) => !v.is_validated).length;
+                          const userVoted = validations.some((v: any) => v.validator_user_id === currentUser?.id);
+
+                          return (
+                            <div key={pred.id} className="p-3">
+                              <div className="flex items-start gap-2 mb-2">
+                                <div className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+                                  {user?.display_name.substring(0, 2).toUpperCase()}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="text-white font-bold text-sm mb-1">{user?.display_name}</div>
+                                  <p className="text-gray-300 text-xs italic mb-2">"{pred.crazy_prediction}"</p>
+
+                                  <div className="flex items-center gap-3">
+                                    <div className="text-xs text-gray-400">
+                                      <span className="text-green-400">{yesVotes} Yes</span> •
+                                      <span className="text-red-400"> {noVotes} No</span>
+                                    </div>
+                                    {!userVoted && (
+                                      <div className="flex gap-2">
+                                        <button
+                                          onClick={() => handleVoteCrazyPrediction(pred.id, true)}
+                                          disabled={votingOnPrediction === pred.id}
+                                          className="px-2 py-1 bg-green-600 hover:bg-green-700 text-white text-xs rounded font-bold disabled:opacity-50"
+                                        >
+                                          ✓ Yes
+                                        </button>
+                                        <button
+                                          onClick={() => handleVoteCrazyPrediction(pred.id, false)}
+                                          disabled={votingOnPrediction === pred.id}
+                                          className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded font-bold disabled:opacity-50"
+                                        >
+                                          ✗ No
+                                        </button>
+                                      </div>
+                                    )}
+                                    {userVoted && (
+                                      <span className="text-xs text-gray-500 italic">You voted</span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+            </div>
+
+            {/* Upcoming Races Section */}
+            {upcomingRaces.length > 1 && (
+              <div>
+                <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
+                  <span className="w-1 h-6 bg-paddock-red inline-block"></span>
+                  UPCOMING RACES
+                </h2>
+                <div className="bg-paddock-gray rounded-lg border border-paddock-lightgray">
+                  <div className="divide-y divide-paddock-lightgray">
+                    {upcomingRaces.slice(1).map((race) => {
+                      const fp1Start = getFP1Start(race);
+                      return (
+                        <Link
+                          key={getRaceId(race)}
+                          to={`/race/${getRaceId(race)}`}
+                          className="flex items-center justify-between p-4 hover:bg-paddock-lightgray transition"
+                        >
+                          <div className="flex-1">
+                            <div className="text-paddock-coral text-xs font-bold uppercase tracking-wide mb-1">
+                              Round {race.round}
+                            </div>
+                            <div className="text-white font-bold text-lg">
+                              {race.raceName}
+                            </div>
+                            <div className="text-gray-400 text-sm">
+                              {getRaceLocation(race)}
+                            </div>
+                            {fp1Start && (
+                              <div className="text-gray-500 text-xs mt-1">
+                                {new Date(fp1Start).toLocaleDateString('en-US', {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  year: 'numeric'
+                                })}
+                              </div>
+                            )}
+                          </div>
+                          <div className="text-paddock-red hover:text-paddock-coral font-bold uppercase text-sm">
+                            Predict →
+                          </div>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
             )}
 
@@ -237,126 +525,27 @@ export const DashboardPage = () => {
               </div>
             )}
 
-            {/* Your Predictions Section */}
-            {nextRace && userPrediction && (
-              <div>
-                <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
-                  <span className="w-1 h-6 bg-paddock-red inline-block"></span>
-                  YOUR PREDICTIONS
-                </h2>
-                <div className="grid grid-cols-3 gap-4">
-                  {/* Winner Card */}
-                  <div className="bg-paddock-gray rounded-lg p-4 border border-paddock-lightgray">
-                    <div className="text-paddock-coral text-xs font-bold uppercase tracking-wide mb-2">
-                      Winner (P1)
-                    </div>
-                    <div className="text-white font-bold text-lg">
-                      {getDriverName(userPrediction.podium_first_driver_api_id)}
-                    </div>
-                  </div>
-
-                  {/* Podium P2 Card */}
-                  <div className="bg-paddock-gray rounded-lg p-4 border border-paddock-lightgray">
-                    <div className="text-paddock-coral text-xs font-bold uppercase tracking-wide mb-2">
-                      Podium (P2)
-                    </div>
-                    <div className="text-white font-bold text-lg">
-                      {getDriverName(userPrediction.podium_second_driver_api_id)}
-                    </div>
-                  </div>
-
-                  {/* Podium P3 Card */}
-                  <div className="bg-paddock-gray rounded-lg p-4 border border-paddock-lightgray">
-                    <div className="text-paddock-coral text-xs font-bold uppercase tracking-wide mb-2">
-                      Podium (P3)
-                    </div>
-                    <div className="text-white font-bold text-lg">
-                      {getDriverName(userPrediction.podium_third_driver_api_id)}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Paddock Predictions Section */}
-            <div>
-              <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
-                <span className="w-1 h-6 bg-paddock-red inline-block"></span>
-                PADDOCK PREDICTIONS
-              </h2>
-              <div className="bg-paddock-gray rounded-lg border border-paddock-lightgray">
-                {(pendingValidations.length > 0 || (nextRace && racePredictions.length > 0)) ? (
-                  <div className="divide-y divide-paddock-lightgray">
-                    {/* Crazy Predictions Needing Validation */}
-                    {pendingValidations.slice(0, 3).map((validation) => (
-                      <Link
-                        key={`${validation.prediction_type}-${validation.id}`}
-                        to="/validations"
-                        className="block p-4 hover:bg-paddock-lightgray transition"
-                      >
-                        <div className="flex items-start gap-3">
-                          <div className="w-10 h-10 rounded-full bg-purple-600 flex items-center justify-center text-white font-bold flex-shrink-0">
-                            {validation.display_name.substring(0, 2).toUpperCase()}
-                          </div>
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="text-white font-bold">{validation.display_name}</span>
-                              <span className="bg-purple-600 text-white text-xs px-2 py-0.5 rounded uppercase font-bold">
-                                Needs Validation
-                              </span>
-                            </div>
-                            <p className="text-gray-300 text-sm mb-1">
-                              "{validation.crazy_prediction}"
-                            </p>
-                            <p className="text-gray-500 text-xs">
-                              {validation.prediction_type === 'season'
-                                ? `Season ${validation.season_year || validation.year}`
-                                : `Round ${validation.round_number}`}
-                            </p>
-                          </div>
-                        </div>
-                      </Link>
-                    ))}
-
-                    {/* Race Predictions */}
-                    {nextRace && racePredictions.slice(0, 5 - Math.min(pendingValidations.length, 3)).map((prediction) => {
-                      const user = users.find(u => u.id === prediction.user_id);
-                      if (!user) return null;
-
-                      return (
-                        <div key={prediction.id} className="p-4 hover:bg-paddock-lightgray transition">
-                          <div className="flex items-start gap-3">
-                            <div className="w-10 h-10 rounded-full bg-paddock-red flex items-center justify-center text-white font-bold flex-shrink-0">
-                              {user.display_name.substring(0, 2).toUpperCase()}
-                            </div>
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className="text-white font-bold">{user.display_name}</span>
-                                <span className="text-gray-500 text-xs">
-                                  {new Date(prediction.submitted_at).toLocaleDateString()} at{' '}
-                                  {new Date(prediction.submitted_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                </span>
-                              </div>
-                              <p className="text-gray-300 text-sm">
-                                just locked in his tips. Feeling risky with a {getDriverName(prediction.podium_first_driver_api_id)} win!
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="p-8 text-center text-gray-500">
-                    No tips submitted yet. Be the first!
-                  </div>
-                )}
-              </div>
-            </div>
           </div>
 
           {/* Right Sidebar */}
           <div className="space-y-6">
+            {/* Season Predictions Link - show if deadline passed and user has prediction */}
+            {season && seasonDeadlinePassed && mySeasonPrediction && (
+              <div className="bg-gradient-to-r from-purple-900/40 to-black rounded-lg p-4 border border-paddock-lightgray">
+                <div className="text-purple-400 text-xs font-bold uppercase tracking-wide mb-2">
+                  Season {season.year}
+                </div>
+                <h3 className="text-white font-bold mb-2">Your Season Predictions</h3>
+                <p className="text-gray-400 text-xs mb-3">View your championship predictions (locked)</p>
+                <Link
+                  to="/season-predictions"
+                  className="text-purple-400 hover:text-purple-300 text-sm font-bold uppercase"
+                >
+                  View Predictions →
+                </Link>
+              </div>
+            )}
+
             {/* The Standings */}
             <div className="bg-paddock-gray rounded-lg border border-paddock-lightgray overflow-hidden">
               <div className="bg-paddock-red px-4 py-3">
