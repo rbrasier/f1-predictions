@@ -4,7 +4,7 @@ import { Layout } from '../components/common/Layout';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { CountdownTimer } from '../components/dashboard/CountdownTimer';
 import { getActiveSeason, getNextRace, getUpcomingRaces, getAllUsers, getLeaderboard, getPendingValidations, getDrivers, getMyRacePrediction, getMySeasonPrediction, getAllRacePredictions, getValidationsForPrediction, getLastRoundResults, validateCrazyPrediction } from '../services/api';
-import { Season, Race, User, RacePrediction, LeaderboardEntry, PendingValidation, Driver, SeasonPrediction } from '../types';
+import { Season, Race, User, RacePrediction, LeaderboardEntry, Driver, SeasonPrediction } from '../types';
 import { useAuth } from '../hooks/useAuth';
 
 export const DashboardPage = () => {
