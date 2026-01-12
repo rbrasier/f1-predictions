@@ -5,7 +5,6 @@ interface DriverSelectorProps {
   selectedDriverId: string | null;
   onSelect: (driverId: string) => void;
   label?: string;
-  filterByTeamIds?: string[];
   required?: boolean;
 }
 
@@ -14,11 +13,8 @@ export const DriverSelector = ({
   selectedDriverId,
   onSelect,
   label,
-  filterByTeamIds,
   required = false
 }: DriverSelectorProps) => {
-  // Note: F1 API doesn't include team_id in driver data
-  // Team filtering would need to be done at a higher level with team rosters
   const filteredDrivers = drivers;
 
   return (

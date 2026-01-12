@@ -7,7 +7,6 @@ import { DriverAutocomplete } from '../components/predictions/DriverAutocomplete
 import {
   getRace,
   getDrivers,
-  getTeams,
   submitRacePrediction,
   getMyRacePrediction
 } from '../services/api';
@@ -40,10 +39,9 @@ export const RaceDetailsPage = () => {
       if (!raceId) return;
 
       try {
-        const [raceData, driversData, teamsData] = await Promise.all([
+        const [raceData, driversData] = await Promise.all([
           getRace(parseInt(raceId)),
-          getDrivers(),
-          getTeams()
+          getDrivers()
         ]);
 
         setRace(raceData);
@@ -155,18 +153,21 @@ export const RaceDetailsPage = () => {
     );
   }
 
-  const isPast = new Date() > new Date(race.fp1_start);
+  const fp1Start = race.FirstPractice ? `${race.FirstPractice.date}T${race.FirstPractice.time}` : null;
+  const isPast = fp1Start ? new Date() > new Date(fp1Start) : false;
+  const raceLocation = `${race.Circuit.Location.locality}, ${race.Circuit.Location.country}`;
+  const hasSprint = !!race.Sprint;
 
   return (
     <Layout>
       <div className="max-w-4xl mx-auto">
         <div className="mb-6">
           <h1 className="text-4xl font-bold text-white mb-2">
-            Round {race.round_number}: {race.name}
+            Round {race.round}: {race.raceName}
           </h1>
           <p className="text-gray-600">
-            {race.location} • {new Date(race.race_date).toLocaleDateString()}
-            {race.is_sprint_weekend && (
+            {raceLocation} • {new Date(race.date).toLocaleDateString()}
+            {hasSprint && (
               <span className="ml-2 bg-f1-red text-white text-xs px-2 py-1 rounded font-bold">
                 SPRINT WEEKEND
               </span>
@@ -174,9 +175,11 @@ export const RaceDetailsPage = () => {
           </p>
         </div>
 
-        <div className="mb-6">
-          <CountdownTimer targetDate={race.fp1_start} label="Predictions Close (FP1 Start)" />
-        </div>
+        {fp1Start && (
+          <div className="mb-6">
+            <CountdownTimer targetDate={fp1Start} label="Predictions Close (FP1 Start)" />
+          </div>
+        )}
 
         {isPast && (
           <div className="bg-yellow-100 border border-yellow-400 text-yellow-800 px-4 py-3 rounded mb-6">
@@ -260,7 +263,7 @@ export const RaceDetailsPage = () => {
           </div>
 
           {/* Sprint Weekend Predictions */}
-          {race.is_sprint_weekend && (
+          {hasSprint && (
             <div className="bg-white p-6 rounded-lg shadow border-2 border-f1-red text-gray-900">
               <h3 className="text-xl font-bold mb-4 text-f1-red">Sprint Predictions</h3>
 

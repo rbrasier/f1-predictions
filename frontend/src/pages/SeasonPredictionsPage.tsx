@@ -33,7 +33,7 @@ export const SeasonPredictionsPage = () => {
   const [audiVsCadillac, setAudiVsCadillac] = useState<'audi' | 'cadillac'>('audi');
   const [crazyPrediction, setCrazyPrediction] = useState('');
   const [grid2027, setGrid2027] = useState<DriverTeamPairing[]>([]);
-  const [grid2028, setGrid2028] = useState<DriverTeamPairing[]>([]);
+  const [grid2028] = useState<DriverTeamPairing[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -176,8 +176,8 @@ export const SeasonPredictionsPage = () => {
           {/* Drivers Championship */}
           <ChampionshipOrderPicker
             items={driversOrder.map(id => {
-              const driver = drivers.find(d => d.id === id)!;
-              return { id: driver.id, name: driver.name, image_url: driver.image_url };
+              const driver = drivers.find(d => d.driverId === id)!;
+              return { id: driver.driverId, name: `${driver.givenName} ${driver.familyName}`, image_url: null };
             })}
             onChange={setDriversOrder}
             title="Drivers Championship Order"
@@ -186,8 +186,8 @@ export const SeasonPredictionsPage = () => {
           {/* Constructors Championship */}
           <ChampionshipOrderPicker
             items={constructorsOrder.map(id => {
-              const team = teams.find(t => t.id === id)!;
-              return { id: team.id, name: team.name };
+              const team = teams.find(t => t.constructorId === id)!;
+              return { id: team.constructorId, name: team.name };
             })}
             onChange={setConstructorsOrder}
             title="Constructors Championship Order"
@@ -203,25 +203,25 @@ export const SeasonPredictionsPage = () => {
               <div>
                 <h4 className="font-bold mb-2 text-gray-900">Drivers</h4>
                 {drivers.map(driver => (
-                  <label key={driver.id} className="flex items-center space-x-2 mb-2 cursor-pointer">
+                  <label key={driver.driverId} className="flex items-center space-x-2 mb-2 cursor-pointer">
                     <input
                       type="checkbox"
-                      checked={sackings.includes(driver.id)}
-                      onChange={() => toggleSacking(driver.id)}
+                      checked={sackings.includes(driver.driverId)}
+                      onChange={() => toggleSacking(driver.driverId)}
                       className="w-4 h-4"
                     />
-                    <span className="text-gray-900">{driver.name}</span>
+                    <span className="text-gray-900">{`${driver.givenName} ${driver.familyName}`}</span>
                   </label>
                 ))}
               </div>
               <div>
                 <h4 className="font-bold mb-2 text-gray-900">Team Principals</h4>
                 {principals.map(principal => (
-                  <label key={principal.id} className="flex items-center space-x-2 mb-2 cursor-pointer">
+                  <label key={principal.constructor_id} className="flex items-center space-x-2 mb-2 cursor-pointer">
                     <input
                       type="checkbox"
-                      checked={sackings.includes(principal.id)}
-                      onChange={() => toggleSacking(principal.id)}
+                      checked={sackings.includes(principal.constructor_id)}
+                      onChange={() => toggleSacking(principal.constructor_id)}
                       className="w-4 h-4"
                     />
                     <span className="text-gray-900">{principal.name}</span>

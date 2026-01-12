@@ -10,8 +10,6 @@ interface DriverAutocompleteProps {
   required?: boolean;
 }
 
-const DEFAULT_DRIVER_IMAGE = 'https://via.placeholder.com/40/E10600/FFFFFF?text=F1';
-
 export const DriverAutocomplete = ({
   drivers,
   selectedDriverId,
@@ -96,10 +94,6 @@ export const DriverAutocomplete = ({
     setSearchTerm(e.target.value);
     setIsOpen(true);
     setHighlightedIndex(0);
-  };
-
-  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
-    e.currentTarget.src = DEFAULT_DRIVER_IMAGE;
   };
 
   return (
