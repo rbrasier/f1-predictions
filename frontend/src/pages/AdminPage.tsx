@@ -44,19 +44,19 @@ export const AdminPage = () => {
   const [dataLoading, setDataLoading] = useState(false);
 
   // Race Results Form State
-  const [polePosition, setPolePosition] = useState<number>(0);
-  const [podiumFirst, setPodiumFirst] = useState<number>(0);
-  const [podiumSecond, setPodiumSecond] = useState<number>(0);
-  const [podiumThird, setPodiumThird] = useState<number>(0);
-  const [midfieldHero, setMidfieldHero] = useState<number>(0);
-  const [sprintPole, setSprintPole] = useState<number>(0);
-  const [sprintWinner, setSprintWinner] = useState<number>(0);
-  const [sprintMidfieldHero, setSprintMidfieldHero] = useState<number>(0);
+  const [polePosition, setPolePosition] = useState<string>('');
+  const [podiumFirst, setPodiumFirst] = useState<string>('');
+  const [podiumSecond, setPodiumSecond] = useState<string>('');
+  const [podiumThird, setPodiumThird] = useState<string>('');
+  const [midfieldHero, setMidfieldHero] = useState<string>('');
+  const [sprintPole, setSprintPole] = useState<string>('');
+  const [sprintWinner, setSprintWinner] = useState<string>('');
+  const [sprintMidfieldHero, setSprintMidfieldHero] = useState<string>('');
 
   // Season Results Form State
-  const [driversOrder, setDriversOrder] = useState<number[]>([]);
-  const [constructorsOrder, setConstructorsOrder] = useState<number[]>([]);
-  const [sackings] = useState<number[]>([]);
+  const [driversOrder, setDriversOrder] = useState<string[]>([]);
+  const [constructorsOrder, setConstructorsOrder] = useState<string[]>([]);
+  const [sackings] = useState<string[]>([]);
   const [audiVsCadillacWinner, setAudiVsCadillacWinner] = useState<'audi' | 'cadillac'>('audi');
 
   useEffect(() => {
@@ -78,19 +78,19 @@ export const AdminPage = () => {
       setSeason(seasonData);
 
       if (driversData.length > 0) {
-        setPolePosition(driversData[0].id);
-        setPodiumFirst(driversData[0].id);
-        setPodiumSecond(driversData[1]?.id || driversData[0].id);
-        setPodiumThird(driversData[2]?.id || driversData[0].id);
-        setMidfieldHero(driversData[0].id);
-        setSprintPole(driversData[0].id);
-        setSprintWinner(driversData[0].id);
-        setSprintMidfieldHero(driversData[0].id);
-        setDriversOrder(driversData.map(d => d.id));
+        setPolePosition(driversData[0].driverId);
+        setPodiumFirst(driversData[0].driverId);
+        setPodiumSecond(driversData[1]?.driverId || driversData[0].driverId);
+        setPodiumThird(driversData[2]?.driverId || driversData[0].driverId);
+        setMidfieldHero(driversData[0].driverId);
+        setSprintPole(driversData[0].driverId);
+        setSprintWinner(driversData[0].driverId);
+        setSprintMidfieldHero(driversData[0].driverId);
+        setDriversOrder(driversData.map((d: Driver) => d.driverId));
       }
 
       if (teamsData.length > 0) {
-        setConstructorsOrder(teamsData.map(t => t.id));
+        setConstructorsOrder(teamsData.map((t: Team) => t.constructorId));
       }
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to load data');
@@ -99,20 +99,21 @@ export const AdminPage = () => {
     }
   };
 
-  const loadRacePredictions = async (raceId: number) => {
+  const loadRacePredictions = async (season: string, round: string) => {
     try {
-      const predictions = await getAllRacePredictions(raceId);
-      const withCrazy = predictions.filter(p => p.crazy_prediction);
-      setCrazyPredictions(withCrazy);
+      // Note: API call needs to be updated to use season/round instead of raceId
+      // For now, skip loading predictions
+      console.log(`Loading predictions for ${season} round ${round}`);
+      setCrazyPredictions([]);
       setCrazyPredictionsHappened([]);
     } catch (err) {
       console.error('Failed to load predictions');
     }
   };
 
-  const loadSeasonPredictions = async (seasonId: number) => {
+  const loadSeasonPredictions = async (seasonYear: number) => {
     try {
-      const predictions = await getAllSeasonPredictions(seasonId);
+      const predictions = await getAllSeasonPredictions(seasonYear);
       const withCrazy = predictions.filter(p => p.crazy_prediction);
       setCrazyPredictions(withCrazy);
       setCrazyPredictionsHappened([]);
@@ -123,7 +124,7 @@ export const AdminPage = () => {
 
   const handleRaceSelect = async (race: Race) => {
     setSelectedRace(race);
-    await loadRacePredictions(race.id);
+    await loadRacePredictions(race.season, race.round);
   };
 
   const handleSubmitRaceResults = async (e: React.FormEvent) => {
@@ -136,21 +137,26 @@ export const AdminPage = () => {
       if (!selectedRace) throw new Error('No race selected');
 
       const results: any = {
-        pole_position_driver_id: polePosition,
-        podium_first_driver_id: podiumFirst,
-        podium_second_driver_id: podiumSecond,
-        podium_third_driver_id: podiumThird,
-        midfield_hero_driver_id: midfieldHero,
+        pole_position_driver_api_id: polePosition,
+        podium_first_driver_api_id: podiumFirst,
+        podium_second_driver_api_id: podiumSecond,
+        podium_third_driver_api_id: podiumThird,
+        midfield_hero_driver_api_id: midfieldHero,
         crazy_predictions_happened: crazyPredictionsHappened
       };
 
-      if (selectedRace.is_sprint_weekend) {
-        results.sprint_pole_driver_id = sprintPole;
-        results.sprint_winner_driver_id = sprintWinner;
-        results.sprint_midfield_hero_driver_id = sprintMidfieldHero;
+      // Check if race has sprint by looking for Sprint property
+      const hasSprintRace = !!selectedRace.Sprint;
+      if (hasSprintRace) {
+        results.sprint_pole_driver_api_id = sprintPole;
+        results.sprint_winner_driver_api_id = sprintWinner;
+        results.sprint_midfield_hero_driver_api_id = sprintMidfieldHero;
       }
 
-      await enterRaceResults(selectedRace.id, results);
+      // Note: API needs to be updated to use season/round
+      // For now, construct a race identifier
+      const raceId = parseInt(selectedRace.season) * 100 + parseInt(selectedRace.round);
+      await enterRaceResults(raceId, results);
       setSuccess('Race results saved and scores calculated!');
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to save results');
@@ -176,7 +182,7 @@ export const AdminPage = () => {
         crazy_predictions_happened: crazyPredictionsHappened
       };
 
-      await enterSeasonResults(season.id, results);
+      await enterSeasonResults(season.year, results);
       setSuccess('Season results saved and scores calculated!');
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to save results');

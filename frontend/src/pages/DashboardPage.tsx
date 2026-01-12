@@ -3,8 +3,8 @@ import { Link } from 'react-router-dom';
 import { Layout } from '../components/common/Layout';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { CountdownTimer } from '../components/dashboard/CountdownTimer';
-import { getActiveSeason, getNextRace, getUpcomingRaces, getAllUsers, getAllRacePredictions, getLeaderboard, getPendingValidations } from '../services/api';
-import { Season, Race, User, RacePrediction, LeaderboardEntry, PendingValidation } from '../types';
+import { getActiveSeason, getNextRace, getUpcomingRaces, getAllUsers, getAllRacePredictions, getLeaderboard, getPendingValidations, getDrivers } from '../services/api';
+import { Season, Race, User, RacePrediction, LeaderboardEntry, PendingValidation, Driver } from '../types';
 import { useAuth } from '../hooks/useAuth';
 
 export const DashboardPage = () => {
@@ -13,11 +13,19 @@ export const DashboardPage = () => {
   const [nextRace, setNextRace] = useState<Race | null>(null);
   const [upcomingRaces, setUpcomingRaces] = useState<Race[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [drivers, setDrivers] = useState<Driver[]>([]);
   const [racePredictions, setRacePredictions] = useState<RacePrediction[]>([]);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [pendingValidations, setPendingValidations] = useState<PendingValidation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  // Helper to get driver name from API ID
+  const getDriverName = (apiId: string | null): string => {
+    if (!apiId) return 'Not Set';
+    const driver = drivers.find(d => d.driverId === apiId);
+    return driver ? `${driver.givenName} ${driver.familyName}` : 'Unknown Driver';
+  };
 
   // Get current user's prediction for the next race
   const userPrediction = racePredictions.find(p => p.user_id === currentUser?.id);
@@ -25,12 +33,13 @@ export const DashboardPage = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [seasonData, raceData, upcomingRacesData, allUsers, leaderboardData] = await Promise.all([
+        const [seasonData, raceData, upcomingRacesData, allUsers, leaderboardData, driversData] = await Promise.all([
           getActiveSeason().catch(() => null),
           getNextRace().catch(() => null),
           getUpcomingRaces(5),
           getAllUsers(),
-          getLeaderboard().catch(() => [])
+          getLeaderboard().catch(() => []),
+          getDrivers().catch(() => [])
         ]);
 
         setSeason(seasonData);
@@ -38,11 +47,15 @@ export const DashboardPage = () => {
         setUpcomingRaces(upcomingRacesData);
         setUsers(allUsers);
         setLeaderboard(leaderboardData);
+        setDrivers(driversData);
 
         // Fetch race predictions if there's a next race (limit to 5 for dashboard)
         if (raceData) {
-          const predictions = await getAllRacePredictions(raceData.id, 5);
-          setRacePredictions(predictions);
+          // Note: getAllRacePredictions API needs to support season/round
+          // For now, skip loading predictions or use a temporary solution
+          console.log('Would load predictions for:', raceData.season, raceData.round);
+          // const predictions = await getAllRacePredictions(raceData.season, raceData.round, 5);
+          // setRacePredictions(predictions);
         }
 
         // Fetch pending crazy prediction validations
@@ -215,10 +228,7 @@ export const DashboardPage = () => {
                       Winner (P1)
                     </div>
                     <div className="text-white font-bold text-lg">
-                      {userPrediction.p1_driver_name || 'Not Set'}
-                    </div>
-                    <div className="text-gray-500 text-sm">
-                      {userPrediction.p1_team_name || ''}
+                      {getDriverName(userPrediction.podium_first_driver_api_id)}
                     </div>
                   </div>
 
@@ -228,10 +238,7 @@ export const DashboardPage = () => {
                       Podium (P2)
                     </div>
                     <div className="text-white font-bold text-lg">
-                      {userPrediction.p2_driver_name || 'Not Set'}
-                    </div>
-                    <div className="text-gray-500 text-sm">
-                      {userPrediction.p2_team_name || ''}
+                      {getDriverName(userPrediction.podium_second_driver_api_id)}
                     </div>
                   </div>
 
@@ -241,10 +248,7 @@ export const DashboardPage = () => {
                       Podium (P3)
                     </div>
                     <div className="text-white font-bold text-lg">
-                      {userPrediction.p3_driver_name || 'Not Set'}
-                    </div>
-                    <div className="text-gray-500 text-sm">
-                      {userPrediction.p3_team_name || ''}
+                      {getDriverName(userPrediction.podium_third_driver_api_id)}
                     </div>
                   </div>
                 </div>
@@ -283,8 +287,8 @@ export const DashboardPage = () => {
                             </p>
                             <p className="text-gray-500 text-xs">
                               {validation.prediction_type === 'season'
-                                ? `Season ${validation.year}`
-                                : `${validation.race_name} (Round ${validation.round_number})`}
+                                ? `Season ${validation.season_year || validation.year}`
+                                : `Round ${validation.round_number}`}
                             </p>
                           </div>
                         </div>
@@ -311,7 +315,7 @@ export const DashboardPage = () => {
                                 </span>
                               </div>
                               <p className="text-gray-300 text-sm">
-                                just locked in his tips. Feeling risky with a {prediction.p1_driver_name} win!
+                                just locked in his tips. Feeling risky with a {getDriverName(prediction.podium_first_driver_api_id)} win!
                               </p>
                             </div>
                           </div>

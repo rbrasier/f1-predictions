@@ -119,6 +119,7 @@ export interface F1Driver {
   permanentNumber?: string;
   nationality: string;
   url: string;
+  dateOfBirth?: string;
 }
 
 export interface F1Constructor {
@@ -126,6 +127,7 @@ export interface F1Constructor {
   name: string;
   nationality: string;
   url: string;
+  is_top_four?: boolean; // Added by backend based on season config
 }
 
 export interface F1Race {
@@ -164,4 +166,20 @@ export interface F1Race {
     date: string;
     time: string;
   };
+  SprintQualifying?: {
+    date: string;
+    time: string;
+  };
 }
+
+// Season configuration type (from backend API)
+export interface Season {
+  year: number;
+  prediction_deadline: string;
+  is_active: boolean;
+}
+
+// Convenience aliases for API types
+export type Driver = F1Driver;
+export type Team = F1Constructor;
+export type Race = F1Race;

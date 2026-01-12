@@ -116,8 +116,8 @@ export const ValidationsPage = () => {
                         <span className="font-bold text-lg">{prediction.display_name}</span>
                         <span className="text-xs bg-gray-200 px-2 py-1 rounded">
                           {prediction.prediction_type === 'season'
-                            ? `Season ${prediction.year}`
-                            : `${prediction.race_name} (Round ${prediction.round_number})`
+                            ? `Season ${prediction.season_year || prediction.year}`
+                            : `Round ${prediction.round_number}`
                           }
                         </span>
                       </div>
@@ -165,8 +165,8 @@ export const ValidationsPage = () => {
                         <span className="font-medium">{prediction.display_name}</span>
                         <span className="text-xs bg-gray-300 px-2 py-1 rounded">
                           {prediction.prediction_type === 'season'
-                            ? `Season ${prediction.year}`
-                            : `${prediction.race_name}`
+                            ? `Season ${prediction.season_year || prediction.year}`
+                            : `Round ${prediction.round_number}`
                           }
                         </span>
                       </div>
