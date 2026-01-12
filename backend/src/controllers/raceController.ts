@@ -21,14 +21,22 @@ export const getRaces = async (req: AuthRequest, res: Response) => {
 };
 
 /**
- * Get a specific race by year and round from API
+ * Get a specific race by raceId (format: year-round) from API
  */
 export const getRace = async (req: AuthRequest, res: Response) => {
   try {
-    const { year, round } = req.params;
+    const { raceId } = req.params;
+
+    // Parse raceId format: "year-round" (e.g., "2026-1")
+    const [yearStr, round] = raceId.split('-');
+    const year = parseInt(yearStr);
+
+    if (!year || !round) {
+      return res.status(400).json({ error: 'Invalid race ID format. Expected: year-round (e.g., 2026-1)' });
+    }
 
     // Fetch schedule from API
-    const data = await f1ApiService.fetchSchedule(parseInt(year));
+    const data = await f1ApiService.fetchSchedule(year);
     const races = data?.MRData?.RaceTable?.Races || [];
 
     const race = races.find((r: any) => r.round === round);
