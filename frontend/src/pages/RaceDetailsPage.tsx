@@ -7,7 +7,6 @@ import { DriverAutocomplete } from '../components/predictions/DriverAutocomplete
 import {
   getRace,
   getDrivers,
-  getTeams,
   submitRacePrediction,
   getMyRacePrediction
 } from '../services/api';
@@ -25,62 +24,61 @@ export const RaceDetailsPage = () => {
   const [success, setSuccess] = useState('');
 
   // Form state
-  const [polePosition, setPolePosition] = useState<number>(0);
-  const [podiumFirst, setPodiumFirst] = useState<number>(0);
-  const [podiumSecond, setPodiumSecond] = useState<number>(0);
-  const [podiumThird, setPodiumThird] = useState<number>(0);
-  const [midfieldHero, setMidfieldHero] = useState<number>(0);
+  const [polePosition, setPolePosition] = useState<string>('');
+  const [podiumFirst, setPodiumFirst] = useState<string>('');
+  const [podiumSecond, setPodiumSecond] = useState<string>('');
+  const [podiumThird, setPodiumThird] = useState<string>('');
+  const [midfieldHero, setMidfieldHero] = useState<string>('');
   const [crazyPrediction, setCrazyPrediction] = useState('');
-  const [sprintPole, setSprintPole] = useState<number>(0);
-  const [sprintWinner, setSprintWinner] = useState<number>(0);
-  const [sprintMidfieldHero, setSprintMidfieldHero] = useState<number>(0);
+  const [sprintPole, setSprintPole] = useState<string>('');
+  const [sprintWinner, setSprintWinner] = useState<string>('');
+  const [sprintMidfieldHero, setSprintMidfieldHero] = useState<string>('');
 
   useEffect(() => {
     const fetchData = async () => {
       if (!raceId) return;
 
       try {
-        const [raceData, driversData, teamsData] = await Promise.all([
+        const [raceData, driversData] = await Promise.all([
           getRace(parseInt(raceId)),
-          getDrivers(),
-          getTeams()
+          getDrivers()
         ]);
 
         setRace(raceData);
         setDrivers(driversData);
 
         // Filter midfield drivers (not from top 4 teams)
-        const topFourTeamIds = teamsData.filter(t => t.is_top_four).map(t => t.id);
-        const midfield = driversData.filter(d => d.team_id && !topFourTeamIds.includes(d.team_id));
-        setMidfieldDrivers(midfield);
+        // Note: F1 API doesn't provide team assignments directly
+        // For now, use all drivers as midfield options
+        setMidfieldDrivers(driversData);
 
         // Initialize default selections
         if (driversData.length > 0) {
-          setPolePosition(driversData[0].id);
-          setPodiumFirst(driversData[0].id);
-          setPodiumSecond(driversData[1]?.id || driversData[0].id);
-          setPodiumThird(driversData[2]?.id || driversData[0].id);
-          setSprintPole(driversData[0].id);
-          setSprintWinner(driversData[0].id);
-        }
-        if (midfield.length > 0) {
-          setMidfieldHero(midfield[0].id);
-          setSprintMidfieldHero(midfield[0].id);
+          setPolePosition(driversData[0].driverId);
+          setPodiumFirst(driversData[0].driverId);
+          setPodiumSecond(driversData[1]?.driverId || driversData[0].driverId);
+          setPodiumThird(driversData[2]?.driverId || driversData[0].driverId);
+          setSprintPole(driversData[0].driverId);
+          setSprintWinner(driversData[0].driverId);
+          setMidfieldHero(driversData[0].driverId);
+          setSprintMidfieldHero(driversData[0].driverId);
         }
 
         // Try to load existing prediction
         try {
           const existing = await getMyRacePrediction(parseInt(raceId));
-          setPolePosition(existing.pole_position_driver_id || 0);
-          setPodiumFirst(existing.podium_first_driver_id || 0);
-          setPodiumSecond(existing.podium_second_driver_id || 0);
-          setPodiumThird(existing.podium_third_driver_id || 0);
-          setMidfieldHero(existing.midfield_hero_driver_id || 0);
+          setPolePosition(existing.pole_position_driver_api_id || '');
+          setPodiumFirst(existing.podium_first_driver_api_id || '');
+          setPodiumSecond(existing.podium_second_driver_api_id || '');
+          setPodiumThird(existing.podium_third_driver_api_id || '');
+          setMidfieldHero(existing.midfield_hero_driver_api_id || '');
           setCrazyPrediction(existing.crazy_prediction || '');
-          if (raceData.is_sprint_weekend) {
-            setSprintPole(existing.sprint_pole_driver_id || 0);
-            setSprintWinner(existing.sprint_winner_driver_id || 0);
-            setSprintMidfieldHero(existing.sprint_midfield_hero_driver_id || 0);
+          // Check if race has sprint
+          const hasSprintRace = !!raceData.Sprint;
+          if (hasSprintRace) {
+            setSprintPole(existing.sprint_pole_driver_api_id || '');
+            setSprintWinner(existing.sprint_winner_driver_api_id || '');
+            setSprintMidfieldHero(existing.sprint_midfield_hero_driver_api_id || '');
           }
         } catch (err) {
           // No existing prediction, use defaults
@@ -110,18 +108,20 @@ export const RaceDetailsPage = () => {
       }
 
       const prediction: any = {
-        pole_position_driver_id: polePosition,
-        podium_first_driver_id: podiumFirst,
-        podium_second_driver_id: podiumSecond,
-        podium_third_driver_id: podiumThird,
-        midfield_hero_driver_id: midfieldHero,
+        pole_position_driver_api_id: polePosition,
+        podium_first_driver_api_id: podiumFirst,
+        podium_second_driver_api_id: podiumSecond,
+        podium_third_driver_api_id: podiumThird,
+        midfield_hero_driver_api_id: midfieldHero,
         crazy_prediction: crazyPrediction
       };
 
-      if (race?.is_sprint_weekend) {
-        prediction.sprint_pole_driver_id = sprintPole;
-        prediction.sprint_winner_driver_id = sprintWinner;
-        prediction.sprint_midfield_hero_driver_id = sprintMidfieldHero;
+      // Check if race has sprint
+      const hasSprintRace = !!race?.Sprint;
+      if (hasSprintRace) {
+        prediction.sprint_pole_driver_api_id = sprintPole;
+        prediction.sprint_winner_driver_api_id = sprintWinner;
+        prediction.sprint_midfield_hero_driver_api_id = sprintMidfieldHero;
       }
 
       await submitRacePrediction(parseInt(raceId), prediction);
@@ -153,18 +153,21 @@ export const RaceDetailsPage = () => {
     );
   }
 
-  const isPast = new Date() > new Date(race.fp1_start);
+  const fp1Start = race.FirstPractice ? `${race.FirstPractice.date}T${race.FirstPractice.time}` : null;
+  const isPast = fp1Start ? new Date() > new Date(fp1Start) : false;
+  const raceLocation = `${race.Circuit.Location.locality}, ${race.Circuit.Location.country}`;
+  const hasSprint = !!race.Sprint;
 
   return (
     <Layout>
       <div className="max-w-4xl mx-auto">
         <div className="mb-6">
           <h1 className="text-4xl font-bold text-white mb-2">
-            Round {race.round_number}: {race.name}
+            Round {race.round}: {race.raceName}
           </h1>
           <p className="text-gray-600">
-            {race.location} • {new Date(race.race_date).toLocaleDateString()}
-            {race.is_sprint_weekend && (
+            {raceLocation} • {new Date(race.date).toLocaleDateString()}
+            {hasSprint && (
               <span className="ml-2 bg-f1-red text-white text-xs px-2 py-1 rounded font-bold">
                 SPRINT WEEKEND
               </span>
@@ -172,9 +175,11 @@ export const RaceDetailsPage = () => {
           </p>
         </div>
 
-        <div className="mb-6">
-          <CountdownTimer targetDate={race.fp1_start} label="Predictions Close (FP1 Start)" />
-        </div>
+        {fp1Start && (
+          <div className="mb-6">
+            <CountdownTimer targetDate={fp1Start} label="Predictions Close (FP1 Start)" />
+          </div>
+        )}
 
         {isPast && (
           <div className="bg-yellow-100 border border-yellow-400 text-yellow-800 px-4 py-3 rounded mb-6">
@@ -258,7 +263,7 @@ export const RaceDetailsPage = () => {
           </div>
 
           {/* Sprint Weekend Predictions */}
-          {race.is_sprint_weekend && (
+          {hasSprint && (
             <div className="bg-white p-6 rounded-lg shadow border-2 border-f1-red text-gray-900">
               <h3 className="text-xl font-bold mb-4 text-f1-red">Sprint Predictions</h3>
 

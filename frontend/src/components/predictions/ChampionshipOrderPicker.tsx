@@ -18,7 +18,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 
 interface Item {
-  id: number;
+  id: string;
   name: string;
   image_url?: string | null;
 }
@@ -101,7 +101,7 @@ const SortableItem = ({ item, index }: SortableItemProps) => {
 
 interface ChampionshipOrderPickerProps {
   items: Item[];
-  onChange: (orderedIds: number[]) => void;
+  onChange: (orderedIds: string[]) => void;
   title: string;
 }
 

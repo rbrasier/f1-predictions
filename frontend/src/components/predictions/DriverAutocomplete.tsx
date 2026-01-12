@@ -3,14 +3,12 @@ import { Driver } from '../../types';
 
 interface DriverAutocompleteProps {
   drivers: Driver[];
-  selectedDriverId: number | null;
-  onSelect: (driverId: number) => void;
+  selectedDriverId: string | null;
+  onSelect: (driverId: string) => void;
   label?: string;
   placeholder?: string;
   required?: boolean;
 }
-
-const DEFAULT_DRIVER_IMAGE = 'https://via.placeholder.com/40/E10600/FFFFFF?text=F1';
 
 export const DriverAutocomplete = ({
   drivers,
@@ -26,14 +24,17 @@ export const DriverAutocomplete = ({
   const wrapperRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const selectedDriver = drivers.find(d => d.id === selectedDriverId);
+  const selectedDriver = drivers.find(d => d.driverId === selectedDriverId);
 
   // Filter drivers based on search term
   const filteredDrivers = searchTerm.trim()
-    ? drivers.filter(d =>
-        d.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        d.team_name?.toLowerCase().includes(searchTerm.toLowerCase())
-      )
+    ? drivers.filter(d => {
+        const fullName = `${d.givenName} ${d.familyName}`;
+        const searchLower = searchTerm.toLowerCase();
+        return fullName.toLowerCase().includes(searchLower) ||
+               d.familyName.toLowerCase().includes(searchLower) ||
+               d.code?.toLowerCase().includes(searchLower);
+      })
     : drivers;
 
   // Close dropdown when clicking outside
@@ -83,7 +84,7 @@ export const DriverAutocomplete = ({
   };
 
   const handleSelect = (driver: Driver) => {
-    onSelect(driver.id);
+    onSelect(driver.driverId);
     setSearchTerm('');
     setIsOpen(false);
     setHighlightedIndex(0);
@@ -93,10 +94,6 @@ export const DriverAutocomplete = ({
     setSearchTerm(e.target.value);
     setIsOpen(true);
     setHighlightedIndex(0);
-  };
-
-  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
-    e.currentTarget.src = DEFAULT_DRIVER_IMAGE;
   };
 
   return (
@@ -114,18 +111,17 @@ export const DriverAutocomplete = ({
           className="flex items-center gap-3 p-3 bg-white border-2 border-gray-300 rounded-lg cursor-pointer hover:border-f1-red transition"
           onClick={() => setIsOpen(true)}
         >
-          <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-gray-300 flex-shrink-0">
-            <img
-              src={selectedDriver.image_url || DEFAULT_DRIVER_IMAGE}
-              alt={selectedDriver.name}
-              className="w-full h-full object-cover"
-              onError={handleImageError}
-            />
+          <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-gray-300 flex-shrink-0 bg-f1-red flex items-center justify-center">
+            {selectedDriver.code ? (
+              <span className="text-white font-bold text-xs">{selectedDriver.code}</span>
+            ) : (
+              <span className="text-white font-bold text-xs">F1</span>
+            )}
           </div>
           <div className="flex-1">
-            <div className="font-bold text-gray-900">{selectedDriver.name}</div>
-            {selectedDriver.team_name && (
-              <div className="text-sm text-gray-600">{selectedDriver.team_name}</div>
+            <div className="font-bold text-gray-900">{`${selectedDriver.givenName} ${selectedDriver.familyName}`}</div>
+            {selectedDriver.code && (
+              <div className="text-sm text-gray-600">#{selectedDriver.permanentNumber || selectedDriver.code}</div>
             )}
           </div>
           <svg
@@ -174,42 +170,46 @@ export const DriverAutocomplete = ({
         <div className="absolute z-50 w-full mt-1 bg-white border-2 border-gray-300 rounded-lg shadow-lg max-h-64 overflow-y-auto">
           {filteredDrivers.length > 0 ? (
             <div className="py-1">
-              {filteredDrivers.map((driver, index) => (
-                <button
-                  key={driver.id}
-                  type="button"
-                  onClick={() => handleSelect(driver)}
-                  className={`
-                    w-full flex items-center gap-3 px-4 py-2 text-left transition
-                    ${index === highlightedIndex
-                      ? 'bg-f1-red text-white'
-                      : 'hover:bg-gray-100 text-gray-900'
-                    }
-                  `}
-                  onMouseEnter={() => setHighlightedIndex(index)}
-                >
-                  <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-gray-300 flex-shrink-0">
-                    <img
-                      src={driver.image_url || DEFAULT_DRIVER_IMAGE}
-                      alt={driver.name}
-                      className="w-full h-full object-cover"
-                      onError={handleImageError}
-                    />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-bold truncate">{driver.name}</div>
-                    {driver.team_name && (
-                      <div
-                        className={`text-sm truncate ${
-                          index === highlightedIndex ? 'text-white/90' : 'text-gray-600'
-                        }`}
-                      >
-                        {driver.team_name}
-                      </div>
-                    )}
-                  </div>
-                </button>
-              ))}
+              {filteredDrivers.map((driver, index) => {
+                const fullName = `${driver.givenName} ${driver.familyName}`;
+                return (
+                  <button
+                    key={driver.driverId}
+                    type="button"
+                    onClick={() => handleSelect(driver)}
+                    className={`
+                      w-full flex items-center gap-3 px-4 py-2 text-left transition
+                      ${index === highlightedIndex
+                        ? 'bg-f1-red text-white'
+                        : 'hover:bg-gray-100 text-gray-900'
+                      }
+                    `}
+                    onMouseEnter={() => setHighlightedIndex(index)}
+                  >
+                    <div className={`w-10 h-10 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${
+                      index === highlightedIndex ? 'border-white bg-white/20' : 'border-gray-300 bg-f1-red'
+                    }`}>
+                      <span className={`font-bold text-xs ${
+                        index === highlightedIndex ? 'text-white' : 'text-white'
+                      }`}>
+                        {driver.code || 'F1'}
+                      </span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-bold truncate">{fullName}</div>
+                      {driver.permanentNumber && (
+                        <div
+                          className={`text-sm truncate ${
+                            index === highlightedIndex ? 'text-white/90' : 'text-gray-600'
+                          }`}
+                        >
+                          #{driver.permanentNumber}
+                        </div>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           ) : (
             <div className="px-4 py-8 text-center text-gray-500">

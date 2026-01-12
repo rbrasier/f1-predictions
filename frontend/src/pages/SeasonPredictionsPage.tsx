@@ -27,12 +27,13 @@ export const SeasonPredictionsPage = () => {
   const [success, setSuccess] = useState('');
 
   // Form state
-  const [driversOrder, setDriversOrder] = useState<number[]>([]);
-  const [constructorsOrder, setConstructorsOrder] = useState<number[]>([]);
-  const [sackings, setSackings] = useState<number[]>([]);
+  const [driversOrder, setDriversOrder] = useState<string[]>([]);
+  const [constructorsOrder, setConstructorsOrder] = useState<string[]>([]);
+  const [sackings, setSackings] = useState<string[]>([]);
   const [audiVsCadillac, setAudiVsCadillac] = useState<'audi' | 'cadillac'>('audi');
   const [crazyPrediction, setCrazyPrediction] = useState('');
   const [grid2027, setGrid2027] = useState<DriverTeamPairing[]>([]);
+  const [grid2028] = useState<DriverTeamPairing[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -50,19 +51,19 @@ export const SeasonPredictionsPage = () => {
         setPrincipals(principalsData);
 
         // Initialize default orders
-        setDriversOrder(driversData.map(d => d.id));
-        setConstructorsOrder(teamsData.map(t => t.id));
+        setDriversOrder(driversData.map((d: Driver) => d.driverId));
+        setConstructorsOrder(teamsData.map((t: Team) => t.constructorId));
 
         // Initialize grid with first 20 drivers and their current teams
-        const initialGrid = driversData.slice(0, 20).map(d => ({
-          driver_id: d.id,
-          team_id: d.team_id || teamsData[0].id
+        const initialGrid = driversData.slice(0, 20).map((d: Driver) => ({
+          driver_api_id: d.driverId,
+          constructor_api_id: teamsData[0]?.constructorId || ''
         }));
         setGrid2027(initialGrid);
 
         // Try to load existing prediction
         try {
-          const existing = await getMySeasonPrediction(seasonData.id);
+          const existing = await getMySeasonPrediction(seasonData.year);
           setDriversOrder(JSON.parse(existing.drivers_championship_order));
           setConstructorsOrder(JSON.parse(existing.constructors_championship_order));
           setSackings(existing.mid_season_sackings ? JSON.parse(existing.mid_season_sackings) : []);
@@ -91,13 +92,14 @@ export const SeasonPredictionsPage = () => {
     try {
       if (!season) throw new Error('No active season');
 
-      await submitSeasonPrediction(season.id, {
+      await submitSeasonPrediction(season.year, {
         drivers_championship_order: driversOrder,
         constructors_championship_order: constructorsOrder,
         mid_season_sackings: sackings,
         audi_vs_cadillac: audiVsCadillac,
         crazy_prediction: crazyPrediction,
-        grid_2027: grid2027
+        grid_2027: grid2027,
+        grid_2028: grid2028
       });
 
       setSuccess('Season predictions saved successfully!');
@@ -109,13 +111,13 @@ export const SeasonPredictionsPage = () => {
     }
   };
 
-  const toggleSacking = (id: number) => {
+  const toggleSacking = (id: string) => {
     setSackings(prev =>
       prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]
     );
   };
 
-  const updateGridPairing = (index: number, field: 'driver_id' | 'team_id', value: number) => {
+  const updateGridPairing = (index: number, field: 'driver_api_id' | 'constructor_api_id', value: string) => {
     setGrid2027(prev => {
       const newGrid = [...prev];
       newGrid[index] = { ...newGrid[index], [field]: value };
@@ -174,8 +176,8 @@ export const SeasonPredictionsPage = () => {
           {/* Drivers Championship */}
           <ChampionshipOrderPicker
             items={driversOrder.map(id => {
-              const driver = drivers.find(d => d.id === id)!;
-              return { id: driver.id, name: driver.name, image_url: driver.image_url };
+              const driver = drivers.find(d => d.driverId === id)!;
+              return { id: driver.driverId, name: `${driver.givenName} ${driver.familyName}`, image_url: null };
             })}
             onChange={setDriversOrder}
             title="Drivers Championship Order"
@@ -184,8 +186,8 @@ export const SeasonPredictionsPage = () => {
           {/* Constructors Championship */}
           <ChampionshipOrderPicker
             items={constructorsOrder.map(id => {
-              const team = teams.find(t => t.id === id)!;
-              return { id: team.id, name: team.name };
+              const team = teams.find(t => t.constructorId === id)!;
+              return { id: team.constructorId, name: team.name };
             })}
             onChange={setConstructorsOrder}
             title="Constructors Championship Order"
@@ -201,25 +203,25 @@ export const SeasonPredictionsPage = () => {
               <div>
                 <h4 className="font-bold mb-2 text-gray-900">Drivers</h4>
                 {drivers.map(driver => (
-                  <label key={driver.id} className="flex items-center space-x-2 mb-2 cursor-pointer">
+                  <label key={driver.driverId} className="flex items-center space-x-2 mb-2 cursor-pointer">
                     <input
                       type="checkbox"
-                      checked={sackings.includes(driver.id)}
-                      onChange={() => toggleSacking(driver.id)}
+                      checked={sackings.includes(driver.driverId)}
+                      onChange={() => toggleSacking(driver.driverId)}
                       className="w-4 h-4"
                     />
-                    <span className="text-gray-900">{driver.name}</span>
+                    <span className="text-gray-900">{`${driver.givenName} ${driver.familyName}`}</span>
                   </label>
                 ))}
               </div>
               <div>
                 <h4 className="font-bold mb-2 text-gray-900">Team Principals</h4>
                 {principals.map(principal => (
-                  <label key={principal.id} className="flex items-center space-x-2 mb-2 cursor-pointer">
+                  <label key={principal.constructor_id} className="flex items-center space-x-2 mb-2 cursor-pointer">
                     <input
                       type="checkbox"
-                      checked={sackings.includes(principal.id)}
-                      onChange={() => toggleSacking(principal.id)}
+                      checked={sackings.includes(principal.constructor_id)}
+                      onChange={() => toggleSacking(principal.constructor_id)}
                       className="w-4 h-4"
                     />
                     <span className="text-gray-900">{principal.name}</span>
@@ -286,8 +288,8 @@ export const SeasonPredictionsPage = () => {
             </p>
             <div className="space-y-6">
               {grid2027.map((pairing, index) => {
-                const selectedDriver = drivers.find(d => d.id === pairing.driver_id);
-                const selectedTeam = teams.find(t => t.id === pairing.team_id);
+                const selectedDriver = drivers.find(d => d.driverId === pairing.driver_api_id);
+                const selectedTeam = teams.find(t => t.constructorId === pairing.constructor_api_id);
 
                 return (
                   <div key={index} className="border border-gray-200 rounded-lg p-4">
@@ -295,7 +297,7 @@ export const SeasonPredictionsPage = () => {
                       <span className="text-lg font-bold text-f1-red">Position {index + 1}</span>
                       {selectedDriver && selectedTeam && (
                         <span className="text-sm text-gray-600">
-                          {selectedDriver.name} @ {selectedTeam.name}
+                          {selectedDriver.givenName} {selectedDriver.familyName} @ {selectedTeam.name}
                         </span>
                       )}
                     </div>
@@ -307,8 +309,8 @@ export const SeasonPredictionsPage = () => {
                         </label>
                         <DriverAutocomplete
                           drivers={drivers}
-                          selectedDriverId={pairing.driver_id}
-                          onSelect={(driverId) => updateGridPairing(index, 'driver_id', driverId)}
+                          selectedDriverId={pairing.driver_api_id}
+                          onSelect={(driverId) => updateGridPairing(index, 'driver_api_id', driverId)}
                         />
                       </div>
 
@@ -317,12 +319,12 @@ export const SeasonPredictionsPage = () => {
                           Select Team
                         </label>
                         <select
-                          value={pairing.team_id}
-                          onChange={(e) => updateGridPairing(index, 'team_id', parseInt(e.target.value))}
+                          value={pairing.constructor_api_id}
+                          onChange={(e) => updateGridPairing(index, 'constructor_api_id', e.target.value)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-f1-red text-sm"
                         >
                           {teams.map(t => (
-                            <option key={t.id} value={t.id}>{t.name}</option>
+                            <option key={t.constructorId} value={t.constructorId}>{t.name}</option>
                           ))}
                         </select>
                       </div>

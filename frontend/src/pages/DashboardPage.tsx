@@ -3,8 +3,8 @@ import { Link } from 'react-router-dom';
 import { Layout } from '../components/common/Layout';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { CountdownTimer } from '../components/dashboard/CountdownTimer';
-import { getActiveSeason, getNextRace, getUpcomingRaces, getAllUsers, getAllRacePredictions, getLeaderboard, getPendingValidations } from '../services/api';
-import { Season, Race, User, RacePrediction, LeaderboardEntry, PendingValidation } from '../types';
+import { getActiveSeason, getNextRace, getUpcomingRaces, getAllUsers, getLeaderboard, getPendingValidations, getDrivers } from '../services/api';
+import { Season, Race, User, RacePrediction, LeaderboardEntry, PendingValidation, Driver } from '../types';
 import { useAuth } from '../hooks/useAuth';
 
 export const DashboardPage = () => {
@@ -13,11 +13,35 @@ export const DashboardPage = () => {
   const [nextRace, setNextRace] = useState<Race | null>(null);
   const [upcomingRaces, setUpcomingRaces] = useState<Race[]>([]);
   const [users, setUsers] = useState<User[]>([]);
-  const [racePredictions, setRacePredictions] = useState<RacePrediction[]>([]);
+  const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [racePredictions] = useState<RacePrediction[]>([]);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [pendingValidations, setPendingValidations] = useState<PendingValidation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  // Helper to get driver name from API ID
+  const getDriverName = (apiId: string | null): string => {
+    if (!apiId) return 'Not Set';
+    const driver = drivers.find(d => d.driverId === apiId);
+    return driver ? `${driver.givenName} ${driver.familyName}` : 'Unknown Driver';
+  };
+
+  // Helper to get race ID from F1Race
+  const getRaceId = (race: Race): string => {
+    return `${race.season}-${race.round}`;
+  };
+
+  // Helper to get race location
+  const getRaceLocation = (race: Race): string => {
+    return `${race.Circuit.Location.locality}, ${race.Circuit.Location.country}`;
+  };
+
+  // Helper to get FP1 start datetime
+  const getFP1Start = (race: Race): string | null => {
+    if (!race.FirstPractice) return null;
+    return `${race.FirstPractice.date}T${race.FirstPractice.time}`;
+  };
 
   // Get current user's prediction for the next race
   const userPrediction = racePredictions.find(p => p.user_id === currentUser?.id);
@@ -25,12 +49,13 @@ export const DashboardPage = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [seasonData, raceData, upcomingRacesData, allUsers, leaderboardData] = await Promise.all([
+        const [seasonData, raceData, upcomingRacesData, allUsers, leaderboardData, driversData] = await Promise.all([
           getActiveSeason().catch(() => null),
           getNextRace().catch(() => null),
           getUpcomingRaces(5),
           getAllUsers(),
-          getLeaderboard().catch(() => [])
+          getLeaderboard().catch(() => []),
+          getDrivers().catch(() => [])
         ]);
 
         setSeason(seasonData);
@@ -38,11 +63,15 @@ export const DashboardPage = () => {
         setUpcomingRaces(upcomingRacesData);
         setUsers(allUsers);
         setLeaderboard(leaderboardData);
+        setDrivers(driversData);
 
         // Fetch race predictions if there's a next race (limit to 5 for dashboard)
         if (raceData) {
-          const predictions = await getAllRacePredictions(raceData.id, 5);
-          setRacePredictions(predictions);
+          // Note: getAllRacePredictions API needs to support season/round
+          // For now, skip loading predictions or use a temporary solution
+          console.log('Would load predictions for:', raceData.season, raceData.round);
+          // const predictions = await getAllRacePredictions(raceData.season, raceData.round, 5);
+          // setRacePredictions(predictions);
         }
 
         // Fetch pending crazy prediction validations
@@ -136,25 +165,27 @@ export const DashboardPage = () => {
                 <div className="flex justify-between items-start mb-4">
                   <div>
                     <div className="text-paddock-coral text-sm font-bold uppercase tracking-wide mb-2">
-                      Round {nextRace.round_number}
+                      Round {nextRace.round}
                     </div>
                     <h2 className="text-3xl font-bold text-white mb-2">
-                      {nextRace.name.toUpperCase()}
+                      {nextRace.raceName.toUpperCase()}
                     </h2>
-                    <p className="text-gray-400">{nextRace.location}</p>
+                    <p className="text-gray-400">{getRaceLocation(nextRace)}</p>
                   </div>
                   <Link
-                    to={`/race/${nextRace.id}`}
+                    to={`/race/${getRaceId(nextRace)}`}
                     className="bg-paddock-red hover:bg-red-600 text-white px-6 py-3 rounded font-bold uppercase text-sm tracking-wide transition"
                   >
                     Submit Tips
                   </Link>
                 </div>
 
-                <CountdownTimer
-                  targetDate={nextRace.fp1_start}
-                  label=""
-                />
+                {getFP1Start(nextRace) && (
+                  <CountdownTimer
+                    targetDate={getFP1Start(nextRace)!}
+                    label=""
+                  />
+                )}
               </div>
             )}
 
@@ -167,35 +198,40 @@ export const DashboardPage = () => {
                 </h2>
                 <div className="bg-paddock-gray rounded-lg border border-paddock-lightgray">
                   <div className="divide-y divide-paddock-lightgray">
-                    {upcomingRaces.slice(1).map((race) => (
-                      <Link
-                        key={race.id}
-                        to={`/race/${race.id}`}
-                        className="flex items-center justify-between p-4 hover:bg-paddock-lightgray transition"
-                      >
-                        <div className="flex-1">
-                          <div className="text-paddock-coral text-xs font-bold uppercase tracking-wide mb-1">
-                            Round {race.round_number}
+                    {upcomingRaces.slice(1).map((race) => {
+                      const fp1Start = getFP1Start(race);
+                      return (
+                        <Link
+                          key={getRaceId(race)}
+                          to={`/race/${getRaceId(race)}`}
+                          className="flex items-center justify-between p-4 hover:bg-paddock-lightgray transition"
+                        >
+                          <div className="flex-1">
+                            <div className="text-paddock-coral text-xs font-bold uppercase tracking-wide mb-1">
+                              Round {race.round}
+                            </div>
+                            <div className="text-white font-bold text-lg">
+                              {race.raceName}
+                            </div>
+                            <div className="text-gray-400 text-sm">
+                              {getRaceLocation(race)}
+                            </div>
+                            {fp1Start && (
+                              <div className="text-gray-500 text-xs mt-1">
+                                {new Date(fp1Start).toLocaleDateString('en-US', {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  year: 'numeric'
+                                })}
+                              </div>
+                            )}
                           </div>
-                          <div className="text-white font-bold text-lg">
-                            {race.name}
+                          <div className="text-paddock-red hover:text-paddock-coral font-bold uppercase text-sm">
+                            Predict →
                           </div>
-                          <div className="text-gray-400 text-sm">
-                            {race.location}
-                          </div>
-                          <div className="text-gray-500 text-xs mt-1">
-                            {new Date(race.fp1_start).toLocaleDateString('en-US', {
-                              month: 'short',
-                              day: 'numeric',
-                              year: 'numeric'
-                            })}
-                          </div>
-                        </div>
-                        <div className="text-paddock-red hover:text-paddock-coral font-bold uppercase text-sm">
-                          Predict →
-                        </div>
-                      </Link>
-                    ))}
+                        </Link>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
@@ -215,10 +251,7 @@ export const DashboardPage = () => {
                       Winner (P1)
                     </div>
                     <div className="text-white font-bold text-lg">
-                      {userPrediction.p1_driver_name || 'Not Set'}
-                    </div>
-                    <div className="text-gray-500 text-sm">
-                      {userPrediction.p1_team_name || ''}
+                      {getDriverName(userPrediction.podium_first_driver_api_id)}
                     </div>
                   </div>
 
@@ -228,10 +261,7 @@ export const DashboardPage = () => {
                       Podium (P2)
                     </div>
                     <div className="text-white font-bold text-lg">
-                      {userPrediction.p2_driver_name || 'Not Set'}
-                    </div>
-                    <div className="text-gray-500 text-sm">
-                      {userPrediction.p2_team_name || ''}
+                      {getDriverName(userPrediction.podium_second_driver_api_id)}
                     </div>
                   </div>
 
@@ -241,10 +271,7 @@ export const DashboardPage = () => {
                       Podium (P3)
                     </div>
                     <div className="text-white font-bold text-lg">
-                      {userPrediction.p3_driver_name || 'Not Set'}
-                    </div>
-                    <div className="text-gray-500 text-sm">
-                      {userPrediction.p3_team_name || ''}
+                      {getDriverName(userPrediction.podium_third_driver_api_id)}
                     </div>
                   </div>
                 </div>
@@ -283,8 +310,8 @@ export const DashboardPage = () => {
                             </p>
                             <p className="text-gray-500 text-xs">
                               {validation.prediction_type === 'season'
-                                ? `Season ${validation.year}`
-                                : `${validation.race_name} (Round ${validation.round_number})`}
+                                ? `Season ${validation.season_year || validation.year}`
+                                : `Round ${validation.round_number}`}
                             </p>
                           </div>
                         </div>
@@ -311,7 +338,7 @@ export const DashboardPage = () => {
                                 </span>
                               </div>
                               <p className="text-gray-300 text-sm">
-                                just locked in his tips. Feeling risky with a {prediction.p1_driver_name} win!
+                                just locked in his tips. Feeling risky with a {getDriverName(prediction.podium_first_driver_api_id)} win!
                               </p>
                             </div>
                           </div>
@@ -390,7 +417,7 @@ export const DashboardPage = () => {
                 <div className="flex justify-between items-center">
                   <span className="text-gray-400">Races Completed</span>
                   <span className="text-white font-bold">
-                    {upcomingRaces.length > 0 ? (nextRace?.round_number || 1) - 1 : 0}/24
+                    {upcomingRaces.length > 0 ? (parseInt(nextRace?.round || '1')) - 1 : 0}/24
                   </span>
                 </div>
                 {currentUser && leaderboard.length > 0 && (
@@ -403,7 +430,7 @@ export const DashboardPage = () => {
                       <span className="text-gray-400">Points per Race (Avg)</span>
                       <span className="text-white font-bold">
                         {leaderboard.find(e => e.user_id === currentUser.id)
-                          ? Math.round((leaderboard.find(e => e.user_id === currentUser.id)!.race_points / Math.max((nextRace?.round_number || 1) - 1, 1)) * 10) / 10
+                          ? Math.round((leaderboard.find(e => e.user_id === currentUser.id)!.race_points / Math.max((parseInt(nextRace?.round || '1')) - 1, 1)) * 10) / 10
                           : '0.0'}
                       </span>
                     </div>

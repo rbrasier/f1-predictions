@@ -2,31 +2,20 @@ import { Driver } from '../../types';
 
 interface DriverSelectorProps {
   drivers: Driver[];
-  selectedDriverId: number | null;
-  onSelect: (driverId: number) => void;
+  selectedDriverId: string | null;
+  onSelect: (driverId: string) => void;
   label?: string;
-  filterByTeamIds?: number[];
   required?: boolean;
 }
-
-const DEFAULT_DRIVER_IMAGE = 'https://via.placeholder.com/80/E10600/FFFFFF?text=F1';
 
 export const DriverSelector = ({
   drivers,
   selectedDriverId,
   onSelect,
   label,
-  filterByTeamIds,
   required = false
 }: DriverSelectorProps) => {
-  // Filter drivers if team IDs are provided
-  const filteredDrivers = filterByTeamIds
-    ? drivers.filter(d => d.team_id && filterByTeamIds.includes(d.team_id))
-    : drivers;
-
-  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
-    e.currentTarget.src = DEFAULT_DRIVER_IMAGE;
-  };
+  const filteredDrivers = drivers;
 
   return (
     <div className="space-y-3">
@@ -39,13 +28,14 @@ export const DriverSelector = ({
 
       <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-7 xl:grid-cols-8 gap-3">
         {filteredDrivers.map((driver) => {
-          const isSelected = driver.id === selectedDriverId;
+          const isSelected = driver.driverId === selectedDriverId;
+          const fullName = `${driver.givenName} ${driver.familyName}`;
 
           return (
             <button
-              key={driver.id}
+              key={driver.driverId}
               type="button"
-              onClick={() => onSelect(driver.id)}
+              onClick={() => onSelect(driver.driverId)}
               className={`
                 relative flex flex-col items-center gap-2 p-2 rounded-lg transition-all
                 ${isSelected
@@ -53,22 +43,19 @@ export const DriverSelector = ({
                   : 'bg-gray-100 hover:bg-gray-200 hover:ring-2 hover:ring-gray-300'
                 }
               `}
-              title={driver.name}
+              title={fullName}
             >
-              {/* Driver Image Circle */}
+              {/* Driver Code Circle */}
               <div className="relative">
                 <div
                   className={`
-                    w-16 h-16 rounded-full overflow-hidden border-2 transition-all
-                    ${isSelected ? 'border-white' : 'border-gray-300'}
+                    w-16 h-16 rounded-full border-2 transition-all flex items-center justify-center
+                    ${isSelected ? 'border-white bg-white/20' : 'border-gray-300 bg-f1-red'}
                   `}
                 >
-                  <img
-                    src={driver.image_url || DEFAULT_DRIVER_IMAGE}
-                    alt={driver.name}
-                    className="w-full h-full object-cover"
-                    onError={handleImageError}
-                  />
+                  <span className="text-white font-bold text-lg">
+                    {driver.code || driver.familyName.substring(0, 3).toUpperCase()}
+                  </span>
                 </div>
 
                 {/* Selected Checkmark */}
@@ -95,7 +82,7 @@ export const DriverSelector = ({
                   text-xs font-medium line-clamp-2 leading-tight
                   ${isSelected ? 'text-white' : 'text-gray-900'}
                 `}>
-                  {driver.name.split(' ').map((part, idx) => (
+                  {fullName.split(' ').map((part: string, idx: number) => (
                     <span key={idx} className="block">
                       {part}
                     </span>
