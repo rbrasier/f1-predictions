@@ -34,6 +34,7 @@ export const SeasonPredictionsPage = () => {
   const [sackings, setSackings] = useState<string[]>([]);
   const [audiVsCadillac, setAudiVsCadillac] = useState<'audi' | 'cadillac'>('audi');
   const [crazyPrediction, setCrazyPrediction] = useState('');
+  const [firstCareerRaceWinner, setFirstCareerRaceWinner] = useState('');
   const [grid2027, setGrid2027] = useState<DriverTeamPairing[]>([]);
   const [grid2028, setGrid2028] = useState<DriverTeamPairing[]>([]);
   const [customDriverNames, setCustomDriverNames] = useState<{[key: number]: string}>({});
@@ -57,6 +58,11 @@ export const SeasonPredictionsPage = () => {
         setDriversOrder(driversData.map((d: Driver) => d.driverId));
         setConstructorsOrder(teamsData.map((t: Team) => t.constructorId));
 
+        // Initialize first career race winner with first driver
+        if (driversData.length > 0) {
+          setFirstCareerRaceWinner(driversData[0].driverId);
+        }
+
         // Initialize grid with first 20 drivers and their current teams
         const initialGrid = driversData.slice(0, 20).map((d: Driver) => ({
           driver_api_id: d.driverId,
@@ -74,6 +80,7 @@ export const SeasonPredictionsPage = () => {
           setSackings(existing.mid_season_sackings ? JSON.parse(existing.mid_season_sackings) : []);
           setAudiVsCadillac(existing.audi_vs_cadillac as 'audi' | 'cadillac');
           setCrazyPrediction(existing.crazy_prediction || '');
+          setFirstCareerRaceWinner(existing.first_career_race_winner || driversData[0].driverId);
           setGrid2027(JSON.parse(existing.grid_2027));
         } catch (err) {
           // No existing prediction, use defaults
@@ -103,6 +110,7 @@ export const SeasonPredictionsPage = () => {
         mid_season_sackings: sackings,
         audi_vs_cadillac: audiVsCadillac,
         crazy_prediction: crazyPrediction,
+        first_career_race_winner: firstCareerRaceWinner,
         grid_2027: grid2027,
         grid_2028: grid2028
       });
@@ -309,6 +317,25 @@ export const SeasonPredictionsPage = () => {
               placeholder="e.g., 'Max Verstappen will win every single race'"
             />
             <p className="text-xs text-gray-500 mt-1">{crazyPrediction.length}/500 characters</p>
+          </div>
+
+          {/* First Career Race Winner */}
+          <div className="bg-white p-6 rounded-lg shadow text-gray-900">
+            <h3 className="text-xl font-bold mb-4 text-gray-900">First Career Race Winner</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Which driver will win their first race of their career this season?
+            </p>
+            <select
+              value={firstCareerRaceWinner}
+              onChange={(e) => setFirstCareerRaceWinner(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-f1-red"
+            >
+              {drivers.map(driver => (
+                <option key={driver.driverId} value={driver.driverId}>
+                  {driver.givenName} {driver.familyName}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* 2027 Grid */}
