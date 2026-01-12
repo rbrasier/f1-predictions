@@ -18,6 +18,10 @@ export const seasonPredictionValidation = [
   body('audi_vs_cadillac')
     .isIn(['audi', 'cadillac'])
     .withMessage('Must choose either audi or cadillac'),
+  body('first_career_race_winner')
+    .isString()
+    .notEmpty()
+    .withMessage('Must select a driver for first career race winner'),
   body('grid_2027')
     .isArray({ min: 20, max: 20 })
     .withMessage('Must provide exactly 20 driver-team pairings for 2027'),
@@ -47,6 +51,7 @@ export const submitSeasonPrediction = async (req: AuthRequest, res: Response) =>
       mid_season_sackings,
       audi_vs_cadillac,
       crazy_prediction,
+      first_career_race_winner,
       grid_2027,
       grid_2028
     } = req.body as SeasonPredictionRequest;
@@ -85,6 +90,7 @@ export const submitSeasonPrediction = async (req: AuthRequest, res: Response) =>
             mid_season_sackings = ?,
             audi_vs_cadillac = ?,
             crazy_prediction = ?,
+            first_career_race_winner = ?,
             grid_2027 = ?,
             grid_2028 = ?,
             submitted_at = CURRENT_TIMESTAMP
@@ -95,6 +101,7 @@ export const submitSeasonPrediction = async (req: AuthRequest, res: Response) =>
         sackingsJson,
         audi_vs_cadillac,
         crazy_prediction || null,
+        first_career_race_winner,
         grid2027Json,
         grid2028Json,
         existing.id
@@ -107,8 +114,9 @@ export const submitSeasonPrediction = async (req: AuthRequest, res: Response) =>
       const result = db.prepare(`
         INSERT INTO season_predictions (
           user_id, season_year, drivers_championship_order, constructors_championship_order,
-          mid_season_sackings, audi_vs_cadillac, crazy_prediction, grid_2027, grid_2028
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          mid_season_sackings, audi_vs_cadillac, crazy_prediction, first_career_race_winner,
+          grid_2027, grid_2028
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         userId,
         seasonYear,
@@ -117,6 +125,7 @@ export const submitSeasonPrediction = async (req: AuthRequest, res: Response) =>
         sackingsJson,
         audi_vs_cadillac,
         crazy_prediction || null,
+        first_career_race_winner,
         grid2027Json,
         grid2028Json
       );
