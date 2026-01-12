@@ -14,11 +14,9 @@ export const DashboardPage = () => {
   const [upcomingRaces, setUpcomingRaces] = useState<Race[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
-  const [racePredictions, setRacePredictions] = useState<RacePrediction[]>([]);
   const [myRacePrediction, setMyRacePrediction] = useState<RacePrediction | null>(null);
   const [mySeasonPrediction, setMySeasonPrediction] = useState<SeasonPrediction | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
-  const [pendingValidations, setPendingValidations] = useState<PendingValidation[]>([]);
   const [crazyPredictionsWithValidations, setCrazyPredictionsWithValidations] = useState<any[]>([]);
   const [lastRoundData, setLastRoundData] = useState<any>(null);
   const [votingOnPrediction, setVotingOnPrediction] = useState<number | null>(null);
@@ -94,7 +92,6 @@ export const DashboardPage = () => {
               getAllRacePredictions(raceId, 10).catch(() => [])
             ]);
             setMyRacePrediction(myPrediction);
-            setRacePredictions(allPredictions);
 
             // Fetch crazy predictions with validation counts
             const predictionsWithValidations = await Promise.all(
@@ -128,8 +125,7 @@ export const DashboardPage = () => {
 
         // Fetch pending crazy prediction validations
         try {
-          const validations = await getPendingValidations();
-          setPendingValidations(validations);
+          await getPendingValidations();
         } catch (err) {
           // Ignore errors for pending validations
         }

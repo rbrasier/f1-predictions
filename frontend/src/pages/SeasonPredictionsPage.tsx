@@ -4,7 +4,6 @@ import { Layout } from '../components/common/Layout';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { ChampionshipOrderPicker } from '../components/predictions/ChampionshipOrderPicker';
 import { CountdownTimer } from '../components/dashboard/CountdownTimer';
-import { DriverAutocomplete } from '../components/predictions/DriverAutocomplete';
 import { useToast } from '../contexts/ToastContext';
 import {
   getActiveSeason,
@@ -346,9 +345,7 @@ export const SeasonPredictionsPage = () => {
             </p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {grid2027.map((pairing, index) => {
-                const selectedDriver = drivers.find(d => d.driverId === pairing.driver_api_id);
                 const isCustomDriver = pairing.driver_api_id === 'custom';
-                const selectedTeam = teams.find(t => t.constructorId === pairing.constructor_api_id);
 
                 return (
                   <div key={index} className="border border-gray-200 rounded-lg p-3">
