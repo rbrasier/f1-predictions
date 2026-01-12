@@ -4,3 +4,5 @@ Qualifying: https://api.jolpi.ca/ergast/f1/2025/qualifying/?format=json
 Results: https://api.jolpi.ca/ergast/f1/2025/results/?format=json
 Drivers: https://api.jolpi.ca/ergast/f1/2025/drivers/?format=json
 Constructors: https://api.jolpi.ca/ergast/f1/2025/constructors/?format=json
+Drivers Standings: https://api.jolpi.ca/ergast/f1/2025/driverstandings/?format=json
+Constructors Standings: https://api.jolpi.ca/ergast/f1/2025/constructorstandings/?format=json
