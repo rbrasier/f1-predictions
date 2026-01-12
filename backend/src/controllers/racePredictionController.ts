@@ -20,13 +20,16 @@ export const submitRacePrediction = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { year, round } = req.params;
-    const seasonYear = parseInt(year);
-    const roundNumber = parseInt(round);
+    const { raceId } = req.params;
     const userId = req.user!.id;
 
+    // Parse raceId format: "year-round" (e.g., "2026-1")
+    const [yearStr, roundStr] = raceId.split('-');
+    const seasonYear = parseInt(yearStr);
+    const roundNumber = parseInt(roundStr);
+
     if (isNaN(seasonYear) || isNaN(roundNumber)) {
-      return res.status(400).json({ error: 'Invalid year or round number' });
+      return res.status(400).json({ error: 'Invalid race ID format. Expected: year-round (e.g., 2026-1)' });
     }
 
     const {
@@ -142,13 +145,16 @@ export const submitRacePrediction = async (req: AuthRequest, res: Response) => {
 
 export const getMyRacePrediction = (req: AuthRequest, res: Response) => {
   try {
-    const { year, round } = req.params;
-    const seasonYear = parseInt(year);
-    const roundNumber = parseInt(round);
+    const { raceId } = req.params;
     const userId = req.user!.id;
 
+    // Parse raceId format: "year-round" (e.g., "2026-1")
+    const [yearStr, roundStr] = raceId.split('-');
+    const seasonYear = parseInt(yearStr);
+    const roundNumber = parseInt(roundStr);
+
     if (isNaN(seasonYear) || isNaN(roundNumber)) {
-      return res.status(400).json({ error: 'Invalid year or round number' });
+      return res.status(400).json({ error: 'Invalid race ID format. Expected: year-round (e.g., 2026-1)' });
     }
 
     const prediction = db.prepare(`
@@ -169,13 +175,16 @@ export const getMyRacePrediction = (req: AuthRequest, res: Response) => {
 
 export const getAllRacePredictions = (req: AuthRequest, res: Response) => {
   try {
-    const { year, round } = req.params;
-    const seasonYear = parseInt(year);
-    const roundNumber = parseInt(round);
+    const { raceId } = req.params;
     const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
 
+    // Parse raceId format: "year-round" (e.g., "2026-1")
+    const [yearStr, roundStr] = raceId.split('-');
+    const seasonYear = parseInt(yearStr);
+    const roundNumber = parseInt(roundStr);
+
     if (isNaN(seasonYear) || isNaN(roundNumber)) {
-      return res.status(400).json({ error: 'Invalid year or round number' });
+      return res.status(400).json({ error: 'Invalid race ID format. Expected: year-round (e.g., 2026-1)' });
     }
 
     let query = `

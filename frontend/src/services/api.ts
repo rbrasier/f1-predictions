@@ -87,7 +87,7 @@ export const getRaces = async (seasonId?: number): Promise<Race[]> => {
   return data;
 };
 
-export const getRace = async (raceId: number): Promise<Race> => {
+export const getRace = async (raceId: string): Promise<Race> => {
   const { data } = await api.get(`/races/${raceId}`);
   return data;
 };
@@ -120,17 +120,17 @@ export const getAllSeasonPredictions = async (seasonId: number): Promise<SeasonP
 };
 
 // Race Predictions
-export const submitRacePrediction = async (raceId: number, prediction: RacePredictionRequest): Promise<RacePrediction> => {
+export const submitRacePrediction = async (raceId: string, prediction: RacePredictionRequest): Promise<RacePrediction> => {
   const { data } = await api.post(`/races/${raceId}/predictions`, prediction);
   return data;
 };
 
-export const getMyRacePrediction = async (raceId: number): Promise<RacePrediction> => {
+export const getMyRacePrediction = async (raceId: string): Promise<RacePrediction> => {
   const { data } = await api.get(`/races/${raceId}/predictions/me`);
   return data;
 };
 
-export const getAllRacePredictions = async (raceId: number, limit?: number): Promise<RacePrediction[]> => {
+export const getAllRacePredictions = async (raceId: string, limit?: number): Promise<RacePrediction[]> => {
   const params = limit ? { limit: limit.toString() } : {};
   const { data } = await api.get(`/races/${raceId}/predictions`, { params });
   return data;

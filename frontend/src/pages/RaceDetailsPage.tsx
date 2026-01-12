@@ -40,7 +40,7 @@ export const RaceDetailsPage = () => {
 
       try {
         const [raceData, driversData] = await Promise.all([
-          getRace(parseInt(raceId)),
+          getRace(raceId),
           getDrivers()
         ]);
 
@@ -66,7 +66,7 @@ export const RaceDetailsPage = () => {
 
         // Try to load existing prediction
         try {
-          const existing = await getMyRacePrediction(parseInt(raceId));
+          const existing = await getMyRacePrediction(raceId);
           setPolePosition(existing.pole_position_driver_api_id || '');
           setPodiumFirst(existing.podium_first_driver_api_id || '');
           setPodiumSecond(existing.podium_second_driver_api_id || '');
@@ -124,7 +124,7 @@ export const RaceDetailsPage = () => {
         prediction.sprint_midfield_hero_driver_api_id = sprintMidfieldHero;
       }
 
-      await submitRacePrediction(parseInt(raceId), prediction);
+      await submitRacePrediction(raceId, prediction);
 
       setSuccess('Race predictions saved successfully!');
       setTimeout(() => navigate('/dashboard'), 2000);
