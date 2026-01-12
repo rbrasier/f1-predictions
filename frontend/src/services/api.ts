@@ -136,6 +136,11 @@ export const getAllRacePredictions = async (raceId: string, limit?: number): Pro
   return data;
 };
 
+export const getLastRoundResults = async (seasonYear: number): Promise<any> => {
+  const { data } = await api.get(`/races/last-round/${seasonYear}`);
+  return data;
+};
+
 // Crazy Predictions
 export const validateCrazyPrediction = async (
   prediction_type: 'season' | 'race',

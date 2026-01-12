@@ -209,3 +209,149 @@ export const getAllRacePredictions = (req: AuthRequest, res: Response) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 };
+
+export const getLastRoundResults = async (req: AuthRequest, res: Response) => {
+  try {
+    const { seasonYear } = req.params;
+    const year = parseInt(seasonYear);
+
+    if (isNaN(year)) {
+      return res.status(400).json({ error: 'Invalid season year' });
+    }
+
+    // Get current schedule to find last completed round
+    const scheduleData = await f1ApiService.fetchSchedule(year);
+    const races = scheduleData?.MRData?.RaceTable?.Races || [];
+
+    const now = new Date();
+    let lastCompletedRound = 0;
+
+    // Find the last race that has passed
+    for (const race of races) {
+      const raceDate = new Date(race.date);
+      if (raceDate < now) {
+        lastCompletedRound = parseInt(race.round);
+      }
+    }
+
+    if (lastCompletedRound === 0) {
+      return res.status(404).json({ error: 'No completed races found' });
+    }
+
+    // Get race results from database
+    const raceResults = db.prepare(`
+      SELECT * FROM race_results
+      WHERE season_year = ? AND round_number = ?
+    `).get(year, lastCompletedRound) as any;
+
+    if (!raceResults) {
+      return res.status(404).json({ error: 'Race results not entered yet' });
+    }
+
+    // Get all predictions for this round with user info
+    const predictions = db.prepare(`
+      SELECT
+        rp.*,
+        u.display_name,
+        u.id as user_id
+      FROM race_predictions rp
+      JOIN users u ON rp.user_id = u.id
+      WHERE rp.season_year = ? AND rp.round_number = ?
+      ORDER BY u.display_name
+    `).all(year, lastCompletedRound) as any[];
+
+    // Calculate scores for each prediction
+    const predictionsWithScores = predictions.map(pred => {
+      let score = 0;
+      let breakdown: any = {};
+
+      // Pole position (1 point)
+      if (pred.pole_position_driver_api_id === raceResults.pole_position_driver_api_id) {
+        score += 1;
+        breakdown.pole = true;
+      }
+
+      // Podium first (1 point)
+      if (pred.podium_first_driver_api_id === raceResults.podium_first_driver_api_id) {
+        score += 1;
+        breakdown.p1 = true;
+      }
+
+      // Podium second (1 point)
+      if (pred.podium_second_driver_api_id === raceResults.podium_second_driver_api_id) {
+        score += 1;
+        breakdown.p2 = true;
+      }
+
+      // Podium third (1 point)
+      if (pred.podium_third_driver_api_id === raceResults.podium_third_driver_api_id) {
+        score += 1;
+        breakdown.p3 = true;
+      }
+
+      // Midfield hero (1 point)
+      if (pred.midfield_hero_driver_api_id === raceResults.midfield_hero_driver_api_id) {
+        score += 1;
+        breakdown.midfield = true;
+      }
+
+      // Sprint predictions if applicable
+      if (raceResults.sprint_pole_driver_api_id) {
+        if (pred.sprint_pole_driver_api_id === raceResults.sprint_pole_driver_api_id) {
+          score += 1;
+          breakdown.sprintPole = true;
+        }
+      }
+
+      if (raceResults.sprint_winner_driver_api_id) {
+        if (pred.sprint_winner_driver_api_id === raceResults.sprint_winner_driver_api_id) {
+          score += 1;
+          breakdown.sprintWinner = true;
+        }
+      }
+
+      if (raceResults.sprint_midfield_hero_driver_api_id) {
+        if (pred.sprint_midfield_hero_driver_api_id === raceResults.sprint_midfield_hero_driver_api_id) {
+          score += 1;
+          breakdown.sprintMidfield = true;
+        }
+      }
+
+      return {
+        ...pred,
+        calculated_score: score,
+        score_breakdown: breakdown
+      };
+    });
+
+    // Sort by score (highest first)
+    predictionsWithScores.sort((a, b) => b.calculated_score - a.calculated_score);
+
+    // Get crazy prediction validations for this round
+    const crazyPredIds = predictions.map(p => p.id);
+    let crazyValidations: any[] = [];
+
+    if (crazyPredIds.length > 0) {
+      const placeholders = crazyPredIds.map(() => '?').join(',');
+      crazyValidations = db.prepare(`
+        SELECT
+          cpv.*,
+          u.display_name as validator_name
+        FROM crazy_prediction_validations cpv
+        JOIN users u ON cpv.validator_user_id = u.id
+        WHERE cpv.prediction_type = 'race'
+        AND cpv.prediction_id IN (${placeholders})
+      `).all(...crazyPredIds) as any[];
+    }
+
+    res.json({
+      round: lastCompletedRound,
+      results: raceResults,
+      predictions: predictionsWithScores,
+      crazy_validations: crazyValidations
+    });
+  } catch (error) {
+    console.error('Get last round results error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};

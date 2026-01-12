@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Layout } from '../components/common/Layout';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { CountdownTimer } from '../components/dashboard/CountdownTimer';
-import { getActiveSeason, getNextRace, getUpcomingRaces, getAllUsers, getLeaderboard, getPendingValidations, getDrivers, getMyRacePrediction, getMySeasonPrediction, getAllRacePredictions, getValidationsForPrediction } from '../services/api';
+import { getActiveSeason, getNextRace, getUpcomingRaces, getAllUsers, getLeaderboard, getPendingValidations, getDrivers, getMyRacePrediction, getMySeasonPrediction, getAllRacePredictions, getValidationsForPrediction, getLastRoundResults, validateCrazyPrediction } from '../services/api';
 import { Season, Race, User, RacePrediction, LeaderboardEntry, PendingValidation, Driver, SeasonPrediction } from '../types';
 import { useAuth } from '../hooks/useAuth';
 
@@ -20,6 +20,8 @@ export const DashboardPage = () => {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [pendingValidations, setPendingValidations] = useState<PendingValidation[]>([]);
   const [crazyPredictionsWithValidations, setCrazyPredictionsWithValidations] = useState<any[]>([]);
+  const [lastRoundData, setLastRoundData] = useState<any>(null);
+  const [votingOnPrediction, setVotingOnPrediction] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -44,6 +46,24 @@ export const DashboardPage = () => {
   const getFP1Start = (race: Race): string | null => {
     if (!race.FirstPractice) return null;
     return `${race.FirstPractice.date}T${race.FirstPractice.time}`;
+  };
+
+  // Handle voting on crazy prediction
+  const handleVoteCrazyPrediction = async (predictionId: number, isValid: boolean) => {
+    try {
+      setVotingOnPrediction(predictionId);
+      await validateCrazyPrediction('race', predictionId, isValid);
+
+      // Refresh last round data to show updated validations
+      if (season) {
+        const lastRound = await getLastRoundResults(season.year);
+        setLastRoundData(lastRound);
+      }
+    } catch (err) {
+      console.error('Error voting on crazy prediction:', err);
+    } finally {
+      setVotingOnPrediction(null);
+    }
   };
 
   useEffect(() => {
@@ -112,6 +132,17 @@ export const DashboardPage = () => {
           setPendingValidations(validations);
         } catch (err) {
           // Ignore errors for pending validations
+        }
+
+        // Fetch last round results if season exists
+        if (seasonData) {
+          try {
+            const lastRound = await getLastRoundResults(seasonData.year);
+            setLastRoundData(lastRound);
+          } catch (err) {
+            // No last round data available yet (no completed races or results not entered)
+            console.log('No last round data available');
+          }
         }
       } catch (err: any) {
         setError(err.response?.data?.error || 'Failed to load data');
@@ -293,7 +324,108 @@ export const DashboardPage = () => {
                 </div>
               )}
 
-              {/* TODO: Last Round Voting Area - would need last round's crazy predictions */}
+              {/* Last Round Results & Voting */}
+              {lastRoundData && lastRoundData.predictions && lastRoundData.predictions.length > 0 && (
+                <div className="bg-paddock-gray rounded-lg border border-paddock-lightgray">
+                  <div className="p-3 bg-green-900/40 border-b border-paddock-lightgray">
+                    <h4 className="text-white font-bold text-sm uppercase">Last Round Results (Round {lastRoundData.round})</h4>
+                  </div>
+
+                  {/* Leaderboard for last round */}
+                  <div className="p-3 bg-paddock-darkgray border-b border-paddock-lightgray">
+                    <div className="text-xs text-gray-400 mb-2">Points Scored</div>
+                    <div className="space-y-1">
+                      {lastRoundData.predictions.slice(0, 5).map((pred: any, idx: number) => (
+                        <div key={pred.id} className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className={`text-xs font-bold ${idx === 0 ? 'text-yellow-400' : 'text-gray-400'}`}>
+                              {idx + 1}.
+                            </span>
+                            <span className={`text-sm ${pred.user_id === currentUser?.id ? 'text-paddock-coral font-bold' : 'text-white'}`}>
+                              {pred.display_name}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-green-400 font-bold">{pred.calculated_score} pts</span>
+                            {pred.score_breakdown && (
+                              <div className="flex gap-1">
+                                {pred.score_breakdown.pole && <span className="text-xs text-gray-400" title="Pole">P</span>}
+                                {pred.score_breakdown.p1 && <span className="text-xs text-yellow-400" title="P1">1</span>}
+                                {pred.score_breakdown.p2 && <span className="text-xs text-gray-300" title="P2">2</span>}
+                                {pred.score_breakdown.p3 && <span className="text-xs text-orange-400" title="P3">3</span>}
+                                {pred.score_breakdown.midfield && <span className="text-xs text-blue-400" title="Midfield">M</span>}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Crazy Predictions Voting */}
+                  {lastRoundData.predictions.filter((p: any) => p.crazy_prediction).length > 0 && (
+                    <div className="divide-y divide-paddock-lightgray">
+                      <div className="p-3 bg-purple-900/20">
+                        <h5 className="text-white text-xs font-bold uppercase mb-2">Vote on Crazy Predictions</h5>
+                        <p className="text-gray-400 text-xs">Did these predictions come true?</p>
+                      </div>
+                      {lastRoundData.predictions
+                        .filter((p: any) => p.crazy_prediction)
+                        .map((pred: any) => {
+                          const user = users.find(u => u.id === pred.user_id);
+                          const validations = lastRoundData.crazy_validations.filter(
+                            (v: any) => v.prediction_id === pred.id
+                          );
+                          const yesVotes = validations.filter((v: any) => v.is_validated).length;
+                          const noVotes = validations.filter((v: any) => !v.is_validated).length;
+                          const userVoted = validations.some((v: any) => v.validator_user_id === currentUser?.id);
+
+                          return (
+                            <div key={pred.id} className="p-3">
+                              <div className="flex items-start gap-2 mb-2">
+                                <div className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+                                  {user?.display_name.substring(0, 2).toUpperCase()}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="text-white font-bold text-sm mb-1">{user?.display_name}</div>
+                                  <p className="text-gray-300 text-xs italic mb-2">"{pred.crazy_prediction}"</p>
+
+                                  <div className="flex items-center gap-3">
+                                    <div className="text-xs text-gray-400">
+                                      <span className="text-green-400">{yesVotes} Yes</span> •
+                                      <span className="text-red-400"> {noVotes} No</span>
+                                    </div>
+                                    {!userVoted && (
+                                      <div className="flex gap-2">
+                                        <button
+                                          onClick={() => handleVoteCrazyPrediction(pred.id, true)}
+                                          disabled={votingOnPrediction === pred.id}
+                                          className="px-2 py-1 bg-green-600 hover:bg-green-700 text-white text-xs rounded font-bold disabled:opacity-50"
+                                        >
+                                          ✓ Yes
+                                        </button>
+                                        <button
+                                          onClick={() => handleVoteCrazyPrediction(pred.id, false)}
+                                          disabled={votingOnPrediction === pred.id}
+                                          className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded font-bold disabled:opacity-50"
+                                        >
+                                          ✗ No
+                                        </button>
+                                      </div>
+                                    )}
+                                    {userVoted && (
+                                      <span className="text-xs text-gray-500 italic">You voted</span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  )}
+                </div>
+              )}
 
             </div>
 
