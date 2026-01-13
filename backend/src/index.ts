@@ -22,7 +22,10 @@ const PORT = process.env.PORT || 4001;
 // Middleware
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:4000',
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  exposedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
