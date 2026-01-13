@@ -712,9 +712,9 @@ export const importRaceResults = async (req: AuthRequest, res: Response) => {
     }
 
     // Get cached race results
-    const resultsData = f1ApiService.getCachedData('results', seasonYear, roundNumber);
-    const qualifyingData = f1ApiService.getCachedData('qualifying', seasonYear, roundNumber);
-    const sprintData = f1ApiService.getCachedData('sprint', seasonYear, roundNumber);
+    const resultsData = await f1ApiService.getCachedData('results', seasonYear, roundNumber);
+    const qualifyingData = await f1ApiService.getCachedData('qualifying', seasonYear, roundNumber);
+    const sprintData = await f1ApiService.getCachedData('sprint', seasonYear, roundNumber);
 
     if (!resultsData) {
       return res.status(404).json({
@@ -855,8 +855,8 @@ export const importSeasonStandings = async (req: AuthRequest, res: Response) => 
     }
 
     // Get cached driver and constructor standings
-    const driverStandingsData = f1ApiService.getCachedData('driverStandings', seasonYear);
-    const constructorStandingsData = f1ApiService.getCachedData('constructorStandings', seasonYear);
+    const driverStandingsData = await f1ApiService.getCachedData('driverStandings', seasonYear);
+    const constructorStandingsData = await f1ApiService.getCachedData('constructorStandings', seasonYear);
 
     if (!driverStandingsData || !constructorStandingsData) {
       return res.status(404).json({
@@ -948,7 +948,7 @@ export const bulkImportSeason = async (req: AuthRequest, res: Response) => {
     }
 
     // Get cached schedule to know how many rounds there are
-    const scheduleData = f1ApiService.getCachedData('schedule', seasonYear);
+    const scheduleData = await f1ApiService.getCachedData('schedule', seasonYear);
 
     if (!scheduleData) {
       return res.status(404).json({
@@ -971,14 +971,14 @@ export const bulkImportSeason = async (req: AuthRequest, res: Response) => {
 
       try {
         // Check if results are available for this race
-        const resultsData = f1ApiService.getCachedData('results', seasonYear, round);
+        const resultsData = await f1ApiService.getCachedData('results', seasonYear, round);
 
         if (resultsData) {
           // Import this race (reuse logic from importRaceResults)
           const raceData = resultsData.MRData?.RaceTable?.Races?.[0];
           if (raceData?.Results) {
-            const qualifyingData = f1ApiService.getCachedData('qualifying', seasonYear, round);
-            const sprintData = f1ApiService.getCachedData('sprint', seasonYear, round);
+            const qualifyingData = await f1ApiService.getCachedData('qualifying', seasonYear, round);
+            const sprintData = await f1ApiService.getCachedData('sprint', seasonYear, round);
 
             const podium = raceData.Results.slice(0, 3);
             const podiumFirst = podium[0]?.Driver?.driverId;
@@ -1098,7 +1098,7 @@ export const populateDriverImages = async (req: AuthRequest, res: Response) => {
     }
 
     // Get cached drivers data
-    const driversData = f1ApiService.getCachedData('drivers', seasonYear);
+    const driversData = await f1ApiService.getCachedData('drivers', seasonYear);
 
     if (!driversData) {
       return res.status(404).json({

@@ -39,8 +39,8 @@ export const register = async (req: AuthRequest, res: Response) => {
     const { username, password, display_name } = req.body as RegisterRequest;
 
     // Check if username already exists
-    const existingUser = db.prepare('SELECT id FROM users WHERE username = ?').get(username);
-    if (await existingUser) {
+    const existingUser = await db.prepare('SELECT id FROM users WHERE username = $1').get(username);
+    if (existingUser) {
       return res.status(400).json({ error: 'Username already exists' });
     }
 
@@ -48,12 +48,13 @@ export const register = async (req: AuthRequest, res: Response) => {
     const password_hash = await bcrypt.hash(password, 10);
 
     // Insert user
-    const result = db.prepare(`
+    const result = await db.prepare(`
       INSERT INTO users (username, password_hash, display_name, is_admin)
-      VALUES (?, ?, ?, 0)
+      VALUES ($1, $2, $3, false)
+      RETURNING id
     `).run(username, password_hash, display_name);
 
-    const userId = Number(result.lastInsertRowid);
+    const userId = Number(result.rows[0].id);
 
     // Generate JWT token
     const token = jwt.sign(
@@ -92,7 +93,7 @@ export const login = async (req: AuthRequest, res: Response) => {
     const user = await db.prepare(`
       SELECT id, username, password_hash, display_name, is_admin
       FROM users
-      WHERE username = ?
+      WHERE username = $1
     `).get(username) as User | undefined;
 
     if (!user) {
@@ -138,7 +139,7 @@ export const getMe = async (req: AuthRequest, res: Response) => {
     const user = await db.prepare(`
       SELECT id, username, display_name, is_admin
       FROM users
-      WHERE id = ?
+      WHERE id = $1
     `).get(req.user.id) as Omit<User, 'password_hash' | 'created_at'> | undefined;
 
     if (!user) {
@@ -172,7 +173,7 @@ export const getAllUsers = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const grantAdminAccess = (req: AuthRequest, res: Response) => {
+export const grantAdminAccess = async (req: AuthRequest, res: Response) => {
   try {
     if (!req.user?.is_admin) {
       return res.status(403).json({ error: 'Only admins can grant admin access' });
@@ -186,13 +187,13 @@ export const grantAdminAccess = (req: AuthRequest, res: Response) => {
     }
 
     // Check if user exists
-    const user = db.prepare('SELECT id, username, display_name, is_admin FROM users WHERE id = ?').get(userIdNum);
+    const user = await db.prepare('SELECT id, username, display_name, is_admin FROM users WHERE id = $1').get(userIdNum);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
 
     // Grant admin access
-    db.prepare('UPDATE users SET is_admin = 1 WHERE id = ?').run(userIdNum);
+    await db.prepare('UPDATE users SET is_admin = true WHERE id = $1').run(userIdNum);
 
     res.json({ message: 'Admin access granted successfully', user: { ...user, is_admin: true } });
   } catch (error) {

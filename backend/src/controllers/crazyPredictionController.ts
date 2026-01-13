@@ -24,10 +24,10 @@ export const validateCrazyPrediction = async (req: AuthRequest, res: Response) =
     let predictionOwnerId: number | undefined;
 
     if (prediction_type === 'season') {
-      const pred = await db.prepare('SELECT user_id FROM season_predictions WHERE id = ?').get(prediction_id) as { user_id: number } | undefined;
+      const pred = await db.prepare('SELECT user_id FROM season_predictions WHERE id = $1').get(prediction_id) as { user_id: number } | undefined;
       predictionOwnerId = pred?.user_id;
     } else {
-      const pred = await db.prepare('SELECT user_id FROM race_predictions WHERE id = ?').get(prediction_id) as { user_id: number } | undefined;
+      const pred = await db.prepare('SELECT user_id FROM race_predictions WHERE id = $1').get(prediction_id) as { user_id: number } | undefined;
       predictionOwnerId = pred?.user_id;
     }
 
@@ -42,27 +42,28 @@ export const validateCrazyPrediction = async (req: AuthRequest, res: Response) =
     // Check if user has already validated this prediction
     const existing = await db.prepare(`
       SELECT id FROM crazy_prediction_validations
-      WHERE prediction_type = ? AND prediction_id = ? AND validator_user_id = ?
+      WHERE prediction_type = $1 AND prediction_id = $2 AND validator_user_id = $3
     `).get(prediction_type, prediction_id, userId) as { id: number } | undefined;
 
     if (existing) {
       // Update existing validation
-      db.prepare(`
+      await db.prepare(`
         UPDATE crazy_prediction_validations
-        SET is_validated = ?, validated_at = CURRENT_TIMESTAMP
-        WHERE id = ?
-      `).run(is_validated ? 1 : 0, existing.id);
+        SET is_validated = $1, validated_at = CURRENT_TIMESTAMP
+        WHERE id = $2
+      `).run(is_validated, existing.id);
 
-      const updated = db.prepare('SELECT * FROM crazy_prediction_validations WHERE id = ?').get(existing.id);
+      const updated = await db.prepare('SELECT * FROM crazy_prediction_validations WHERE id = $1').get(existing.id);
       res.json(updated);
     } else {
       // Create new validation
-      const result = db.prepare(`
+      const result = await db.prepare(`
         INSERT INTO crazy_prediction_validations (prediction_type, prediction_id, validator_user_id, is_validated)
-        VALUES (?, ?, ?, ?)
-      `).run(prediction_type, prediction_id, userId, is_validated ? 1 : 0);
+        VALUES ($1, $2, $3, $4)
+        RETURNING *
+      `).run(prediction_type, prediction_id, userId, is_validated);
 
-      const created = db.prepare('SELECT * FROM crazy_prediction_validations WHERE id = ?').get(result.lastInsertRowid);
+      const created = result.rows[0];
       res.status(201).json(created);
     }
   } catch (error) {
@@ -88,11 +89,11 @@ export const getPendingValidations = async (req: AuthRequest, res: Response) => 
         (SELECT COUNT(*) FROM crazy_prediction_validations
          WHERE prediction_type = 'season'
          AND prediction_id = sp.id
-         AND validator_user_id = ?) as already_validated
+         AND validator_user_id = $1) as already_validated
       FROM season_predictions sp
       JOIN users u ON sp.user_id = u.id
       WHERE sp.crazy_prediction IS NOT NULL
-      AND sp.user_id != ?
+      AND sp.user_id != $2
     `).all(userId, userId) as any[];
 
     // Get race predictions with crazy predictions that need validation
@@ -108,11 +109,11 @@ export const getPendingValidations = async (req: AuthRequest, res: Response) => 
         (SELECT COUNT(*) FROM crazy_prediction_validations
          WHERE prediction_type = 'race'
          AND prediction_id = rp.id
-         AND validator_user_id = ?) as already_validated
+         AND validator_user_id = $1) as already_validated
       FROM race_predictions rp
       JOIN users u ON rp.user_id = u.id
       WHERE rp.crazy_prediction IS NOT NULL
-      AND rp.user_id != ?
+      AND rp.user_id != $2
     `).all(userId, userId) as any[];
 
     const allPredictions = [...seasonPredictions, ...racePredictions];
@@ -136,7 +137,7 @@ export const getValidationsForPrediction = async (req: AuthRequest, res: Respons
       SELECT cpv.*, u.display_name
       FROM crazy_prediction_validations cpv
       JOIN users u ON cpv.validator_user_id = u.id
-      WHERE cpv.prediction_type = ? AND cpv.prediction_id = ?
+      WHERE cpv.prediction_type = $1 AND cpv.prediction_id = $2
       ORDER BY cpv.validated_at DESC
     `).all(predictionType, predictionId) as (CrazyPredictionValidation & { display_name: string })[];
 

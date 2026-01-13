@@ -75,24 +75,24 @@ export const submitRacePrediction = async (req: AuthRequest, res: Response) => {
     // Check if prediction already exists
     const existing = await db.prepare(`
       SELECT id FROM race_predictions
-      WHERE user_id = ? AND season_year = ? AND round_number = ?
+      WHERE user_id = $1 AND season_year = $2 AND round_number = $3
     `).get(userId, seasonYear, roundNumber) as { id: number } | undefined;
 
     if (existing) {
       // Update existing prediction
-      db.prepare(`
+      await db.prepare(`
         UPDATE race_predictions
-        SET pole_position_driver_api_id = ?,
-            podium_first_driver_api_id = ?,
-            podium_second_driver_api_id = ?,
-            podium_third_driver_api_id = ?,
-            midfield_hero_driver_api_id = ?,
-            crazy_prediction = ?,
-            sprint_pole_driver_api_id = ?,
-            sprint_winner_driver_api_id = ?,
-            sprint_midfield_hero_driver_api_id = ?,
+        SET pole_position_driver_api_id = $1,
+            podium_first_driver_api_id = $2,
+            podium_second_driver_api_id = $3,
+            podium_third_driver_api_id = $4,
+            midfield_hero_driver_api_id = $5,
+            crazy_prediction = $6,
+            sprint_pole_driver_api_id = $7,
+            sprint_winner_driver_api_id = $8,
+            sprint_midfield_hero_driver_api_id = $9,
             submitted_at = CURRENT_TIMESTAMP
-        WHERE id = ?
+        WHERE id = $10
       `).run(
         pole_position_driver_api_id,
         podium_first_driver_api_id,
@@ -106,11 +106,11 @@ export const submitRacePrediction = async (req: AuthRequest, res: Response) => {
         existing.id
       );
 
-      const updated = await db.prepare('SELECT * FROM race_predictions WHERE id = ?').get(existing.id) as RacePrediction;
+      const updated = await db.prepare('SELECT * FROM race_predictions WHERE id = $1').get(existing.id) as RacePrediction;
       res.json(updated);
     } else {
       // Create new prediction
-      const result = db.prepare(`
+      const result = await db.prepare(`
         INSERT INTO race_predictions (
           user_id, season_year, round_number,
           pole_position_driver_api_id, podium_first_driver_api_id,
@@ -118,7 +118,8 @@ export const submitRacePrediction = async (req: AuthRequest, res: Response) => {
           midfield_hero_driver_api_id, crazy_prediction,
           sprint_pole_driver_api_id, sprint_winner_driver_api_id,
           sprint_midfield_hero_driver_api_id
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        RETURNING *
       `).run(
         userId,
         seasonYear,
@@ -134,7 +135,7 @@ export const submitRacePrediction = async (req: AuthRequest, res: Response) => {
         sprint_midfield_hero_driver_api_id || null
       );
 
-      const created = await db.prepare('SELECT * FROM race_predictions WHERE id = ?').get(result.lastInsertRowid) as RacePrediction;
+      const created = result.rows[0] as RacePrediction;
       res.status(201).json(created);
     }
   } catch (error) {
@@ -159,7 +160,7 @@ export const getMyRacePrediction = async (req: AuthRequest, res: Response) => {
 
     const prediction = await db.prepare(`
       SELECT * FROM race_predictions
-      WHERE user_id = ? AND season_year = ? AND round_number = ?
+      WHERE user_id = $1 AND season_year = $2 AND round_number = $3
     `).get(userId, seasonYear, roundNumber) as RacePrediction | undefined;
 
     if (!prediction) {
@@ -193,7 +194,7 @@ export const getAllRacePredictions = async (req: AuthRequest, res: Response) => 
         u.display_name
       FROM race_predictions rp
       JOIN users u ON rp.user_id = u.id
-      WHERE rp.season_year = ? AND rp.round_number = ?
+      WHERE rp.season_year = $1 AND rp.round_number = $2
       ORDER BY u.display_name
     `;
 
@@ -239,9 +240,9 @@ export const getLastRoundResults = async (req: AuthRequest, res: Response) => {
     }
 
     // Get race results from database
-    const raceResults = db.prepare(`
+    const raceResults = await db.prepare(`
       SELECT * FROM race_results
-      WHERE season_year = ? AND round_number = ?
+      WHERE season_year = $1 AND round_number = $2
     `).get(year, lastCompletedRound) as any;
 
     if (!raceResults) {
@@ -256,7 +257,7 @@ export const getLastRoundResults = async (req: AuthRequest, res: Response) => {
         u.id as user_id
       FROM race_predictions rp
       JOIN users u ON rp.user_id = u.id
-      WHERE rp.season_year = ? AND rp.round_number = ?
+      WHERE rp.season_year = $1 AND rp.round_number = $2
       ORDER BY u.display_name
     `).all(year, lastCompletedRound) as any[];
 
@@ -333,7 +334,7 @@ export const getLastRoundResults = async (req: AuthRequest, res: Response) => {
 
     if (crazyPredIds.length > 0) {
       const placeholders = crazyPredIds.map(() => '?').join(',');
-      crazyValidations = db.prepare(`
+      crazyValidations = await db.prepare(`
         SELECT
           cpv.*,
           u.display_name as validator_name

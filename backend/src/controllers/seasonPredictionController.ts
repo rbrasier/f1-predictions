@@ -72,7 +72,7 @@ export const submitSeasonPrediction = async (req: AuthRequest, res: Response) =>
 
     // Check if prediction already exists
     const existing = await db.prepare(`
-      SELECT id FROM season_predictions WHERE user_id = ? AND season_year = ?
+      SELECT id FROM season_predictions WHERE user_id = $1 AND season_year = $2
     `).get(userId, seasonYear) as { id: number } | undefined;
 
     const driversJson = JSON.stringify(drivers_championship_order);
@@ -83,18 +83,18 @@ export const submitSeasonPrediction = async (req: AuthRequest, res: Response) =>
 
     if (existing) {
       // Update existing prediction
-      db.prepare(`
+      await db.prepare(`
         UPDATE season_predictions
-        SET drivers_championship_order = ?,
-            constructors_championship_order = ?,
-            mid_season_sackings = ?,
-            audi_vs_cadillac = ?,
-            crazy_prediction = ?,
-            first_career_race_winner = ?,
-            grid_2027 = ?,
-            grid_2028 = ?,
+        SET drivers_championship_order = $1,
+            constructors_championship_order = $2,
+            mid_season_sackings = $3,
+            audi_vs_cadillac = $4,
+            crazy_prediction = $5,
+            first_career_race_winner = $6,
+            grid_2027 = $7,
+            grid_2028 = $8,
             submitted_at = CURRENT_TIMESTAMP
-        WHERE id = ?
+        WHERE id = $9
       `).run(
         driversJson,
         constructorsJson,
@@ -107,16 +107,17 @@ export const submitSeasonPrediction = async (req: AuthRequest, res: Response) =>
         existing.id
       );
 
-      const updated = await db.prepare('SELECT * FROM season_predictions WHERE id = ?').get(existing.id) as SeasonPrediction;
+      const updated = await db.prepare('SELECT * FROM season_predictions WHERE id = $1').get(existing.id) as SeasonPrediction;
       res.json(updated);
     } else {
       // Create new prediction
-      const result = db.prepare(`
+      const result = await db.prepare(`
         INSERT INTO season_predictions (
           user_id, season_year, drivers_championship_order, constructors_championship_order,
           mid_season_sackings, audi_vs_cadillac, crazy_prediction, first_career_race_winner,
           grid_2027, grid_2028
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        RETURNING *
       `).run(
         userId,
         seasonYear,
@@ -130,7 +131,7 @@ export const submitSeasonPrediction = async (req: AuthRequest, res: Response) =>
         grid2028Json
       );
 
-      const created = await db.prepare('SELECT * FROM season_predictions WHERE id = ?').get(result.lastInsertRowid) as SeasonPrediction;
+      const created = result.rows[0] as SeasonPrediction;
       res.status(201).json(created);
     }
   } catch (error) {
@@ -151,7 +152,7 @@ export const getMySeasonPrediction = async (req: AuthRequest, res: Response) => 
 
     const prediction = await db.prepare(`
       SELECT * FROM season_predictions
-      WHERE user_id = ? AND season_year = ?
+      WHERE user_id = $1 AND season_year = $2
     `).get(userId, seasonYear) as SeasonPrediction | undefined;
 
     if (!prediction) {
@@ -178,7 +179,7 @@ export const getAllSeasonPredictions = async (req: AuthRequest, res: Response) =
       SELECT sp.*, u.display_name
       FROM season_predictions sp
       JOIN users u ON sp.user_id = u.id
-      WHERE sp.season_year = ?
+      WHERE sp.season_year = $1
       ORDER BY u.display_name
     `).all(seasonYear) as (SeasonPrediction & { display_name: string })[];
 
