@@ -57,6 +57,27 @@ export const DashboardPage = () => {
         const lastRound = await getLastRoundResults(season.year);
         setLastRoundData(lastRound);
       }
+
+      // Refresh current round crazy predictions to show updated validations
+      if (nextRace) {
+        const raceId = `${nextRace.season}-${nextRace.round}`;
+        const allPredictions = await getAllRacePredictions(raceId, 10);
+        const predictionsWithValidations = await Promise.all(
+          allPredictions
+            .filter(p => p.crazy_prediction)
+            .map(async (p) => {
+              try {
+                const validations = await getValidationsForPrediction('race', p.id);
+                const agreeCount = validations.filter(v => v.is_validated).length;
+                const userHasVoted = validations.some(v => v.validator_user_id === currentUser?.id);
+                return { ...p, agreeCount, userHasVoted };
+              } catch {
+                return { ...p, agreeCount: 0, userHasVoted: false };
+              }
+            })
+        );
+        setCrazyPredictionsWithValidations(predictionsWithValidations);
+      }
     } catch (err) {
       console.error('Error voting on crazy prediction:', err);
     } finally {
@@ -101,9 +122,10 @@ export const DashboardPage = () => {
                   try {
                     const validations = await getValidationsForPrediction('race', p.id);
                     const agreeCount = validations.filter(v => v.is_validated).length;
-                    return { ...p, agreeCount };
+                    const userHasVoted = validations.some(v => v.validator_user_id === currentUser?.id);
+                    return { ...p, agreeCount, userHasVoted };
                   } catch {
-                    return { ...p, agreeCount: 0 };
+                    return { ...p, agreeCount: 0, userHasVoted: false };
                   }
                 })
             );
@@ -295,6 +317,9 @@ export const DashboardPage = () => {
                       const user = users.find(u => u.id === prediction.user_id);
                       if (!user) return null;
 
+                      const isOwnPrediction = prediction.user_id === currentUser?.id;
+                      const canVote = !isOwnPrediction && !prediction.userHasVoted;
+
                       return (
                         <div key={prediction.id} className="p-3">
                           <div className="flex items-start gap-2">
@@ -308,9 +333,32 @@ export const DashboardPage = () => {
                                   {prediction.agreeCount} {prediction.agreeCount === 1 ? 'agrees' : 'agree'}
                                 </span>
                               </div>
-                              <p className="text-gray-300 text-xs italic">
+                              <p className="text-gray-300 text-xs italic mb-2">
                                 "{prediction.crazy_prediction}"
                               </p>
+
+                              {/* Voting buttons */}
+                              {canVote && (
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={() => handleVoteCrazyPrediction(prediction.id, true)}
+                                    disabled={votingOnPrediction === prediction.id}
+                                    className="px-2 py-1 bg-green-600 hover:bg-green-700 text-white text-xs rounded font-bold disabled:opacity-50 transition"
+                                  >
+                                    Agree
+                                  </button>
+                                  <button
+                                    onClick={() => handleVoteCrazyPrediction(prediction.id, false)}
+                                    disabled={votingOnPrediction === prediction.id}
+                                    className="px-2 py-1 bg-purple-600 hover:bg-purple-700 text-white text-xs rounded font-bold disabled:opacity-50 transition"
+                                  >
+                                    Not crazy enough
+                                  </button>
+                                </div>
+                              )}
+                              {prediction.userHasVoted && !isOwnPrediction && (
+                                <span className="text-xs text-gray-500 italic">You voted</span>
+                              )}
                             </div>
                           </div>
                         </div>
