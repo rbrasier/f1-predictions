@@ -201,10 +201,10 @@ export class F1ApiService {
       const query = `
         SELECT last_fetched_at
         FROM f1_api_cache
-        WHERE resource_type = ?
-          AND (season_year = ? OR (season_year IS NULL AND ? IS NULL))
-          AND (round_number = ? OR (round_number IS NULL AND ? IS NULL))
-          AND (resource_id = ? OR (resource_id IS NULL AND ? IS NULL))
+        WHERE resource_type = $1
+          AND (season_year = $2 OR (season_year IS NULL AND $3 IS NULL))
+          AND (round_number = $4 OR (round_number IS NULL AND $5 IS NULL))
+          AND (resource_id = $6 OR (resource_id IS NULL AND $7 IS NULL))
       `;
 
       const row = await db.prepare(query).get(
@@ -326,9 +326,9 @@ export class F1ApiService {
   /**
    * Clear cached data for a specific season
    */
-  clearSeasonCache(year: number): void {
+  async clearSeasonCache(year: number): Promise<void> {
     try {
-      db.prepare('DELETE FROM f1_api_cache WHERE season_year = ?').run(year);
+      await db.prepare('DELETE FROM f1_api_cache WHERE season_year = $1').run(year);
       console.log(`✓ Cleared cached data for ${year} season`);
     } catch (error) {
       console.error('Error clearing season cache:', error);

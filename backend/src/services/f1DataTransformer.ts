@@ -45,7 +45,7 @@ export class F1DataTransformer {
       }
 
       // Find the race in our database
-      const race = await db.prepare('SELECT id FROM races WHERE round_number = ? AND season_id = (SELECT id FROM seasons WHERE year = ?)').get(round, year) as { id: number } | undefined;
+      const race = await db.prepare('SELECT id FROM races WHERE round_number = $1 AND season_id = (SELECT id FROM seasons WHERE year = $2)').get(round, year) as { id: number } | undefined;
 
       if (!race) {
         return {
@@ -87,22 +87,22 @@ export class F1DataTransformer {
       }
 
       // Check if results already exist
-      const existing = await db.prepare('SELECT id FROM race_results WHERE race_id = ?').get(race.id) as { id: number } | undefined;
+      const existing = await db.prepare('SELECT id FROM race_results WHERE race_id = $1').get(race.id) as { id: number } | undefined;
 
       if (existing) {
         // Update existing results
-        db.prepare(`
+        await db.prepare(`
           UPDATE race_results
-          SET pole_position_driver_id = ?,
-              podium_first_driver_id = ?,
-              podium_second_driver_id = ?,
-              podium_third_driver_id = ?,
-              midfield_hero_driver_id = ?,
-              sprint_pole_driver_id = ?,
-              sprint_winner_driver_id = ?,
-              sprint_midfield_hero_driver_id = ?,
+          SET pole_position_driver_id = $1,
+              podium_first_driver_id = $2,
+              podium_second_driver_id = $3,
+              podium_third_driver_id = $4,
+              midfield_hero_driver_id = $5,
+              sprint_pole_driver_id = $6,
+              sprint_winner_driver_id = $7,
+              sprint_midfield_hero_driver_id = $8,
               entered_at = CURRENT_TIMESTAMP
-          WHERE id = ?
+          WHERE id = $9
         `).run(
           poleDriverId,
           podiumFirstId,
@@ -117,12 +117,12 @@ export class F1DataTransformer {
         console.log('  ✓ Updated existing race results');
       } else {
         // Insert new results
-        db.prepare(`
+        await db.prepare(`
           INSERT INTO race_results (
             race_id, pole_position_driver_id, podium_first_driver_id,
             podium_second_driver_id, podium_third_driver_id, midfield_hero_driver_id,
             sprint_pole_driver_id, sprint_winner_driver_id, sprint_midfield_hero_driver_id
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         `).run(
           race.id,
           poleDriverId,
@@ -141,7 +141,7 @@ export class F1DataTransformer {
       await this.calculateRaceScores(race.id);
       console.log('  ✓ Calculated prediction scores');
 
-      const results = db.prepare('SELECT * FROM race_results WHERE race_id = ?').get(race.id);
+      const results = await db.prepare('SELECT * FROM race_results WHERE race_id = $1').get(race.id);
 
       return {
         success: true,
@@ -186,7 +186,7 @@ export class F1DataTransformer {
       }
 
       // Find the season in our database
-      const season = await db.prepare('SELECT id FROM seasons WHERE year = ?').get(year) as { id: number } | undefined;
+      const season = await db.prepare('SELECT id FROM seasons WHERE year = $1').get(year) as { id: number } | undefined;
 
       if (!season) {
         return {
@@ -224,25 +224,25 @@ export class F1DataTransformer {
       const constructorsJson = JSON.stringify(constructorsOrder);
 
       // Check if results already exist
-      const existing = await db.prepare('SELECT id FROM season_results WHERE season_id = ?').get(season.id) as { id: number } | undefined;
+      const existing = await db.prepare('SELECT id FROM season_results WHERE season_id = $1').get(season.id) as { id: number } | undefined;
 
       if (existing) {
         // Update existing results
-        db.prepare(`
+        await db.prepare(`
           UPDATE season_results
-          SET drivers_championship_order = ?,
-              constructors_championship_order = ?,
+          SET drivers_championship_order = $1,
+              constructors_championship_order = $2,
               entered_at = CURRENT_TIMESTAMP
-          WHERE id = ?
+          WHERE id = $3
         `).run(driversJson, constructorsJson, existing.id);
         console.log('  ✓ Updated existing season results');
       } else {
         // Insert new results (with empty arrays for fields we don't have from API)
-        db.prepare(`
+        await db.prepare(`
           INSERT INTO season_results (
             season_id, drivers_championship_order, constructors_championship_order,
             mid_season_sackings, audi_vs_cadillac_winner
-          ) VALUES (?, ?, ?, '[]', NULL)
+          ) VALUES ($1, $2, $3, '[]', NULL)
         `).run(season.id, driversJson, constructorsJson);
         console.log('  ✓ Inserted new season results');
       }
@@ -251,7 +251,7 @@ export class F1DataTransformer {
       await this.calculateSeasonScores(season.id);
       console.log('  ✓ Calculated season prediction scores');
 
-      const results = db.prepare('SELECT * FROM season_results WHERE season_id = ?').get(season.id);
+      const results = await db.prepare('SELECT * FROM season_results WHERE season_id = $1').get(season.id);
 
       return {
         success: true,
@@ -368,7 +368,7 @@ export class F1DataTransformer {
     // Try to find driver by mapped names
     const possibleNames = driverMap[apiDriverId] || [];
     for (const name of possibleNames) {
-      const driver = await db.prepare('SELECT id FROM drivers WHERE name LIKE ?').get(`%${name}%`) as { id: number } | undefined;
+      const driver = await db.prepare('SELECT id FROM drivers WHERE name ILIKE $1').get(`%${name}%`) as { id: number } | undefined;
       if (driver) {
         return driver.id;
       }
@@ -377,7 +377,7 @@ export class F1DataTransformer {
     // Fallback: try searching by last name from API ID
     const lastName = apiDriverId.split('_').pop() || '';
     if (lastName) {
-      const driver = await db.prepare('SELECT id FROM drivers WHERE name LIKE ?').get(`%${lastName}%`) as { id: number } | undefined;
+      const driver = await db.prepare('SELECT id FROM drivers WHERE name ILIKE $1').get(`%${lastName}%`) as { id: number } | undefined;
       if (driver) {
         return driver.id;
       }
@@ -406,7 +406,7 @@ export class F1DataTransformer {
 
     const possibleNames = teamMap[apiConstructorId] || [];
     for (const name of possibleNames) {
-      const team = await db.prepare('SELECT id FROM teams WHERE name LIKE ?').get(`%${name}%`) as { id: number } | undefined;
+      const team = await db.prepare('SELECT id FROM teams WHERE name ILIKE $1').get(`%${name}%`) as { id: number } | undefined;
       if (team) {
         return team.id;
       }
@@ -421,7 +421,7 @@ export class F1DataTransformer {
    */
   private async findMidfieldHero(results: any[]): Promise<number | null> {
     // Get top 3 teams (teams marked as is_top_four in database, but we'll use top 3)
-    const topTeams = await db.prepare('SELECT id FROM teams WHERE is_top_four = 1').all() as { id: number }[];
+    const topTeams = await db.prepare('SELECT id FROM teams WHERE is_top_four = true').all() as { id: number }[];
     const topTeamIds = new Set(topTeams.map(t => t.id));
 
     // Find first finisher not from a top team
@@ -430,7 +430,7 @@ export class F1DataTransformer {
       if (!driverId) continue;
 
       // Get driver's team
-      const driver = await db.prepare('SELECT team_id FROM drivers WHERE id = ?').get(driverId) as { team_id: number } | undefined;
+      const driver = await db.prepare('SELECT team_id FROM drivers WHERE id = $1').get(driverId) as { team_id: number } | undefined;
       if (!driver) continue;
 
       // If driver's team is not in top teams, they're the midfield hero
@@ -446,10 +446,10 @@ export class F1DataTransformer {
    * Calculate scores for a race (copy of logic from adminController)
    */
   private async calculateRaceScores(raceId: number) {
-    const results = db.prepare('SELECT * FROM race_results WHERE race_id = ?').get(raceId) as any;
+    const results = await db.prepare('SELECT * FROM race_results WHERE race_id = $1').get(raceId) as any;
     if (!results) return;
 
-    const predictions = await db.prepare('SELECT * FROM race_predictions WHERE race_id = ?').all(raceId) as any[];
+    const predictions = await db.prepare('SELECT * FROM race_predictions WHERE race_id = $1').all(raceId) as any[];
 
     for (const prediction of predictions) {
       let points = 0;
@@ -471,7 +471,7 @@ export class F1DataTransformer {
         if (isValidated && actuallyHappened) points += 1;
       }
 
-      db.prepare('UPDATE race_predictions SET points_earned = ? WHERE id = ?').run(points, prediction.id);
+      await db.prepare('UPDATE race_predictions SET points_earned = $1 WHERE id = $2').run(points, prediction.id);
     }
   }
 
@@ -479,10 +479,10 @@ export class F1DataTransformer {
    * Calculate scores for season predictions
    */
   private async calculateSeasonScores(seasonId: number) {
-    const results = db.prepare('SELECT * FROM season_results WHERE season_id = ?').get(seasonId) as any;
+    const results = await db.prepare('SELECT * FROM season_results WHERE season_id = $1').get(seasonId) as any;
     if (!results) return;
 
-    const predictions = await db.prepare('SELECT * FROM season_predictions WHERE season_id = ?').all(seasonId) as any[];
+    const predictions = await db.prepare('SELECT * FROM season_predictions WHERE season_id = $1').all(seasonId) as any[];
 
     const actualDriversOrder = JSON.parse(results.drivers_championship_order);
     const actualConstructorsOrder = JSON.parse(results.constructors_championship_order);
@@ -500,19 +500,19 @@ export class F1DataTransformer {
         if (predictedConstructors[i] === actualConstructorsOrder[i]) points += 1;
       }
 
-      db.prepare('UPDATE season_predictions SET points_earned = ? WHERE id = ?').run(points, prediction.id);
+      await db.prepare('UPDATE season_predictions SET points_earned = $1 WHERE id = $2').run(points, prediction.id);
     }
   }
 
   private async isCrazyPredictionValidated(type: string, predictionId: number): Promise<boolean> {
-    const validations = await db.prepare('SELECT is_validated FROM crazy_prediction_validations WHERE prediction_type = ? AND prediction_id = ?').all(type, predictionId) as { is_validated: number }[];
+    const validations = await db.prepare('SELECT is_validated FROM crazy_prediction_validations WHERE prediction_type = $1 AND prediction_id = $2').all(type, predictionId) as { is_validated: boolean }[];
     if (validations.length === 0) return true;
-    return validations.some(v => v.is_validated === 1);
+    return validations.some(v => v.is_validated === true);
   }
 
   private async didCrazyPredictionHappen(type: string, predictionId: number): Promise<boolean> {
-    const outcome = await db.prepare('SELECT actually_happened FROM crazy_prediction_outcomes WHERE prediction_type = ? AND prediction_id = ?').get(type, predictionId) as { actually_happened: number } | undefined;
-    return outcome?.actually_happened === 1;
+    const outcome = await db.prepare('SELECT actually_happened FROM crazy_prediction_outcomes WHERE prediction_type = $1 AND prediction_id = $2').get(type, predictionId) as { actually_happened: boolean } | undefined;
+    return outcome?.actually_happened === true;
   }
 
   private sleep(ms: number): Promise<void> {
