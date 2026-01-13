@@ -5,32 +5,31 @@ import path from 'path';
 interface Migration {
   id: string;
   name: string;
-  up: (db: any) => void;
+  up: (db: any) => Promise<void> | void;
 }
 
 // Create migrations table if it doesn't exist
-function initMigrationsTable() {
-  db.prepare(`
+async function initMigrationsTable() {
+  await db.query(`
     CREATE TABLE IF NOT EXISTS migrations (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
-      applied_at TEXT NOT NULL
+      applied_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
     )
-  `).run();
+  `);
 }
 
 // Get list of applied migrations
-function getAppliedMigrations(): Set<string> {
-  const rows = db.prepare('SELECT id FROM migrations').all() as { id: string }[];
-  return new Set(rows.map(row => row.id));
+async function getAppliedMigrations(): Promise<Set<string>> {
+  const result = await db.query('SELECT id FROM migrations');
+  return new Set(result.rows.map(row => row.id));
 }
 
 // Record a migration as applied
-function recordMigration(id: string, name: string) {
-  db.prepare('INSERT INTO migrations (id, name, applied_at) VALUES (?, ?, ?)').run(
-    id,
-    name,
-    new Date().toISOString()
+async function recordMigration(id: string, name: string) {
+  await db.query(
+    'INSERT INTO migrations (id, name, applied_at) VALUES ($1, $2, CURRENT_TIMESTAMP)',
+    [id, name]
   );
 }
 
@@ -57,35 +56,40 @@ function loadMigrations(): Migration[] {
 }
 
 // Run pending migrations
-export function runMigrations() {
+export async function runMigrations() {
   console.log('Running database migrations...');
 
-  initMigrationsTable();
+  try {
+    await initMigrationsTable();
 
-  const appliedMigrations = getAppliedMigrations();
-  const allMigrations = loadMigrations();
+    const appliedMigrations = await getAppliedMigrations();
+    const allMigrations = loadMigrations();
 
-  const pendingMigrations = allMigrations.filter(m => !appliedMigrations.has(m.id));
+    const pendingMigrations = allMigrations.filter(m => !appliedMigrations.has(m.id));
 
-  if (pendingMigrations.length === 0) {
-    console.log('No pending migrations');
-    return;
-  }
-
-  console.log(`Found ${pendingMigrations.length} pending migration(s)`);
-
-  pendingMigrations.forEach(migration => {
-    console.log(`  Running migration: ${migration.name}`);
-
-    try {
-      migration.up(db);
-      recordMigration(migration.id, migration.name);
-      console.log(`  ✓ Migration ${migration.name} completed`);
-    } catch (error) {
-      console.error(`  ✗ Migration ${migration.name} failed:`, error);
-      throw error;
+    if (pendingMigrations.length === 0) {
+      console.log('No pending migrations');
+      return;
     }
-  });
 
-  console.log('All migrations completed successfully');
+    console.log(`Found ${pendingMigrations.length} pending migration(s)`);
+
+    for (const migration of pendingMigrations) {
+      console.log(`  Running migration: ${migration.name}`);
+
+      try {
+        await migration.up(db);
+        await recordMigration(migration.id, migration.name);
+        console.log(`  ✓ Migration ${migration.name} completed`);
+      } catch (error) {
+        console.error(`  ✗ Migration ${migration.name} failed:`, error);
+        throw error;
+      }
+    }
+
+    console.log('All migrations completed successfully');
+  } catch (error) {
+    console.error('Migration error:', error);
+    throw error;
+  }
 }
