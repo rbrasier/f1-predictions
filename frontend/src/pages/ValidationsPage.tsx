@@ -119,8 +119,8 @@ export const ValidationsPage = () => {
                   <div className="flex justify-between items-start mb-4">
                     <div className="flex-1">
                       <div className="flex items-center space-x-2 mb-2">
-                        <span className="font-bold text-lg">{prediction.display_name}</span>
-                        <span className="text-xs bg-gray-200 px-2 py-1 rounded">
+                        <span className="font-bold text-gray-700 text-lg">{prediction.display_name}</span>
+                        <span className="text-xs bg-gray-200 text-gray-700 px-2 py-1 rounded">
                           {prediction.prediction_type === 'season'
                             ? `Season ${prediction.season_year || prediction.year}`
                             : `Round ${prediction.round_number}`

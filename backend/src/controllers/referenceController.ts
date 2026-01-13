@@ -116,3 +116,60 @@ export const getActiveSeason = (req: AuthRequest, res: Response) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 };
+
+/**
+ * Get driver standings for a specific season with team associations
+ * Falls back to previous year if current year has no standings yet
+ */
+export const getDriverStandings = async (req: AuthRequest, res: Response) => {
+  try {
+    const year = req.query.year ? parseInt(req.query.year as string) : new Date().getFullYear();
+
+    console.log(`Fetching driver standings for year ${year}...`);
+
+    // Fetch driver standings from API (includes constructor associations)
+    let data = await f1ApiService.fetchDriverStandings(year);
+    let standings = data?.MRData?.StandingsTable?.StandingsLists?.[0]?.DriverStandings || [];
+    let usedYear = year;
+
+    // If no standings for current year (season hasn't started), try previous year
+    if (standings.length === 0) {
+      console.warn(`No driver standings found for year ${year}, trying ${year - 1}...`);
+      data = await f1ApiService.fetchDriverStandings(year - 1);
+      standings = data?.MRData?.StandingsTable?.StandingsLists?.[0]?.DriverStandings || [];
+      usedYear = year - 1;
+    }
+
+    console.log(`Found ${standings.length} drivers in standings from year ${usedYear}`);
+
+    if (standings.length === 0) {
+      console.warn(`No driver standings found for ${year} or ${year - 1}`);
+      return res.json([]);
+    }
+
+    // Get top four teams from grid data for the REQUESTED year (not the fallback year)
+    const gridData = getOriginalGrid(year.toString());
+    const topFourTeams = gridData?.top_four_teams || [];
+
+    console.log('Top four teams:', topFourTeams);
+
+    // Add is_top_four flag to each driver based on their team
+    const enrichedStandings = standings.map((standing: any) => {
+      const constructors = standing.Constructors || [];
+      const isTopFour = constructors.some((c: any) => topFourTeams.includes(c.constructorId));
+
+      return {
+        ...standing,
+        is_top_four_team: isTopFour
+      };
+    });
+
+    console.log('Top 4 team drivers:', enrichedStandings.filter((s: any) => s.is_top_four_team).map((s: any) => s.Driver.familyName));
+    console.log('Midfield drivers:', enrichedStandings.filter((s: any) => !s.is_top_four_team).map((s: any) => s.Driver.familyName));
+
+    res.json(enrichedStandings);
+  } catch (error) {
+    console.error('Get driver standings error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};

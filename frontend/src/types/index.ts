@@ -124,6 +124,16 @@ export interface F1Driver {
   dateOfBirth?: string;
 }
 
+export interface F1DriverStanding {
+  position: string;
+  positionText: string;
+  points: string;
+  wins: string;
+  Driver: F1Driver;
+  Constructors: F1Constructor[];
+  is_top_four_team?: boolean; // Added by backend
+}
+
 export interface F1Constructor {
   constructorId: string;
   name: string;
@@ -185,3 +195,4 @@ export interface Season {
 export type Driver = F1Driver;
 export type Team = F1Constructor;
 export type Race = F1Race;
+export type DriverStanding = F1DriverStanding;

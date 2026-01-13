@@ -8,10 +8,11 @@ import { useToast } from '../contexts/ToastContext';
 import {
   getRace,
   getDrivers,
+  getDriverStandings,
   submitRacePrediction,
   getMyRacePrediction
 } from '../services/api';
-import { Driver, Race } from '../types';
+import { Driver, DriverStanding, Race } from '../types';
 
 export const RaceDetailsPage = () => {
   const { raceId } = useParams<{ raceId: string }>();
@@ -41,32 +42,36 @@ export const RaceDetailsPage = () => {
       if (!raceId) return;
 
       try {
-        const [raceData, driversData] = await Promise.all([
-          getRace(raceId),
-          getDrivers()
+        // First get race data to determine the year
+        const raceData = await getRace(raceId);
+        setRace(raceData);
+
+        const raceYear = parseInt(raceData.season);
+
+        // Fetch drivers and standings for the race's season
+        const [driversData, standingsData] = await Promise.all([
+          getDrivers(raceYear),
+          getDriverStandings(raceYear)
         ]);
 
-        setRace(raceData);
         setDrivers(driversData);
 
-        // Filter midfield drivers (not from top 4 teams)
-        // Note: F1 API doesn't provide team assignments directly
-        // For now, use all drivers as midfield options
-        setMidfieldDrivers(driversData);
+        // Filter midfield drivers: exclude drivers from top 4 teams (from grid-data.json)
+        // The backend uses standings only to know which team each driver is on,
+        // then filters based on grid-data.json top_four_teams list
+        const midfieldDriverIds = standingsData
+          .filter((standing: DriverStanding) => !standing.is_top_four_team)
+          .map((standing: DriverStanding) => standing.Driver.driverId);
 
-        // Initialize default selections
-        if (driversData.length > 0) {
-          setPolePosition(driversData[0].driverId);
-          setPodiumFirst(driversData[0].driverId);
-          setPodiumSecond(driversData[1]?.driverId || driversData[0].driverId);
-          setPodiumThird(driversData[2]?.driverId || driversData[0].driverId);
-          setSprintPole(driversData[0].driverId);
-          setSprintWinner(driversData[0].driverId);
-          setMidfieldHero(driversData[0].driverId);
-          setSprintMidfieldHero(driversData[0].driverId);
-        }
+        const midfieldDriversList = driversData.filter(driver =>
+          midfieldDriverIds.includes(driver.driverId)
+        );
 
-        // Try to load existing prediction
+        console.log('Total drivers:', driversData.length);
+        console.log('Midfield drivers (not in red_bull/mercedes/ferrari/mclaren):', midfieldDriversList.length);
+        setMidfieldDrivers(midfieldDriversList);
+
+        // Try to load existing prediction - only populate fields if prediction exists
         try {
           const existing = await getMyRacePrediction(raceId);
           setPolePosition(existing.pole_position_driver_api_id || '');
@@ -83,7 +88,16 @@ export const RaceDetailsPage = () => {
             setSprintMidfieldHero(existing.sprint_midfield_hero_driver_api_id || '');
           }
         } catch (err) {
-          // No existing prediction, use defaults
+          // No existing prediction - leave all fields empty
+          setPolePosition('');
+          setPodiumFirst('');
+          setPodiumSecond('');
+          setPodiumThird('');
+          setMidfieldHero('');
+          setCrazyPrediction('');
+          setSprintPole('');
+          setSprintWinner('');
+          setSprintMidfieldHero('');
         }
       } catch (err: any) {
         setError(err.response?.data?.error || 'Failed to load data');
@@ -104,6 +118,11 @@ export const RaceDetailsPage = () => {
     try {
       if (!raceId) throw new Error('No race ID');
 
+      // Validate required fields
+      if (!polePosition || !podiumFirst || !podiumSecond || !podiumThird || !midfieldHero) {
+        throw new Error('Please select all required drivers');
+      }
+
       // Validate podium - all must be different
       if (podiumFirst === podiumSecond || podiumFirst === podiumThird || podiumSecond === podiumThird) {
         throw new Error('Podium drivers must all be different');
@@ -121,6 +140,9 @@ export const RaceDetailsPage = () => {
       // Check if race has sprint
       const hasSprintRace = !!race?.Sprint;
       if (hasSprintRace) {
+        if (!sprintPole || !sprintWinner || !sprintMidfieldHero) {
+          throw new Error('Please select all required sprint drivers');
+        }
         prediction.sprint_pole_driver_api_id = sprintPole;
         prediction.sprint_winner_driver_api_id = sprintWinner;
         prediction.sprint_midfield_hero_driver_api_id = sprintMidfieldHero;

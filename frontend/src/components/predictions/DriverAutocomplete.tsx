@@ -97,7 +97,7 @@ export const DriverAutocomplete = ({
   };
 
   return (
-    <div className="space-y-2" ref={wrapperRef}>
+    <div className="space-y-2">
       {label && (
         <label className="block text-sm font-bold text-gray-900">
           {label}
@@ -105,72 +105,73 @@ export const DriverAutocomplete = ({
         </label>
       )}
 
-      {/* Selected Driver Display */}
-      {selectedDriver && !isOpen && (
-        <div
-          className="flex items-center gap-3 p-3 bg-white border-2 border-gray-300 rounded-lg cursor-pointer hover:border-f1-red transition"
-          onClick={() => setIsOpen(true)}
-        >
-          <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-gray-300 flex-shrink-0 bg-f1-red flex items-center justify-center">
-            {selectedDriver.code ? (
-              <span className="text-white font-bold text-xs">{selectedDriver.code}</span>
-            ) : (
-              <span className="text-white font-bold text-xs">F1</span>
-            )}
-          </div>
-          <div className="flex-1">
-            <div className="font-bold text-gray-900">{`${selectedDriver.givenName} ${selectedDriver.familyName}`}</div>
-            {selectedDriver.code && (
-              <div className="text-sm text-gray-600">#{selectedDriver.permanentNumber || selectedDriver.code}</div>
-            )}
-          </div>
-          <svg
-            className="w-5 h-5 text-gray-400"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
+      <div className="relative" ref={wrapperRef}>
+        {/* Selected Driver Display */}
+        {selectedDriver && !isOpen && (
+          <div
+            className="flex items-center gap-3 p-3 bg-white border-2 border-gray-300 rounded-lg cursor-pointer hover:border-f1-red transition"
+            onClick={() => setIsOpen(true)}
           >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
-        </div>
-      )}
+            <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-gray-300 flex-shrink-0 bg-f1-red flex items-center justify-center">
+              {selectedDriver.code ? (
+                <span className="text-white font-bold text-xs">{selectedDriver.code}</span>
+              ) : (
+                <span className="text-white font-bold text-xs">F1</span>
+              )}
+            </div>
+            <div className="flex-1">
+              <div className="font-bold text-gray-900">{`${selectedDriver.givenName} ${selectedDriver.familyName}`}</div>
+              {selectedDriver.code && (
+                <div className="text-sm text-gray-600">#{selectedDriver.permanentNumber || selectedDriver.code}</div>
+              )}
+            </div>
+            <svg
+              className="w-5 h-5 text-gray-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
+        )}
 
-      {/* Search Input */}
-      {(!selectedDriver || isOpen) && (
-        <div className="relative">
-          <input
-            ref={inputRef}
-            type="text"
-            value={searchTerm}
-            onChange={handleInputChange}
-            onFocus={() => setIsOpen(true)}
-            onKeyDown={handleKeyDown}
-            placeholder={placeholder}
-            className="w-full px-4 py-3 pr-10 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-f1-red transition"
-            autoComplete="off"
-          />
-          <svg
-            className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+        {/* Search Input */}
+        {(!selectedDriver || isOpen) && (
+          <div>
+            <input
+              ref={inputRef}
+              type="text"
+              value={searchTerm}
+              onChange={handleInputChange}
+              onFocus={() => setIsOpen(true)}
+              onKeyDown={handleKeyDown}
+              placeholder={placeholder}
+              className="w-full px-4 py-3 pr-10 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-f1-red transition"
+              autoComplete="off"
             />
-          </svg>
-        </div>
-      )}
+            <svg
+              className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
+            </svg>
+          </div>
+        )}
 
-      {/* Dropdown Results */}
-      {isOpen && (
-        <div className="absolute z-50 w-full mt-1 bg-white border-2 border-gray-300 rounded-lg shadow-lg max-h-64 overflow-y-auto">
-          {filteredDrivers.length > 0 ? (
-            <div className="py-1">
-              {filteredDrivers.map((driver, index) => {
+        {/* Dropdown Results */}
+        {isOpen && (
+          <div className="absolute z-50 w-full mt-1 bg-white border-2 border-gray-300 rounded-lg shadow-lg max-h-64 overflow-y-auto">
+            {filteredDrivers.length > 0 ? (
+              <div className="py-1">
+                {filteredDrivers.map((driver, index) => {
                 const fullName = `${driver.givenName} ${driver.familyName}`;
                 return (
                   <button
@@ -217,7 +218,8 @@ export const DriverAutocomplete = ({
             </div>
           )}
         </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };

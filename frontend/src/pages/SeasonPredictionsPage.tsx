@@ -224,7 +224,7 @@ export const SeasonPredictionsPage = () => {
           <div className="bg-white p-6 rounded-lg shadow text-gray-900">
             <h3 className="text-xl font-bold mb-4 text-gray-900">Mid-Season Sackings</h3>
             <p className="text-sm text-gray-600 mb-4">
-              Select drivers or team principals you think will be sacked/replaced mid-season, or select "None"
+              Select drivers or team principals you think will be sacked/replaced before the end of the season, or select "None"
             </p>
             <div className="mb-4">
               <label className="flex items-center space-x-2 cursor-pointer bg-gray-100 p-3 rounded-lg border-2 border-gray-300">
@@ -303,7 +303,7 @@ export const SeasonPredictionsPage = () => {
 
           {/* Crazy Prediction */}
           <div className="bg-white p-6 rounded-lg shadow text-gray-900">
-            <h3 className="text-xl font-bold mb-4 text-gray-900">Crazy Prediction (Optional)</h3>
+            <h3 className="text-xl font-bold mb-4 text-gray-900">Crazy Prediction</h3>
             <p className="text-sm text-gray-600 mb-4">
               Make a wild prediction for the season. Other players will vote on whether it happened!
             </p>

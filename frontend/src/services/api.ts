@@ -3,6 +3,7 @@ import type {
   AuthResponse,
   User,
   Driver,
+  DriverStanding,
   Team,
   TeamPrincipal,
   Season,
@@ -56,8 +57,15 @@ export const getAllUsers = async (): Promise<User[]> => {
 };
 
 // Reference Data
-export const getDrivers = async (): Promise<Driver[]> => {
-  const { data } = await api.get('/drivers');
+export const getDrivers = async (year?: number): Promise<Driver[]> => {
+  const params = year ? { year } : {};
+  const { data } = await api.get('/drivers', { params });
+  return data;
+};
+
+export const getDriverStandings = async (year?: number): Promise<DriverStanding[]> => {
+  const params = year ? { year } : {};
+  const { data } = await api.get('/driver-standings', { params });
   return data;
 };
 
