@@ -680,7 +680,7 @@ export const clearSeasonCache = async (req: AuthRequest, res: Response) => {
  */
 export const clearAllCache = async (req: AuthRequest, res: Response) => {
   try {
-    f1ApiService.clearCache();
+    await f1ApiService.clearCache();
 
     res.json({
       success: true,

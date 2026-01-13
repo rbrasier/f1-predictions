@@ -202,16 +202,16 @@ export class F1ApiService {
         SELECT last_fetched_at
         FROM f1_api_cache
         WHERE resource_type = $1
-          AND (season_year = $2 OR (season_year IS NULL AND $3 IS NULL))
-          AND (round_number = $4 OR (round_number IS NULL AND $5 IS NULL))
-          AND (resource_id = $6 OR (resource_id IS NULL AND $7 IS NULL))
+          AND season_year IS NOT DISTINCT FROM $2
+          AND round_number IS NOT DISTINCT FROM $3
+          AND resource_id IS NOT DISTINCT FROM $4
       `;
 
       const row = await db.prepare(query).get(
         resourceType,
-        seasonYear || null, seasonYear || null,
-        roundNumber || null, roundNumber || null,
-        resourceId || null, resourceId || null
+        seasonYear || null,
+        roundNumber || null,
+        resourceId || null
       ) as { last_fetched_at: string } | undefined;
 
       if (!row) {
@@ -263,7 +263,7 @@ export class F1ApiService {
       const data = response.data;
 
       // Cache the data
-      this.cacheData(resourceType, seasonYear, roundNumber, resourceId, data);
+      await this.cacheData(resourceType, seasonYear, roundNumber, resourceId, data);
 
       return data;
     } catch (error: any) {
@@ -283,25 +283,27 @@ export class F1ApiService {
   /**
    * Store data in cache
    */
-  private cacheData(
+  private async cacheData(
     resourceType: ResourceType,
     seasonYear: number | null,
     roundNumber: number | null,
     resourceId: string | null,
     data: any
-  ): void {
+  ): Promise<void> {
     try {
       const dataJson = JSON.stringify(data);
       const now = new Date().toISOString();
 
-      // Use INSERT OR REPLACE to update existing cache or create new
+      // Use UPSERT (INSERT ... ON CONFLICT) for PostgreSQL
       const stmt = db.prepare(`
-        INSERT OR REPLACE INTO f1_api_cache
+        INSERT INTO f1_api_cache
         (resource_type, season_year, round_number, resource_id, data_json, last_fetched_at)
-        VALUES (?, ?, ?, ?, ?, ?)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        ON CONFLICT (resource_type, season_year, round_number, resource_id)
+        DO UPDATE SET data_json = $5, last_fetched_at = $6
       `);
 
-      stmt.run(resourceType, seasonYear, roundNumber, resourceId, dataJson, now);
+      await stmt.run(resourceType, seasonYear, roundNumber, resourceId, dataJson, now);
 
       console.log(`  ✓ Cached ${resourceType} data`);
     } catch (error) {
@@ -313,9 +315,9 @@ export class F1ApiService {
   /**
    * Clear all cached data (useful for testing or manual refresh)
    */
-  clearCache(): void {
+  async clearCache(): Promise<void> {
     try {
-      db.prepare('DELETE FROM f1_api_cache').run();
+      await db.prepare('DELETE FROM f1_api_cache').run();
       console.log('✓ Cleared all cached F1 API data');
     } catch (error) {
       console.error('Error clearing cache:', error);
