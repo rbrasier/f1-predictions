@@ -7,9 +7,12 @@ import {
   getDrivers,
   getTeams,
   enterRaceResults,
+  getRaceResults,
   enterSeasonResults,
+  getSeasonResults,
   getAllSeasonPredictions,
   getActiveSeason,
+  getSeasons,
   recalculateAllScores,
   refreshSeasonData,
   refreshRaceResults,
@@ -18,23 +21,30 @@ import {
   clearAllCache,
   importRaceResults,
   importSeasonStandings,
-  bulkImportSeason
+  bulkImportSeason,
+  getAllUsers,
+  grantAdminAccess
 } from '../services/api';
 import { Race, Driver, Team, Season } from '../types';
 
 export const AdminPage = () => {
-  const [activeTab, setActiveTab] = useState<'races' | 'season' | 'f1data'>('races');
+  const [activeTab, setActiveTab] = useState<'admin' | 'races' | 'season' | 'f1data'>('admin');
   const [races, setRaces] = useState<Race[]>([]);
   const [selectedRace, setSelectedRace] = useState<Race | null>(null);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [season, setSeason] = useState<Season | null>(null);
+  const [seasons, setSeasons] = useState<Season[]>([]);
+  const [selectedSeasonYear, setSelectedSeasonYear] = useState<number>(2026);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [crazyPredictions, setCrazyPredictions] = useState<any[]>([]);
   const [crazyPredictionsHappened, setCrazyPredictionsHappened] = useState<number[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
+  const [loadedRaceResults, setLoadedRaceResults] = useState<any>(null);
+  const [loadedSeasonResults, setLoadedSeasonResults] = useState<any>(null);
 
   // F1 Data Management State
   const [cacheStatus, setCacheStatus] = useState<any>(null);
@@ -64,17 +74,22 @@ export const AdminPage = () => {
 
   const fetchData = async () => {
     try {
-      const [racesData, driversData, teamsData, seasonData] = await Promise.all([
+      const [racesData, driversData, teamsData, seasonData, seasonsData, usersData] = await Promise.all([
         getRaces(),
         getDrivers(),
         getTeams(),
-        getActiveSeason()
+        getActiveSeason(),
+        getSeasons(),
+        getAllUsers()
       ]);
 
       setRaces(racesData);
       setDrivers(driversData);
       setTeams(teamsData);
       setSeason(seasonData);
+      setSeasons(seasonsData);
+      setUsers(usersData);
+      setSelectedSeasonYear(seasonData.year);
 
       if (driversData.length > 0) {
         setPolePosition(driversData[0].driverId);
@@ -152,10 +167,7 @@ export const AdminPage = () => {
         results.sprint_midfield_hero_driver_api_id = sprintMidfieldHero;
       }
 
-      // Note: API needs to be updated to use season/round
-      // For now, construct a race identifier
-      const raceId = parseInt(selectedRace.season) * 100 + parseInt(selectedRace.round);
-      await enterRaceResults(raceId, results);
+      await enterRaceResults(parseInt(selectedRace.season), parseInt(selectedRace.round), results);
       setSuccess('Race results saved and scores calculated!');
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to save results');
@@ -209,6 +221,82 @@ export const AdminPage = () => {
     setCrazyPredictionsHappened(prev =>
       prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id]
     );
+  };
+
+  // Grant admin access
+  const handleGrantAdmin = async (userId: number) => {
+    if (!confirm('Are you sure you want to grant admin access to this user?')) {
+      return;
+    }
+
+    setSubmitting(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      await grantAdminAccess(userId);
+      setSuccess('Admin access granted successfully!');
+      // Refresh users list
+      const usersData = await getAllUsers();
+      setUsers(usersData);
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to grant admin access');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Load race results from DB
+  const handleLoadRaceResults = async (race: Race) => {
+    setLoadedRaceResults(null);
+    setError('');
+
+    try {
+      const results = await getRaceResults(parseInt(race.season), parseInt(race.round));
+      setLoadedRaceResults(results);
+
+      // Populate form fields
+      if (results) {
+        setPolePosition(results.pole_position_driver_api_id);
+        setPodiumFirst(results.podium_first_driver_api_id);
+        setPodiumSecond(results.podium_second_driver_api_id);
+        setPodiumThird(results.podium_third_driver_api_id);
+        setMidfieldHero(results.midfield_hero_driver_api_id);
+        if (results.sprint_pole_driver_api_id) setSprintPole(results.sprint_pole_driver_api_id);
+        if (results.sprint_winner_driver_api_id) setSprintWinner(results.sprint_winner_driver_api_id);
+        if (results.sprint_midfield_hero_driver_api_id) setSprintMidfieldHero(results.sprint_midfield_hero_driver_api_id);
+      }
+    } catch (err: any) {
+      if (err.response?.status === 404) {
+        setError('No results found in database. Click "Get Results from API" to import.');
+      } else {
+        setError('Failed to load race results');
+      }
+    }
+  };
+
+  // Load season results from DB
+  const handleLoadSeasonResults = async (year: number) => {
+    setLoadedSeasonResults(null);
+    setError('');
+
+    try {
+      const results = await getSeasonResults(year);
+      setLoadedSeasonResults(results);
+
+      // Populate form fields
+      if (results) {
+        if (results.drivers_championship_order) setDriversOrder(results.drivers_championship_order);
+        if (results.constructors_championship_order) setConstructorsOrder(results.constructors_championship_order);
+        if (results.audi_vs_cadillac_winner) setAudiVsCadillacWinner(results.audi_vs_cadillac_winner);
+      }
+    } catch (err: any) {
+      if (err.response?.status === 404) {
+        setError('No season results found in database.');
+      } else {
+        setError('Failed to load season results');
+      }
+    }
   };
 
   // F1 Data Management Functions
@@ -315,10 +403,19 @@ export const AdminPage = () => {
     setSuccess('');
 
     try {
-      const result = await importSeasonStandings(refreshYear);
+      // First refresh the season data to cache standings
+      setSuccess('Fetching season data from API...');
+      await refreshSeasonData(selectedSeasonYear);
+
+      // Then import the standings
+      setSuccess('Importing standings into database...');
+      const result = await importSeasonStandings(selectedSeasonYear);
       setSuccess(result.message);
+
+      // Load the results to display them
+      await handleLoadSeasonResults(selectedSeasonYear);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to import season standings');
+      setError(err.response?.data?.error || err.response?.data?.message || 'Failed to import season standings');
     } finally {
       setDataLoading(false);
     }
@@ -380,6 +477,16 @@ export const AdminPage = () => {
         {/* Tabs */}
         <div className="flex space-x-4 mb-6">
           <button
+            onClick={() => setActiveTab('admin')}
+            className={`px-6 py-3 rounded-lg font-bold ${
+              activeTab === 'admin'
+                ? 'bg-f1-red text-white'
+                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
+          >
+            Admin Access
+          </button>
+          <button
             onClick={() => setActiveTab('races')}
             className={`px-6 py-3 rounded-lg font-bold ${
               activeTab === 'races'
@@ -417,220 +524,233 @@ export const AdminPage = () => {
           </button>
         </div>
 
+        {/* Admin Access Tab */}
+        {activeTab === 'admin' && (
+          <div className="space-y-6">
+            <div className="bg-white p-6 rounded-lg shadow text-gray-900">
+              <h3 className="text-xl font-bold mb-4 text-gray-900">Grant Admin Access</h3>
+              <p className="text-gray-600 mb-4">Grant admin access to users to allow them to manage race results and data.</p>
+              <div className="space-y-2">
+                {users.map(user => (
+                  <div key={user.id} className="flex items-center justify-between p-3 border rounded hover:bg-gray-50">
+                    <div>
+                      <span className="font-bold">{user.display_name}</span>
+                      <span className="text-gray-500 ml-2">@{user.username}</span>
+                      {user.is_admin && (
+                        <span className="ml-2 px-2 py-1 bg-green-100 text-green-800 text-xs rounded font-bold">ADMIN</span>
+                      )}
+                    </div>
+                    {!user.is_admin && (
+                      <button
+                        onClick={() => handleGrantAdmin(user.id)}
+                        disabled={submitting}
+                        className="bg-blue-600 text-white px-4 py-2 rounded font-bold hover:bg-blue-700 disabled:opacity-50"
+                      >
+                        Grant Admin
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Race Results Tab */}
         {activeTab === 'races' && (
           <div className="space-y-6">
-            {/* Race Selector */}
-            <div className="bg-white p-6 rounded-lg shadow text-gray-900">
-              <h3 className="text-xl font-bold mb-4 text-gray-900">Select Race</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {races.map(race => {
-                  const raceKey = `${race.season}-${race.round}`;
-                  const selectedKey = selectedRace ? `${selectedRace.season}-${selectedRace.round}` : null;
-                  return (
-                    <button
-                      key={raceKey}
-                      onClick={() => handleRaceSelect(race)}
-                      className={`p-3 rounded-lg border-2 text-left transition ${
-                        selectedKey === raceKey
-                          ? 'border-f1-red bg-red-50'
-                          : 'border-gray-200 hover:border-gray-400'
-                      }`}
-                    >
-                      <div className="font-bold">Round {race.round}</div>
-                      <div className="text-sm">{race.raceName}</div>
-                      {race.Sprint && (
-                        <span className="text-xs bg-f1-red text-white px-2 py-1 rounded mt-1 inline-block">
-                          SPRINT
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
+            {/* Season Selector */}
+            <div className="bg-white p-4 rounded-lg shadow text-gray-900">
+              <label className="block text-sm font-medium mb-2">Select Season</label>
+              <select
+                value={selectedSeasonYear}
+                onChange={async (e) => {
+                  const year = parseInt(e.target.value);
+                  setSelectedSeasonYear(year);
+                  const racesData = await getRaces(year);
+                  setRaces(racesData);
+                  setSelectedRace(null);
+                  setLoadedRaceResults(null);
+                }}
+                className="px-3 py-2 border rounded"
+              >
+                {Array.from({ length: 4 }, (_, i) => {
+                  const currentYear = new Date().getFullYear();
+                  return currentYear - i;
+                }).map(year => (
+                  <option key={year} value={year}>{year}</option>
+                ))}
+              </select>
             </div>
 
-            {/* Race Results Form */}
-            {selectedRace && (
-              <form onSubmit={handleSubmitRaceResults} className="space-y-6">
-                <div className="bg-white p-6 rounded-lg shadow text-gray-900">
-                  <h3 className="text-xl font-bold mb-4 text-gray-900">
-                    {selectedRace.raceName} Results
-                  </h3>
+            {/* Two Column Layout */}
+            <div className="grid grid-cols-12 gap-6">
+              {/* Left Column - Race Selector */}
+              <div className="col-span-3 bg-white p-4 rounded-lg shadow text-gray-900">
+                <h3 className="text-lg font-bold mb-3 text-gray-900">Races</h3>
+                <div className="space-y-2">
+                  {races.map(race => {
+                    const raceKey = `${race.season}-${race.round}`;
+                    const selectedKey = selectedRace ? `${selectedRace.season}-${selectedRace.round}` : null;
+                    return (
+                      <div key={raceKey} className="space-y-1">
+                        <button
+                          onClick={() => {
+                            handleRaceSelect(race);
+                            handleLoadRaceResults(race);
+                          }}
+                          className={`w-full p-2 rounded text-left text-sm transition ${
+                            selectedKey === raceKey
+                              ? 'bg-f1-red text-white'
+                              : 'bg-gray-100 hover:bg-gray-200'
+                          }`}
+                        >
+                          <div className="font-bold">R{race.round}</div>
+                          <div className="text-xs truncate">{race.raceName}</div>
+                          {race.Sprint && <div className="text-xs">🏁 SPRINT</div>}
+                        </button>
+                        {selectedKey === raceKey && (
+                          <button
+                            onClick={async () => {
+                              setDataLoading(true);
+                              setError('');
+                              setSuccess('');
+                              try {
+                                // First refresh the race data to cache it
+                                setSuccess('Fetching race data from API...');
+                                await refreshRaceResults(parseInt(race.season), parseInt(race.round));
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium mb-1">Pole Position</label>
-                      <select
-                        value={polePosition}
-                        onChange={(e) => setPolePosition(e.target.value)}
-                        className="w-full px-3 py-2 border rounded"
-                        required
-                      >
-                        {drivers.map(d => (
-                          <option key={d.driverId} value={d.driverId}>{`${d.givenName} ${d.familyName}`}</option>
-                        ))}
-                      </select>
-                    </div>
+                                // Then import the results
+                                setSuccess('Importing race results...');
+                                await importRaceResults(parseInt(race.season), parseInt(race.round));
+                                setSuccess('Race results imported successfully!');
 
-                    <div>
-                      <label className="block text-sm font-medium mb-1">Midfield Hero</label>
-                      <select
-                        value={midfieldHero}
-                        onChange={(e) => setMidfieldHero(e.target.value)}
-                        className="w-full px-3 py-2 border rounded"
-                        required
-                      >
-                        {drivers.map(d => (
-                          <option key={d.driverId} value={d.driverId}>{`${d.givenName} ${d.familyName}`}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium mb-1">1st Place</label>
-                      <select
-                        value={podiumFirst}
-                        onChange={(e) => setPodiumFirst(e.target.value)}
-                        className="w-full px-3 py-2 border rounded"
-                        required
-                      >
-                        {drivers.map(d => (
-                          <option key={d.driverId} value={d.driverId}>{`${d.givenName} ${d.familyName}`}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium mb-1">2nd Place</label>
-                      <select
-                        value={podiumSecond}
-                        onChange={(e) => setPodiumSecond(e.target.value)}
-                        className="w-full px-3 py-2 border rounded"
-                        required
-                      >
-                        {drivers.map(d => (
-                          <option key={d.driverId} value={d.driverId}>{`${d.givenName} ${d.familyName}`}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium mb-1">3rd Place</label>
-                      <select
-                        value={podiumThird}
-                        onChange={(e) => setPodiumThird(e.target.value)}
-                        className="w-full px-3 py-2 border rounded"
-                        required
-                      >
-                        {drivers.map(d => (
-                          <option key={d.driverId} value={d.driverId}>{`${d.givenName} ${d.familyName}`}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  {selectedRace.Sprint && (
-                    <div className="mt-4 pt-4 border-t">
-                      <h4 className="font-bold mb-3 text-f1-red">Sprint Results</h4>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium mb-1">Sprint Pole</label>
-                          <select
-                            value={sprintPole}
-                            onChange={(e) => setSprintPole(e.target.value)}
-                            className="w-full px-3 py-2 border rounded"
+                                // Load the results to display them
+                                await handleLoadRaceResults(race);
+                              } catch (err: any) {
+                                setError(err.response?.data?.error || err.response?.data?.message || 'Failed to import race results');
+                              } finally {
+                                setDataLoading(false);
+                              }
+                            }}
+                            disabled={dataLoading}
+                            className="w-full px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 disabled:opacity-50"
                           >
-                            {drivers.map(d => (
-                              <option key={d.driverId} value={d.driverId}>{`${d.givenName} ${d.familyName}`}</option>
-                            ))}
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium mb-1">Sprint Winner</label>
-                          <select
-                            value={sprintWinner}
-                            onChange={(e) => setSprintWinner(e.target.value)}
-                            className="w-full px-3 py-2 border rounded"
-                          >
-                            {drivers.map(d => (
-                              <option key={d.driverId} value={d.driverId}>{`${d.givenName} ${d.familyName}`}</option>
-                            ))}
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium mb-1">Sprint Midfield Hero</label>
-                          <select
-                            value={sprintMidfieldHero}
-                            onChange={(e) => setSprintMidfieldHero(e.target.value)}
-                            className="w-full px-3 py-2 border rounded"
-                          >
-                            {drivers.map(d => (
-                              <option key={d.driverId} value={d.driverId}>{`${d.givenName} ${d.familyName}`}</option>
-                            ))}
-                          </select>
-                        </div>
+                            {loadedRaceResults ? 'Update from API' : 'Get from API'}
+                          </button>
+                        )}
                       </div>
-                    </div>
-                  )}
+                    );
+                  })}
                 </div>
+              </div>
 
-                {/* Crazy Predictions */}
-                {crazyPredictions.length > 0 && (
+              {/* Right Column - Results Display */}
+              <div className="col-span-9">
+                {selectedRace ? (
                   <div className="bg-white p-6 rounded-lg shadow text-gray-900">
-                    <h3 className="text-xl font-bold mb-4 text-gray-900">Crazy Predictions - Mark Which Actually Happened</h3>
-                    <div className="space-y-3">
-                      {crazyPredictions.map(pred => (
-                        <label key={pred.id} className="flex items-start space-x-3 p-3 border rounded hover:bg-gray-50 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={crazyPredictionsHappened.includes(pred.id)}
-                            onChange={() => toggleCrazyPrediction(pred.id)}
-                            className="mt-1"
-                          />
-                          <div>
-                            <div className="font-medium">{pred.display_name}</div>
-                            <div className="text-sm text-gray-600 italic">"{pred.crazy_prediction}"</div>
+                    <h3 className="text-xl font-bold mb-4 text-gray-900">
+                      {selectedRace.raceName} Results
+                    </h3>
+
+                    {loadedRaceResults ? (
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                          <div className="p-3 bg-gray-50 rounded">
+                            <div className="text-xs text-gray-500 uppercase">Pole Position</div>
+                            <div className="font-bold">{drivers.find(d => d.driverId === loadedRaceResults.pole_position_driver_api_id)?.givenName} {drivers.find(d => d.driverId === loadedRaceResults.pole_position_driver_api_id)?.familyName}</div>
                           </div>
-                        </label>
-                      ))}
+                          <div className="p-3 bg-yellow-50 rounded">
+                            <div className="text-xs text-gray-500 uppercase">1st Place</div>
+                            <div className="font-bold">{drivers.find(d => d.driverId === loadedRaceResults.podium_first_driver_api_id)?.givenName} {drivers.find(d => d.driverId === loadedRaceResults.podium_first_driver_api_id)?.familyName}</div>
+                          </div>
+                          <div className="p-3 bg-gray-50 rounded">
+                            <div className="text-xs text-gray-500 uppercase">2nd Place</div>
+                            <div className="font-bold">{drivers.find(d => d.driverId === loadedRaceResults.podium_second_driver_api_id)?.givenName} {drivers.find(d => d.driverId === loadedRaceResults.podium_second_driver_api_id)?.familyName}</div>
+                          </div>
+                          <div className="p-3 bg-orange-50 rounded">
+                            <div className="text-xs text-gray-500 uppercase">3rd Place</div>
+                            <div className="font-bold">{drivers.find(d => d.driverId === loadedRaceResults.podium_third_driver_api_id)?.givenName} {drivers.find(d => d.driverId === loadedRaceResults.podium_third_driver_api_id)?.familyName}</div>
+                          </div>
+                          <div className="p-3 bg-blue-50 rounded">
+                            <div className="text-xs text-gray-500 uppercase">Midfield Hero</div>
+                            <div className="font-bold">{drivers.find(d => d.driverId === loadedRaceResults.midfield_hero_driver_api_id)?.givenName} {drivers.find(d => d.driverId === loadedRaceResults.midfield_hero_driver_api_id)?.familyName}</div>
+                          </div>
+                        </div>
+
+                        {loadedRaceResults.sprint_winner_driver_api_id && (
+                          <div className="mt-4 pt-4 border-t">
+                            <h4 className="font-bold mb-3 text-f1-red">Sprint Results</h4>
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                              <div className="p-3 bg-gray-50 rounded">
+                                <div className="text-xs text-gray-500 uppercase">Sprint Pole</div>
+                                <div className="font-bold">{drivers.find(d => d.driverId === loadedRaceResults.sprint_pole_driver_api_id)?.givenName} {drivers.find(d => d.driverId === loadedRaceResults.sprint_pole_driver_api_id)?.familyName}</div>
+                              </div>
+                              <div className="p-3 bg-yellow-50 rounded">
+                                <div className="text-xs text-gray-500 uppercase">Sprint Winner</div>
+                                <div className="font-bold">{drivers.find(d => d.driverId === loadedRaceResults.sprint_winner_driver_api_id)?.givenName} {drivers.find(d => d.driverId === loadedRaceResults.sprint_winner_driver_api_id)?.familyName}</div>
+                              </div>
+                              <div className="p-3 bg-blue-50 rounded">
+                                <div className="text-xs text-gray-500 uppercase">Sprint Midfield Hero</div>
+                                <div className="font-bold">{drivers.find(d => d.driverId === loadedRaceResults.sprint_midfield_hero_driver_api_id)?.givenName} {drivers.find(d => d.driverId === loadedRaceResults.sprint_midfield_hero_driver_api_id)?.familyName}</div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-gray-500">
+                        {error || 'Click "Get from API" to import results for this race'}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="bg-white p-6 rounded-lg shadow text-gray-900">
+                    <div className="text-center py-8 text-gray-500">
+                      Select a race from the list to view or import results
                     </div>
                   </div>
                 )}
-
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="w-full bg-f1-red text-white py-3 px-6 rounded-lg font-bold hover:bg-red-700 disabled:opacity-50"
-                >
-                  {submitting ? 'Saving...' : 'Save Results & Calculate Scores'}
-                </button>
-              </form>
-            )}
+              </div>
+            </div>
           </div>
         )}
 
         {/* Season Results Tab */}
         {activeTab === 'season' && season && (
-          <form onSubmit={handleSubmitSeasonResults} className="space-y-6">
-            <ChampionshipOrderPicker
-              items={driversOrder.map(id => {
-                const driver = drivers.find(d => d.driverId === id)!;
-                return { id: driver.driverId, name: `${driver.givenName} ${driver.familyName}` };
-              })}
-              onChange={setDriversOrder}
-              title="Final Drivers Championship Order"
-            />
+          <div className="space-y-6">
+            {/* Season Selector */}
+            <div className="bg-white p-4 rounded-lg shadow text-gray-900">
+              <label className="block text-sm font-medium mb-2">Select Season</label>
+              <div className="flex gap-3 items-end">
+                <select
+                  value={selectedSeasonYear}
+                  onChange={async (e) => {
+                    const year = parseInt(e.target.value);
+                    setSelectedSeasonYear(year);
+                    await loadSeasonPredictions(year);
+                    await handleLoadSeasonResults(year);
+                  }}
+                  className="px-3 py-2 border rounded"
+                >
+                  {Array.from({ length: 4 }, (_, i) => {
+                    const currentYear = new Date().getFullYear();
+                    return currentYear - i;
+                  }).map(year => (
+                    <option key={year} value={year}>{year}</option>
+                  ))}
+                </select>
+                <button
+                  onClick={handleImportSeasonStandings}
+                  disabled={dataLoading}
+                  className="bg-green-600 text-white px-4 py-2 rounded font-bold hover:bg-green-700 disabled:opacity-50"
+                >
+                  {dataLoading ? 'Importing...' : 'Import Season Championship Standings'}
+                </button>
+              </div>
+            </div>
 
-            <ChampionshipOrderPicker
-              items={constructorsOrder.map(id => {
-                const team = teams.find(t => t.constructorId === id)!;
-                return { id: team.constructorId, name: team.name };
-              })}
-              onChange={setConstructorsOrder}
-              title="Final Constructors Championship Order"
-            />
-
+            {/* Audi vs Cadillac Winner */}
             <div className="bg-white p-6 rounded-lg shadow text-gray-900">
               <h3 className="text-xl font-bold mb-4 text-gray-900">Audi vs Cadillac Winner</h3>
               <div className="flex space-x-6">
@@ -655,36 +775,49 @@ export const AdminPage = () => {
               </div>
             </div>
 
-            {crazyPredictions.length > 0 && (
-              <div className="bg-white p-6 rounded-lg shadow text-gray-900">
-                <h3 className="text-xl font-bold mb-4 text-gray-900">Season Crazy Predictions - Mark Which Actually Happened</h3>
-                <div className="space-y-3">
-                  {crazyPredictions.map(pred => (
-                    <label key={pred.id} className="flex items-start space-x-3 p-3 border rounded hover:bg-gray-50 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={crazyPredictionsHappened.includes(pred.id)}
-                        onChange={() => toggleCrazyPrediction(pred.id)}
-                        className="mt-1"
-                      />
-                      <div>
-                        <div className="font-medium">{pred.display_name}</div>
-                        <div className="text-sm text-gray-600 italic">"{pred.crazy_prediction}"</div>
-                      </div>
-                    </label>
-                  ))}
+            {/* Season Results Display */}
+            {loadedSeasonResults && (
+              <div className="space-y-6">
+                <div className="bg-white p-6 rounded-lg shadow text-gray-900">
+                  <h3 className="text-xl font-bold mb-4 text-gray-900">Drivers Championship Results</h3>
+                  <div className="space-y-2">
+                    {loadedSeasonResults.drivers_championship_order?.map((driverId: string, index: number) => {
+                      const driver = drivers.find(d => d.driverId === driverId);
+                      return (
+                        <div key={driverId} className="flex items-center gap-3 p-2 bg-gray-50 rounded">
+                          <span className="font-bold text-lg w-8">{index + 1}.</span>
+                          <span className="font-medium">{driver?.givenName} {driver?.familyName}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="bg-white p-6 rounded-lg shadow text-gray-900">
+                  <h3 className="text-xl font-bold mb-4 text-gray-900">Constructors Championship Results</h3>
+                  <div className="space-y-2">
+                    {loadedSeasonResults.constructors_championship_order?.map((teamId: string, index: number) => {
+                      const team = teams.find(t => t.constructorId === teamId);
+                      return (
+                        <div key={teamId} className="flex items-center gap-3 p-2 bg-gray-50 rounded">
+                          <span className="font-bold text-lg w-8">{index + 1}.</span>
+                          <span className="font-medium">{team?.name}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             )}
 
-            <button
-              type="submit"
-              disabled={submitting}
-              className="w-full bg-f1-red text-white py-3 px-6 rounded-lg font-bold hover:bg-red-700 disabled:opacity-50"
-            >
-              {submitting ? 'Saving...' : 'Save Season Results & Calculate Scores'}
-            </button>
-          </form>
+            {!loadedSeasonResults && (
+              <div className="bg-white p-6 rounded-lg shadow text-gray-900">
+                <div className="text-center py-8 text-gray-500">
+                  Click "Import Season Championship Standings" to load results from the API
+                </div>
+              </div>
+            )}
+          </div>
         )}
 
         {/* F1 Data Management Tab */}

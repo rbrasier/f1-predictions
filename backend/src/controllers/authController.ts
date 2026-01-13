@@ -171,3 +171,32 @@ export const getAllUsers = (req: AuthRequest, res: Response) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 };
+
+export const grantAdminAccess = (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user?.is_admin) {
+      return res.status(403).json({ error: 'Only admins can grant admin access' });
+    }
+
+    const { userId } = req.params;
+    const userIdNum = parseInt(userId);
+
+    if (isNaN(userIdNum)) {
+      return res.status(400).json({ error: 'Invalid user ID' });
+    }
+
+    // Check if user exists
+    const user = db.prepare('SELECT id, username, display_name, is_admin FROM users WHERE id = ?').get(userIdNum);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Grant admin access
+    db.prepare('UPDATE users SET is_admin = 1 WHERE id = ?').run(userIdNum);
+
+    res.json({ message: 'Admin access granted successfully', user: { ...user, is_admin: true } });
+  } catch (error) {
+    console.error('Grant admin error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};

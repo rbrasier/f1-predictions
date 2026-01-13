@@ -26,8 +26,8 @@ router.use(authenticate);
 router.use(requireAdmin);
 
 // Race results
-router.post('/races/:raceId/results', raceResultValidation, enterRaceResults);
-router.get('/races/:raceId/results', getRaceResults);
+router.post('/races/:year/:round/results', raceResultValidation, enterRaceResults);
+router.get('/races/:year/:round/results', getRaceResults);
 
 // Season results
 router.post('/seasons/:seasonId/results', seasonResultValidation, enterSeasonResults);

@@ -56,6 +56,11 @@ export const getAllUsers = async (): Promise<User[]> => {
   return data;
 };
 
+export const grantAdminAccess = async (userId: number): Promise<any> => {
+  const { data } = await api.post(`/auth/users/${userId}/grant-admin`);
+  return data;
+};
+
 // Reference Data
 export const getDrivers = async (year?: number): Promise<Driver[]> => {
   const params = year ? { year } : {};
@@ -199,13 +204,13 @@ export const exportLeaderboard = async (seasonId?: number): Promise<Blob> => {
 };
 
 // Admin - Race Results
-export const enterRaceResults = async (raceId: number, results: any): Promise<any> => {
-  const { data } = await api.post(`/admin/races/${raceId}/results`, results);
+export const enterRaceResults = async (year: number, round: number, results: any): Promise<any> => {
+  const { data } = await api.post(`/admin/races/${year}/${round}/results`, results);
   return data;
 };
 
-export const getRaceResults = async (raceId: number): Promise<any> => {
-  const { data } = await api.get(`/admin/races/${raceId}/results`);
+export const getRaceResults = async (year: number, round: number): Promise<any> => {
+  const { data } = await api.get(`/admin/races/${year}/${round}/results`);
   return data;
 };
 
