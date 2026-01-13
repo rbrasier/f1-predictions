@@ -71,10 +71,16 @@ export const ValidationsPage = () => {
     <Layout>
       <div className="max-w-4xl mx-auto">
         <h1 className="text-4xl font-bold text-white mb-2">Crazy Prediction Validations</h1>
-        <p className="text-gray-600 mb-6">
+        <p className="text-gray-600 mb-4">
           Review crazy predictions from other players and vote on whether they make sense.
           No vote = automatically accepted. Predictions must be validated AND marked as "happened" by admin to score points.
         </p>
+
+        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
+          <p className="text-sm text-yellow-800">
+            <strong>Guidance:</strong> Crazy predictions should at least not have happened for the at least the last 6 races (but should really be the last 10) - e.g. Alpine double points
+          </p>
+        </div>
 
         {error && (
           <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
@@ -140,7 +146,7 @@ export const ValidationsPage = () => {
                       disabled={validating === prediction.id}
                       className="flex-1 bg-red-600 text-white py-2 px-4 rounded-lg font-bold hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      ✗ Reject
+                      ✗ Reject, not crazy enough
                     </button>
                   </div>
                 </div>

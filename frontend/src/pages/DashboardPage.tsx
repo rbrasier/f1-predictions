@@ -473,54 +473,6 @@ export const DashboardPage = () => {
               </div>
             )}
 
-            {/* Upcoming Races Section */}
-            {upcomingRaces.length > 1 && (
-              <div>
-                <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
-                  <span className="w-1 h-6 bg-paddock-red inline-block"></span>
-                  UPCOMING RACES
-                </h2>
-                <div className="bg-paddock-gray rounded-lg border border-paddock-lightgray">
-                  <div className="divide-y divide-paddock-lightgray">
-                    {upcomingRaces.slice(1).map((race) => {
-                      const fp1Start = getFP1Start(race);
-                      return (
-                        <Link
-                          key={getRaceId(race)}
-                          to={`/race/${getRaceId(race)}`}
-                          className="flex items-center justify-between p-4 hover:bg-paddock-lightgray transition"
-                        >
-                          <div className="flex-1">
-                            <div className="text-paddock-coral text-xs font-bold uppercase tracking-wide mb-1">
-                              Round {race.round}
-                            </div>
-                            <div className="text-white font-bold text-lg">
-                              {race.raceName}
-                            </div>
-                            <div className="text-gray-400 text-sm">
-                              {getRaceLocation(race)}
-                            </div>
-                            {fp1Start && (
-                              <div className="text-gray-500 text-xs mt-1">
-                                {new Date(fp1Start).toLocaleDateString('en-US', {
-                                  month: 'short',
-                                  day: 'numeric',
-                                  year: 'numeric'
-                                })}
-                              </div>
-                            )}
-                          </div>
-                          <div className="text-paddock-red hover:text-paddock-coral font-bold uppercase text-sm">
-                            Predict →
-                          </div>
-                        </Link>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            )}
-
           </div>
 
           {/* Right Sidebar */}

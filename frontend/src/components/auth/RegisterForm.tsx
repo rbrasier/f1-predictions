@@ -29,7 +29,9 @@ export const RegisterForm = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-f1-dark to-f1-gray">
       <div className="bg-white p-8 rounded-lg shadow-xl w-full max-w-md">
-        <h2 className="text-3xl font-bold text-center mb-2 text-f1-red">F1 Tipping</h2>
+        <h2 className="text-3xl font-bold text-center mb-2 text-f1-red flex items-center justify-center gap-2">
+          🏁 Paddock Pulse <span className="text-gray-600 text-xl">(F1 Tipping)</span>
+        </h2>
         <p className="text-center text-gray-600 mb-6">Create your account</p>
 
         {error && (
@@ -48,7 +50,7 @@ export const RegisterForm = () => {
               id="username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-f1-red"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-f1-red text-gray-900"
               minLength={3}
               maxLength={30}
               pattern="[a-zA-Z0-9_]+"
@@ -67,7 +69,7 @@ export const RegisterForm = () => {
               id="displayName"
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-f1-red"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-f1-red text-gray-900"
               maxLength={50}
               required
             />
@@ -82,7 +84,7 @@ export const RegisterForm = () => {
               id="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-f1-red"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-f1-red text-gray-900"
               minLength={6}
               required
             />

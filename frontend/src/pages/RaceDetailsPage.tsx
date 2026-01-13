@@ -297,9 +297,14 @@ export const RaceDetailsPage = () => {
           {/* Crazy Prediction */}
           <div className="bg-white p-6 rounded-lg shadow text-gray-900">
             <h3 className="text-xl font-bold mb-4 text-gray-900">Crazy Prediction</h3>
-            <p className="text-sm text-gray-600 mb-4">
+            <p className="text-sm text-gray-600 mb-3">
               Make a wild prediction for this race. Other players will vote on whether it happened! (1 point if validated and happened)
             </p>
+            <div className="bg-yellow-50 border-l-4 border-yellow-400 p-3 mb-4">
+              <p className="text-xs text-yellow-800">
+                <strong>Guidance:</strong> Crazy predictions should at least not have happened for the at least the last 6 races (but should really be the last 10) - e.g. Alpine double points
+              </p>
+            </div>
             <textarea
               value={crazyPrediction}
               onChange={(e) => setCrazyPrediction(e.target.value)}
