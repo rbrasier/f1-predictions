@@ -26,6 +26,10 @@ const allowedOrigins = [
   'http://localhost:5173'
 ];
 
+console.log('🌐 CORS Configuration:');
+console.log('  FRONTEND_URL:', process.env.FRONTEND_URL);
+console.log('  Allowed origins:', allowedOrigins);
+
 app.use(cors({
   origin: (origin, callback) => {
     // Allow requests with no origin (like mobile apps or curl requests)
@@ -47,6 +51,9 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Handle preflight requests explicitly
+app.options('*', cors());
 
 // Health check
 app.get('/health', (req, res) => {
