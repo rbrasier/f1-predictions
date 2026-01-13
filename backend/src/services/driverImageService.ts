@@ -90,9 +90,9 @@ interface DriverApiData {
   familyName: string;
 }
 
-function extractDriversFromCache(year: number): DriverApiData[] {
+async function extractDriversFromCache(year: number): Promise<DriverApiData[]> {
   try {
-    const cacheRecord = db.prepare(`
+    const cacheRecord = await db.prepare(`
       SELECT data_json
       FROM f1_api_cache
       WHERE resource_type = 'drivers'
@@ -132,20 +132,20 @@ export async function populateDriverImages(year: number = 2026): Promise<number>
     // Extract drivers from cached API data
     const apiDrivers = extractDriversFromCache(year);
 
-    if (apiDrivers.length === 0) {
+    if ((await apiDrivers).length === 0) {
       console.warn('No drivers found in cached API data');
       return 0;
     }
 
-    console.log(`Found ${apiDrivers.length} drivers in cached API data`);
+    console.log(`Found ${(await apiDrivers).length} drivers in cached API data`);
 
     let updated = 0;
 
-    for (const apiDriver of apiDrivers) {
+    for (const apiDriver of await apiDrivers) {
       const fullName = `${apiDriver.givenName} ${apiDriver.familyName}`;
 
       // Try to find matching driver in database
-      const dbDriver = db.prepare(`
+      const dbDriver = await db.prepare(`
         SELECT id, name FROM drivers
         WHERE name = ? OR name LIKE ?
       `).get(fullName, `%${apiDriver.familyName}%`) as { id: number; name: string } | undefined;
@@ -211,9 +211,9 @@ const DRIVER_NAME_MAPPING: Record<string, string> = {
 /**
  * Get driver image URL by driver ID
  */
-export function getDriverImageUrl(driverId: number): string | null {
+export async function getDriverImageUrl(driverId: number): Promise<string | null> {
   try {
-    const driver = db.prepare(`
+    const driver = await db.prepare(`
       SELECT image_url FROM drivers WHERE id = ?
     `).get(driverId) as { image_url: string | null } | undefined;
 

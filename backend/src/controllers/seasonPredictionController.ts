@@ -71,7 +71,7 @@ export const submitSeasonPrediction = async (req: AuthRequest, res: Response) =>
     }
 
     // Check if prediction already exists
-    const existing = db.prepare(`
+    const existing = await db.prepare(`
       SELECT id FROM season_predictions WHERE user_id = ? AND season_year = ?
     `).get(userId, seasonYear) as { id: number } | undefined;
 
@@ -107,7 +107,7 @@ export const submitSeasonPrediction = async (req: AuthRequest, res: Response) =>
         existing.id
       );
 
-      const updated = db.prepare('SELECT * FROM season_predictions WHERE id = ?').get(existing.id) as SeasonPrediction;
+      const updated = await db.prepare('SELECT * FROM season_predictions WHERE id = ?').get(existing.id) as SeasonPrediction;
       res.json(updated);
     } else {
       // Create new prediction
@@ -130,7 +130,7 @@ export const submitSeasonPrediction = async (req: AuthRequest, res: Response) =>
         grid2028Json
       );
 
-      const created = db.prepare('SELECT * FROM season_predictions WHERE id = ?').get(result.lastInsertRowid) as SeasonPrediction;
+      const created = await db.prepare('SELECT * FROM season_predictions WHERE id = ?').get(result.lastInsertRowid) as SeasonPrediction;
       res.status(201).json(created);
     }
   } catch (error) {
@@ -139,7 +139,7 @@ export const submitSeasonPrediction = async (req: AuthRequest, res: Response) =>
   }
 };
 
-export const getMySeasonPrediction = (req: AuthRequest, res: Response) => {
+export const getMySeasonPrediction = async (req: AuthRequest, res: Response) => {
   try {
     const { year } = req.params;
     const seasonYear = parseInt(year);
@@ -149,7 +149,7 @@ export const getMySeasonPrediction = (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'Invalid year' });
     }
 
-    const prediction = db.prepare(`
+    const prediction = await db.prepare(`
       SELECT * FROM season_predictions
       WHERE user_id = ? AND season_year = ?
     `).get(userId, seasonYear) as SeasonPrediction | undefined;
@@ -165,7 +165,7 @@ export const getMySeasonPrediction = (req: AuthRequest, res: Response) => {
   }
 };
 
-export const getAllSeasonPredictions = (req: AuthRequest, res: Response) => {
+export const getAllSeasonPredictions = async (req: AuthRequest, res: Response) => {
   try {
     const { year } = req.params;
     const seasonYear = parseInt(year);
@@ -174,7 +174,7 @@ export const getAllSeasonPredictions = (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'Invalid year' });
     }
 
-    const predictions = db.prepare(`
+    const predictions = await db.prepare(`
       SELECT sp.*, u.display_name
       FROM season_predictions sp
       JOIN users u ON sp.user_id = u.id

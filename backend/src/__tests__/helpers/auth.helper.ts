@@ -21,16 +21,15 @@ export async function createTestUser(
   const password = await bcrypt.hash('password123', 10);
 
   // Clean up existing test user
-  db.prepare('DELETE FROM users WHERE email = ?').run(email);
+  await db.prepare('DELETE FROM users WHERE email = $1').run(email);
 
   // Create user
-  const result = db
-    .prepare(
-      'INSERT INTO users (username, email, password_hash, is_admin) VALUES (?, ?, ?, ?)'
-    )
-    .run(username, email, password, isAdmin ? 1 : 0);
+  const result = await db.query(
+    'INSERT INTO users (username, email, password_hash, is_admin) VALUES ($1, $2, $3, $4) RETURNING id',
+    [username, email, password, isAdmin]
+  );
 
-  const userId = result.lastInsertRowid as number;
+  const userId = result.rows[0].id;
 
   // Generate token
   const token = jwt.sign(
@@ -58,6 +57,6 @@ export async function createTestAdmin(): Promise<TestUser> {
 /**
  * Clean up test users
  */
-export function cleanupTestUsers() {
-  db.prepare('DELETE FROM users WHERE email LIKE ?').run('%@example.com');
+export async function cleanupTestUsers() {
+  await db.prepare('DELETE FROM users WHERE email LIKE $1').run('%@example.com');
 }

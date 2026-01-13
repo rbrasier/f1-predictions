@@ -40,7 +40,7 @@ export const register = async (req: AuthRequest, res: Response) => {
 
     // Check if username already exists
     const existingUser = db.prepare('SELECT id FROM users WHERE username = ?').get(username);
-    if (existingUser) {
+    if (await existingUser) {
       return res.status(400).json({ error: 'Username already exists' });
     }
 
@@ -89,7 +89,7 @@ export const login = async (req: AuthRequest, res: Response) => {
     const { username, password } = req.body as LoginRequest;
 
     // Find user
-    const user = db.prepare(`
+    const user = await db.prepare(`
       SELECT id, username, password_hash, display_name, is_admin
       FROM users
       WHERE username = ?
@@ -129,13 +129,13 @@ export const login = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const getMe = (req: AuthRequest, res: Response) => {
+export const getMe = async (req: AuthRequest, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
-    const user = db.prepare(`
+    const user = await db.prepare(`
       SELECT id, username, display_name, is_admin
       FROM users
       WHERE id = ?
@@ -157,9 +157,9 @@ export const getMe = (req: AuthRequest, res: Response) => {
   }
 };
 
-export const getAllUsers = (req: AuthRequest, res: Response) => {
+export const getAllUsers = async (req: AuthRequest, res: Response) => {
   try {
-    const users = db.prepare(`
+    const users = await db.prepare(`
       SELECT id, username, display_name, is_admin
       FROM users
       ORDER BY display_name

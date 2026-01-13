@@ -3,7 +3,7 @@ import ExcelJS from 'exceljs';
 import db from '../db/database';
 import { AuthRequest } from '../middleware/auth';
 
-export const getLeaderboard = (req: AuthRequest, res: Response) => {
+export const getLeaderboard = async (req: AuthRequest, res: Response) => {
   try {
     const seasonYear = req.query.seasonYear ? parseInt(req.query.seasonYear as string) : undefined;
     const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
@@ -32,7 +32,7 @@ export const getLeaderboard = (req: AuthRequest, res: Response) => {
     const leaderboard = db.prepare(query).all(...params);
 
     // Add rank
-    const rankedLeaderboard = leaderboard.map((entry: any, index: number) => ({
+    const rankedLeaderboard = (await leaderboard).map((entry: any, index: number) => ({
       rank: index + 1,
       ...entry
     }));
@@ -110,7 +110,7 @@ export const exportToExcel = async (req: AuthRequest, res: Response) => {
     `;
 
     const params = seasonYear ? [seasonYear, seasonYear] : [];
-    const leaderboard = db.prepare(leaderboardQuery).all(...params) as any[];
+    const leaderboard = await db.prepare(leaderboardQuery).all(...params) as any[];
 
     leaderboard.forEach((entry, index) => {
       leaderboardSheet.addRow({
@@ -139,7 +139,7 @@ export const exportToExcel = async (req: AuthRequest, res: Response) => {
       { header: 'Points', key: 'points', width: 10 }
     ];
 
-    const seasonPredictions = db.prepare(`
+    const seasonPredictions = await db.prepare(`
       SELECT sp.*, u.display_name
       FROM season_predictions sp
       JOIN users u ON sp.user_id = u.id
@@ -171,7 +171,7 @@ export const exportToExcel = async (req: AuthRequest, res: Response) => {
 
     // Sheet 3+: Race by Race
     // Get unique race rounds from predictions
-    const raceRounds = db.prepare(`
+    const raceRounds = await db.prepare(`
       SELECT DISTINCT season_year, round_number
       FROM race_predictions
       ${seasonYear ? 'WHERE season_year = ?' : ''}
@@ -189,7 +189,7 @@ export const exportToExcel = async (req: AuthRequest, res: Response) => {
         { header: 'Points', key: 'points', width: 10 }
       ];
 
-      const predictions = db.prepare(`
+      const predictions = await db.prepare(`
         SELECT rp.*, u.display_name
         FROM race_predictions rp
         JOIN users u ON rp.user_id = u.id

@@ -73,7 +73,7 @@ export const submitRacePrediction = async (req: AuthRequest, res: Response) => {
     }
 
     // Check if prediction already exists
-    const existing = db.prepare(`
+    const existing = await db.prepare(`
       SELECT id FROM race_predictions
       WHERE user_id = ? AND season_year = ? AND round_number = ?
     `).get(userId, seasonYear, roundNumber) as { id: number } | undefined;
@@ -106,7 +106,7 @@ export const submitRacePrediction = async (req: AuthRequest, res: Response) => {
         existing.id
       );
 
-      const updated = db.prepare('SELECT * FROM race_predictions WHERE id = ?').get(existing.id) as RacePrediction;
+      const updated = await db.prepare('SELECT * FROM race_predictions WHERE id = ?').get(existing.id) as RacePrediction;
       res.json(updated);
     } else {
       // Create new prediction
@@ -134,7 +134,7 @@ export const submitRacePrediction = async (req: AuthRequest, res: Response) => {
         sprint_midfield_hero_driver_api_id || null
       );
 
-      const created = db.prepare('SELECT * FROM race_predictions WHERE id = ?').get(result.lastInsertRowid) as RacePrediction;
+      const created = await db.prepare('SELECT * FROM race_predictions WHERE id = ?').get(result.lastInsertRowid) as RacePrediction;
       res.status(201).json(created);
     }
   } catch (error) {
@@ -143,7 +143,7 @@ export const submitRacePrediction = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const getMyRacePrediction = (req: AuthRequest, res: Response) => {
+export const getMyRacePrediction = async (req: AuthRequest, res: Response) => {
   try {
     const { raceId } = req.params;
     const userId = req.user!.id;
@@ -157,7 +157,7 @@ export const getMyRacePrediction = (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'Invalid race ID format. Expected: year-round (e.g., 2026-1)' });
     }
 
-    const prediction = db.prepare(`
+    const prediction = await db.prepare(`
       SELECT * FROM race_predictions
       WHERE user_id = ? AND season_year = ? AND round_number = ?
     `).get(userId, seasonYear, roundNumber) as RacePrediction | undefined;
@@ -173,7 +173,7 @@ export const getMyRacePrediction = (req: AuthRequest, res: Response) => {
   }
 };
 
-export const getAllRacePredictions = (req: AuthRequest, res: Response) => {
+export const getAllRacePredictions = async (req: AuthRequest, res: Response) => {
   try {
     const { raceId } = req.params;
     const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
@@ -201,7 +201,7 @@ export const getAllRacePredictions = (req: AuthRequest, res: Response) => {
       query += ` LIMIT ${limit}`;
     }
 
-    const predictions = db.prepare(query).all(seasonYear, roundNumber) as (RacePrediction & { display_name: string })[];
+    const predictions = await db.prepare(query).all(seasonYear, roundNumber) as (RacePrediction & { display_name: string })[];
 
     res.json(predictions);
   } catch (error) {
@@ -249,7 +249,7 @@ export const getLastRoundResults = async (req: AuthRequest, res: Response) => {
     }
 
     // Get all predictions for this round with user info
-    const predictions = db.prepare(`
+    const predictions = await db.prepare(`
       SELECT
         rp.*,
         u.display_name,

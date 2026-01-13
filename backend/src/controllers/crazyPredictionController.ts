@@ -24,10 +24,10 @@ export const validateCrazyPrediction = async (req: AuthRequest, res: Response) =
     let predictionOwnerId: number | undefined;
 
     if (prediction_type === 'season') {
-      const pred = db.prepare('SELECT user_id FROM season_predictions WHERE id = ?').get(prediction_id) as { user_id: number } | undefined;
+      const pred = await db.prepare('SELECT user_id FROM season_predictions WHERE id = ?').get(prediction_id) as { user_id: number } | undefined;
       predictionOwnerId = pred?.user_id;
     } else {
-      const pred = db.prepare('SELECT user_id FROM race_predictions WHERE id = ?').get(prediction_id) as { user_id: number } | undefined;
+      const pred = await db.prepare('SELECT user_id FROM race_predictions WHERE id = ?').get(prediction_id) as { user_id: number } | undefined;
       predictionOwnerId = pred?.user_id;
     }
 
@@ -40,7 +40,7 @@ export const validateCrazyPrediction = async (req: AuthRequest, res: Response) =
     }
 
     // Check if user has already validated this prediction
-    const existing = db.prepare(`
+    const existing = await db.prepare(`
       SELECT id FROM crazy_prediction_validations
       WHERE prediction_type = ? AND prediction_id = ? AND validator_user_id = ?
     `).get(prediction_type, prediction_id, userId) as { id: number } | undefined;
@@ -71,12 +71,12 @@ export const validateCrazyPrediction = async (req: AuthRequest, res: Response) =
   }
 };
 
-export const getPendingValidations = (req: AuthRequest, res: Response) => {
+export const getPendingValidations = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
 
     // Get season predictions with crazy predictions that need validation
-    const seasonPredictions = db.prepare(`
+    const seasonPredictions = await db.prepare(`
       SELECT
         sp.id,
         sp.user_id,
@@ -96,7 +96,7 @@ export const getPendingValidations = (req: AuthRequest, res: Response) => {
     `).all(userId, userId) as any[];
 
     // Get race predictions with crazy predictions that need validation
-    const racePredictions = db.prepare(`
+    const racePredictions = await db.prepare(`
       SELECT
         rp.id,
         rp.user_id,
@@ -124,7 +124,7 @@ export const getPendingValidations = (req: AuthRequest, res: Response) => {
   }
 };
 
-export const getValidationsForPrediction = (req: AuthRequest, res: Response) => {
+export const getValidationsForPrediction = async (req: AuthRequest, res: Response) => {
   try {
     const { predictionType, predictionId } = req.params;
 
@@ -132,7 +132,7 @@ export const getValidationsForPrediction = (req: AuthRequest, res: Response) => 
       return res.status(400).json({ error: 'Invalid prediction type' });
     }
 
-    const validations = db.prepare(`
+    const validations = await db.prepare(`
       SELECT cpv.*, u.display_name
       FROM crazy_prediction_validations cpv
       JOIN users u ON cpv.validator_user_id = u.id

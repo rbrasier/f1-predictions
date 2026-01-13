@@ -154,12 +154,12 @@ export class F1ApiService {
   /**
    * Get cached data without fetching
    */
-  getCachedData(
+  async getCachedData(
     resourceType: ResourceType,
     seasonYear?: number,
     roundNumber?: number,
     resourceId?: string
-  ): any | null {
+  ): Promise<any | null> {
     try {
       const query = `
         SELECT data_json, last_fetched_at
@@ -170,7 +170,7 @@ export class F1ApiService {
           AND (resource_id = ? OR (resource_id IS NULL AND ? IS NULL))
       `;
 
-      const row = db.prepare(query).get(
+      const row = await db.prepare(query).get(
         resourceType,
         seasonYear || null, seasonYear || null,
         roundNumber || null, roundNumber || null,
@@ -191,12 +191,12 @@ export class F1ApiService {
   /**
    * Check if cached data exists and is fresh
    */
-  isCacheFresh(
+  async isCacheFresh(
     resourceType: ResourceType,
     seasonYear?: number,
     roundNumber?: number,
     resourceId?: string
-  ): boolean {
+  ): Promise<boolean> {
     try {
       const query = `
         SELECT last_fetched_at
@@ -207,7 +207,7 @@ export class F1ApiService {
           AND (resource_id = ? OR (resource_id IS NULL AND ? IS NULL))
       `;
 
-      const row = db.prepare(query).get(
+      const row = await db.prepare(query).get(
         resourceType,
         seasonYear || null, seasonYear || null,
         roundNumber || null, roundNumber || null,
@@ -241,7 +241,7 @@ export class F1ApiService {
     apiUrl: string
   ): Promise<any> {
     // Check if we have fresh cached data and don't need to refresh
-    if (!forceRefresh && this.isCacheFresh(resourceType, seasonYear || undefined, roundNumber || undefined, resourceId || undefined)) {
+    if (!forceRefresh && await this.isCacheFresh(resourceType, seasonYear || undefined, roundNumber || undefined, resourceId || undefined)) {
       const cached = this.getCachedData(resourceType, seasonYear || undefined, roundNumber || undefined, resourceId || undefined);
       if (cached) {
         console.log(`  Using cached ${resourceType} data`);
