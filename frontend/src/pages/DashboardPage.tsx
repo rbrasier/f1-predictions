@@ -52,10 +52,15 @@ export const DashboardPage = () => {
       setVotingOnPrediction(predictionId);
       await validateCrazyPrediction('race', predictionId, isValid);
 
-      // Refresh last round data to show updated validations
+      // Refresh last round data to show updated validations (if available)
       if (season) {
-        const lastRound = await getLastRoundResults(season.year);
-        setLastRoundData(lastRound);
+        try {
+          const lastRound = await getLastRoundResults(season.year);
+          setLastRoundData(lastRound);
+        } catch (err) {
+          // No last round data available yet (no completed races)
+          console.log('No last round data to refresh');
+        }
       }
 
       // Refresh current round crazy predictions to show updated validations
