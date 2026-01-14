@@ -81,10 +81,11 @@ async function start() {
     // Run migrations and create admin user
     await initializeDatabase();
 
-    // Start server - bind to 0.0.0.0 for Railway/Docker compatibility
-    const server = app.listen(PORT, '0.0.0.0', () => {
+    // Start server - Railway will handle routing
+    const server = app.listen(PORT, () => {
+      const address = server.address();
       console.log(`🏎️  F1 Tipping API server running on port ${PORT}`);
-      console.log(`🔌 Listening on 0.0.0.0:${PORT}`);
+      console.log(`🔌 Server address:`, address);
       console.log(`📊 Health check: http://localhost:${PORT}/health`);
       console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
     });
