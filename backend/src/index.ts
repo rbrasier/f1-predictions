@@ -17,7 +17,7 @@ import leaderboardRoutes from './routes/leaderboard';
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 4001;
+const PORT = parseInt(process.env.PORT || '4001', 10);
 
 // Middleware
 const allowedOrigins = [
@@ -81,8 +81,8 @@ async function start() {
     // Run migrations and create admin user
     await initializeDatabase();
 
-    // Start server
-    app.listen(PORT, () => {
+    // Start server - bind to 0.0.0.0 for Railway/Docker compatibility
+    app.listen(PORT, '0.0.0.0', () => {
       console.log(`🏎️  F1 Tipping API server running on port ${PORT}`);
       console.log(`📊 Health check: http://localhost:${PORT}/health`);
       console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
