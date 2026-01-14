@@ -8,6 +8,7 @@ interface DriverAutocompleteProps {
   label?: string;
   placeholder?: string;
   required?: boolean;
+  customOption?: boolean;
 }
 
 export const DriverAutocomplete = ({
@@ -16,7 +17,8 @@ export const DriverAutocomplete = ({
   onSelect,
   label,
   placeholder = 'Type driver name...',
-  required = false
+  required = false,
+  customOption = false
 }: DriverAutocompleteProps) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isOpen, setIsOpen] = useState(false);
@@ -29,12 +31,12 @@ export const DriverAutocomplete = ({
   // Filter drivers based on search term
   const filteredDrivers = searchTerm.trim()
     ? drivers.filter(d => {
-        const fullName = `${d.givenName} ${d.familyName}`;
-        const searchLower = searchTerm.toLowerCase();
-        return fullName.toLowerCase().includes(searchLower) ||
-               d.familyName.toLowerCase().includes(searchLower) ||
-               d.code?.toLowerCase().includes(searchLower);
-      })
+      const fullName = `${d.givenName} ${d.familyName}`;
+      const searchLower = searchTerm.toLowerCase();
+      return fullName.toLowerCase().includes(searchLower) ||
+        d.familyName.toLowerCase().includes(searchLower) ||
+        d.code?.toLowerCase().includes(searchLower);
+    })
     : drivers;
 
   // Close dropdown when clicking outside
@@ -113,15 +115,19 @@ export const DriverAutocomplete = ({
             onClick={() => setIsOpen(true)}
           >
             <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-gray-300 flex-shrink-0 bg-f1-red flex items-center justify-center">
-              {selectedDriver.code ? (
+              {selectedDriverId === 'custom' ? (
+                <span className="text-white font-bold text-xs">?</span>
+              ) : selectedDriver?.code ? (
                 <span className="text-white font-bold text-xs">{selectedDriver.code}</span>
               ) : (
                 <span className="text-white font-bold text-xs">F1</span>
               )}
             </div>
             <div className="flex-1">
-              <div className="font-bold text-gray-900">{`${selectedDriver.givenName} ${selectedDriver.familyName}`}</div>
-              {selectedDriver.code && (
+              <div className="font-bold text-gray-900">
+                {selectedDriverId === 'custom' ? 'Someone else...' : `${selectedDriver?.givenName} ${selectedDriver?.familyName}`}
+              </div>
+              {selectedDriver?.code && (
                 <div className="text-sm text-gray-600">#{selectedDriver.permanentNumber || selectedDriver.code}</div>
               )}
             </div>
@@ -137,7 +143,7 @@ export const DriverAutocomplete = ({
         )}
 
         {/* Search Input */}
-        {(!selectedDriver || isOpen) && (
+        {(!selectedDriver && selectedDriverId !== 'custom' || isOpen) && (
           <div>
             <input
               ref={inputRef}
@@ -172,52 +178,65 @@ export const DriverAutocomplete = ({
             {filteredDrivers.length > 0 ? (
               <div className="py-1">
                 {filteredDrivers.map((driver, index) => {
-                const fullName = `${driver.givenName} ${driver.familyName}`;
-                return (
-                  <button
-                    key={driver.driverId}
-                    type="button"
-                    onClick={() => handleSelect(driver)}
-                    className={`
+                  const fullName = `${driver.givenName} ${driver.familyName}`;
+                  return (
+                    <button
+                      key={driver.driverId}
+                      type="button"
+                      onClick={() => handleSelect(driver)}
+                      className={`
                       w-full flex items-center gap-3 px-4 py-2 text-left transition
                       ${index === highlightedIndex
-                        ? 'bg-f1-red text-white'
-                        : 'hover:bg-gray-100 text-gray-900'
-                      }
+                          ? 'bg-f1-red text-white'
+                          : 'hover:bg-gray-100 text-gray-900'
+                        }
                     `}
-                    onMouseEnter={() => setHighlightedIndex(index)}
+                      onMouseEnter={() => setHighlightedIndex(index)}
+                    >
+                      <div className={`w-10 h-10 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${index === highlightedIndex ? 'border-white bg-white/20' : 'border-gray-300 bg-f1-red'
+                        }`}>
+                        <span className={`font-bold text-xs ${index === highlightedIndex ? 'text-white' : 'text-white'
+                          }`}>
+                          {driver.code || 'F1'}
+                        </span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-bold truncate">{fullName}</div>
+                        {driver.permanentNumber && (
+                          <div
+                            className={`text-sm truncate ${index === highlightedIndex ? 'text-white/90' : 'text-gray-600'
+                              }`}
+                          >
+                            #{driver.permanentNumber}
+                          </div>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+                {customOption && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onSelect('custom');
+                      setSearchTerm('');
+                      setIsOpen(false);
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-2 text-left hover:bg-gray-100 text-gray-900 border-t border-gray-100"
                   >
-                    <div className={`w-10 h-10 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${
-                      index === highlightedIndex ? 'border-white bg-white/20' : 'border-gray-300 bg-f1-red'
-                    }`}>
-                      <span className={`font-bold text-xs ${
-                        index === highlightedIndex ? 'text-white' : 'text-white'
-                      }`}>
-                        {driver.code || 'F1'}
-                      </span>
+                    <div className="w-10 h-10 rounded-full border-2 border-gray-300 bg-gray-200 flex-shrink-0 flex items-center justify-center">
+                      <span className="font-bold text-xs text-gray-600">?</span>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-bold truncate">{fullName}</div>
-                      {driver.permanentNumber && (
-                        <div
-                          className={`text-sm truncate ${
-                            index === highlightedIndex ? 'text-white/90' : 'text-gray-600'
-                          }`}
-                        >
-                          #{driver.permanentNumber}
-                        </div>
-                      )}
-                    </div>
+                    <div className="font-bold">Someone else...</div>
                   </button>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="px-4 py-8 text-center text-gray-500">
-              No drivers found matching "{searchTerm}"
-            </div>
-          )}
-        </div>
+                )}
+              </div>
+            ) : (
+              <div className="px-4 py-8 text-center text-gray-500">
+                No drivers found matching "{searchTerm}"
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>

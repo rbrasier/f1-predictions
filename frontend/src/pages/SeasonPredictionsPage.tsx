@@ -37,6 +37,7 @@ export const SeasonPredictionsPage = () => {
   const [firstCareerRaceWinner, setFirstCareerRaceWinner] = useState<string[]>([]);
   const [grid2027, setGrid2027] = useState<DriverTeamPairing[]>([]);
   const [grid2028, setGrid2028] = useState<DriverTeamPairing[]>([]);
+  const [customDriverNames, setCustomDriverNames] = useState<{ [key: number]: string }>({});
 
 
   useEffect(() => {
@@ -74,11 +75,12 @@ export const SeasonPredictionsPage = () => {
         }
 
         const initialGrid: DriverTeamPairing[] = [];
-        gridTeams.forEach((team: Team) => {
-          // Add 2 seats for each team
+        // Ensure we fill exactly 22 slots (11 teams * 2 drivers)
+        for (let i = 0; i < 11; i++) {
+          const team = gridTeams[i] || { constructorId: `team_${i}`, name: 'Pending Team' };
           initialGrid.push({ driver_api_id: '', constructor_api_id: team.constructorId });
           initialGrid.push({ driver_api_id: '', constructor_api_id: team.constructorId });
-        });
+        }
 
         // If we have default drivers for first 20 spots, could fill them, but maybe better to leave blank or mapped?
         // Existing logic mapped first 20 drivers. Let's try to map them but respect the new structure?
@@ -133,6 +135,19 @@ export const SeasonPredictionsPage = () => {
     try {
       if (!season) throw new Error('No active season');
 
+      // Map grid2027 to replace 'custom' ID with the actual custom name
+      const finalGrid2027 = grid2027.map((pairing, index) => {
+        if (pairing.driver_api_id === 'custom' && customDriverNames[index]) {
+          return { ...pairing, driver_api_id: customDriverNames[index] };
+        }
+        return pairing;
+      });
+
+      // For grid2028, if it also uses custom drivers, similar mapping would be needed.
+      // Assuming for now it's handled differently or not using custom drivers.
+      // If it uses the same customDriverNames state, it would need careful handling.
+      // For now, sending grid2028 as is.
+
       await submitSeasonPrediction(season.year, {
         drivers_championship_order: driversOrder,
         constructors_championship_order: constructorsOrder,
@@ -140,7 +155,7 @@ export const SeasonPredictionsPage = () => {
         audi_vs_cadillac: audiVsCadillac,
         crazy_prediction: crazyPrediction,
         first_career_race_winner: firstCareerRaceWinner,
-        grid_2027: grid2027,
+        grid_2027: finalGrid2027, // Use the mapped grid
         grid_2028: grid2028
       });
 
@@ -171,6 +186,21 @@ export const SeasonPredictionsPage = () => {
       newGrid[index] = { ...newGrid[index], [field]: value };
       return newGrid;
     });
+    // Clear custom name if switching away from "custom"
+    if (field === 'driver_api_id' && value !== 'custom') {
+      setCustomDriverNames(prev => {
+        const newNames = { ...prev };
+        delete newNames[index];
+        return newNames;
+      });
+    }
+  };
+
+  const updateCustomDriverName = (index: number, name: string) => {
+    setCustomDriverNames(prev => ({
+      ...prev,
+      [index]: name
+    }));
   };
 
 
@@ -411,19 +441,41 @@ export const SeasonPredictionsPage = () => {
                           selectedDriverId={seat1.driver_api_id}
                           onSelect={(val) => updateGridPairing(seat1Index, 'driver_api_id', val)}
                           placeholder="Select driver..."
+                          customOption={true}
                         />
+                        {seat1.driver_api_id === 'custom' && (
+                          <input
+                            type="text"
+                            placeholder="Enter driver name"
+                            value={customDriverNames[seat1Index] || ''}
+                            onChange={(e) => updateCustomDriverName(seat1Index, e.target.value)}
+                            className="w-full mt-2 px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-f1-red"
+                          />
+                        )}
                       </div>
 
                       {/* Seat 2 */}
                       <div>
                         <label className="block text-xs font-bold text-gray-500 mb-1">Driver 2</label>
                         {seat2 && (
-                          <DriverAutocomplete
-                            drivers={drivers}
-                            selectedDriverId={seat2.driver_api_id}
-                            onSelect={(val) => updateGridPairing(seat2Index, 'driver_api_id', val)}
-                            placeholder="Select driver..."
-                          />
+                          <>
+                            <DriverAutocomplete
+                              drivers={drivers}
+                              selectedDriverId={seat2.driver_api_id}
+                              onSelect={(val) => updateGridPairing(seat2Index, 'driver_api_id', val)}
+                              placeholder="Select driver..."
+                              customOption={true}
+                            />
+                            {seat2.driver_api_id === 'custom' && (
+                              <input
+                                type="text"
+                                placeholder="Enter driver name"
+                                value={customDriverNames[seat2Index] || ''}
+                                onChange={(e) => updateCustomDriverName(seat2Index, e.target.value)}
+                                className="w-full mt-2 px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-f1-red"
+                              />
+                            )}
+                          </>
                         )}
                       </div>
                     </div>
