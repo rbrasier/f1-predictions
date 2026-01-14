@@ -107,13 +107,13 @@ export const enterRaceResults = async (req: AuthRequest, res: Response) => {
         if (existingOutcome) {
           await db.prepare(`
             UPDATE crazy_prediction_outcomes
-            SET actually_happened = 1, marked_at = CURRENT_TIMESTAMP
+            SET actually_happened = true, marked_at = CURRENT_TIMESTAMP
             WHERE id = $1
           `).run(existingOutcome.id);
         } else {
           await db.prepare(`
             INSERT INTO crazy_prediction_outcomes (prediction_type, prediction_id, actually_happened)
-            VALUES ('race', $1, 1)
+            VALUES ('race', $1, true)
           `).run(predictionId);
         }
       }
@@ -258,13 +258,13 @@ export const enterSeasonResults = async (req: AuthRequest, res: Response) => {
         if (existingOutcome) {
           await db.prepare(`
             UPDATE crazy_prediction_outcomes
-            SET actually_happened = 1, marked_at = CURRENT_TIMESTAMP
+            SET actually_happened = true, marked_at = CURRENT_TIMESTAMP
             WHERE id = $1
           `).run(existingOutcome.id);
         } else {
           await db.prepare(`
             INSERT INTO crazy_prediction_outcomes (prediction_type, prediction_id, actually_happened)
-            VALUES ('season', $1, 1)
+            VALUES ('season', $1, true)
           `).run(predictionId);
         }
       }
@@ -484,7 +484,7 @@ async function isCrazyPredictionValidated(type: string, predictionId: number): P
   }
 
   // At least one validation must be positive
-  return validations.some(v => v.is_validated === 1);
+  return validations.some(v => Boolean(v.is_validated));
 }
 
 async function didCrazyPredictionHappen(type: string, predictionId: number): Promise<boolean> {
@@ -494,7 +494,7 @@ async function didCrazyPredictionHappen(type: string, predictionId: number): Pro
     WHERE prediction_type = $1 AND prediction_id = $2
   `).get(type, predictionId) as { actually_happened: number } | undefined;
 
-  return outcome?.actually_happened === 1;
+  return Boolean(outcome?.actually_happened);
 }
 
 export const recalculateAllScores = async (req: AuthRequest, res: Response) => {

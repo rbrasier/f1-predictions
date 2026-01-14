@@ -164,17 +164,17 @@ export class F1ApiService {
       const query = `
         SELECT data_json, last_fetched_at
         FROM f1_api_cache
-        WHERE resource_type = ?
-          AND (season_year = ? OR (season_year IS NULL AND ? IS NULL))
-          AND (round_number = ? OR (round_number IS NULL AND ? IS NULL))
-          AND (resource_id = ? OR (resource_id IS NULL AND ? IS NULL))
+        WHERE resource_type = $1
+          AND (season_year = $2 OR (season_year IS NULL AND $2 IS NULL))
+          AND (round_number = $3 OR (round_number IS NULL AND $3 IS NULL))
+          AND (resource_id = $4 OR (resource_id IS NULL AND $4 IS NULL))
       `;
 
       const row = await db.prepare(query).get(
         resourceType,
-        seasonYear || null, seasonYear || null,
-        roundNumber || null, roundNumber || null,
-        resourceId || null, resourceId || null
+        seasonYear || null,
+        roundNumber || null,
+        resourceId || null
       ) as { data_json: string; last_fetched_at: string } | undefined;
 
       if (!row) {

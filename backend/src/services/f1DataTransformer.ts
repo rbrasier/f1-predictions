@@ -507,12 +507,12 @@ export class F1DataTransformer {
   private async isCrazyPredictionValidated(type: string, predictionId: number): Promise<boolean> {
     const validations = await db.prepare('SELECT is_validated FROM crazy_prediction_validations WHERE prediction_type = $1 AND prediction_id = $2').all(type, predictionId) as { is_validated: boolean }[];
     if (validations.length === 0) return true;
-    return validations.some(v => v.is_validated === true);
+    return validations.some(v => Boolean(v.is_validated));
   }
 
   private async didCrazyPredictionHappen(type: string, predictionId: number): Promise<boolean> {
     const outcome = await db.prepare('SELECT actually_happened FROM crazy_prediction_outcomes WHERE prediction_type = $1 AND prediction_id = $2').get(type, predictionId) as { actually_happened: boolean } | undefined;
-    return outcome?.actually_happened === true;
+    return Boolean(outcome?.actually_happened);
   }
 
   private sleep(ms: number): Promise<void> {

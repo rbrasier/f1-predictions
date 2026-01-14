@@ -60,7 +60,7 @@ export const getTeamPrincipals = (req: AuthRequest, res: Response) => {
     const principals = db.prepare(`
       SELECT id, name, constructor_id, season_year
       FROM team_principals
-      WHERE season_year = ?
+      WHERE season_year = $1
       ORDER BY name
     `).all(year);
 

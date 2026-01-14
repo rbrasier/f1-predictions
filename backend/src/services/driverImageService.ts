@@ -96,7 +96,7 @@ async function extractDriversFromCache(year: number): Promise<DriverApiData[]> {
       SELECT data_json
       FROM f1_api_cache
       WHERE resource_type = 'drivers'
-        AND season_year = ?
+        AND season_year = $1
       ORDER BY last_fetched_at DESC
       LIMIT 1
     `).get(year) as { data_json: string } | undefined;
@@ -147,7 +147,7 @@ export async function populateDriverImages(year: number = 2026): Promise<number>
       // Try to find matching driver in database
       const dbDriver = await db.prepare(`
         SELECT id, name FROM drivers
-        WHERE name = ? OR name LIKE ?
+        WHERE name = $1 OR name LIKE $2
       `).get(fullName, `%${apiDriver.familyName}%`) as { id: number; name: string } | undefined;
 
       if (!dbDriver) {
@@ -161,8 +161,8 @@ export async function populateDriverImages(year: number = 2026): Promise<number>
       // Update driver with image URL
       db.prepare(`
         UPDATE drivers
-        SET image_url = ?
-        WHERE id = ?
+        SET image_url = $1
+        WHERE id = $2
       `).run(imageUrl, dbDriver.id);
 
       console.log(`  ✓ Updated ${dbDriver.name}: ${imageUrl}`);
@@ -214,7 +214,7 @@ const DRIVER_NAME_MAPPING: Record<string, string> = {
 export async function getDriverImageUrl(driverId: number): Promise<string | null> {
   try {
     const driver = await db.prepare(`
-      SELECT image_url FROM drivers WHERE id = ?
+      SELECT image_url FROM drivers WHERE id = $1
     `).get(driverId) as { image_url: string | null } | undefined;
 
     return driver?.image_url || null;

@@ -17,9 +17,9 @@ export const getLeaderboard = async (req: AuthRequest, res: Response) => {
         COALESCE(SUM(rp.points_earned), 0) as race_points,
         COALESCE(sp.points_earned, 0) + COALESCE(SUM(rp.points_earned), 0) as total_points
       FROM users u
-      LEFT JOIN season_predictions sp ON u.id = sp.user_id ${seasonYear ? 'AND sp.season_year = ?' : ''}
-      LEFT JOIN race_predictions rp ON u.id = rp.user_id ${seasonYear ? 'AND rp.season_year = ?' : ''}
-      WHERE u.is_admin = 0
+      LEFT JOIN season_predictions sp ON u.id = sp.user_id ${seasonYear ? 'AND sp.season_year = $1' : ''}
+      LEFT JOIN race_predictions rp ON u.id = rp.user_id ${seasonYear ? 'AND rp.season_year = $2' : ''}
+      WHERE u.is_admin = false
       GROUP BY u.id, u.display_name, sp.points_earned
       ORDER BY total_points DESC, u.display_name
     `;
@@ -50,21 +50,19 @@ export const getUserBreakdown = (req: AuthRequest, res: Response) => {
     const seasonYear = req.query.seasonYear ? parseInt(req.query.seasonYear as string) : undefined;
 
     // Get season prediction
-    const seasonPredictionParams = seasonYear ? [userId, seasonYear] : [userId];
     const seasonPrediction = db.prepare(`
       SELECT sp.*
       FROM season_predictions sp
-      WHERE sp.user_id = ? ${seasonYear ? 'AND sp.season_year = ?' : ''}
-    `).get(...seasonPredictionParams);
+      WHERE sp.user_id = $1 ${seasonYear ? 'AND sp.season_year = $2' : ''}
+    `).get(...(seasonYear ? [userId, seasonYear] : [userId]));
 
     // Get race predictions
-    const racePredictionParams = seasonYear ? [userId, seasonYear] : [userId];
     const racePredictions = db.prepare(`
       SELECT rp.*
       FROM race_predictions rp
-      WHERE rp.user_id = ? ${seasonYear ? 'AND rp.season_year = ?' : ''}
+      WHERE rp.user_id = $1 ${seasonYear ? 'AND rp.season_year = $2' : ''}
       ORDER BY rp.round_number
-    `).all(...racePredictionParams);
+    `).all(...(seasonYear ? [userId, seasonYear] : [userId]));
 
     res.json({
       season_prediction: seasonPrediction,
@@ -102,9 +100,9 @@ export const exportToExcel = async (req: AuthRequest, res: Response) => {
         COALESCE(SUM(rp.points_earned), 0) as race_points,
         COALESCE(sp.points_earned, 0) + COALESCE(SUM(rp.points_earned), 0) as total_points
       FROM users u
-      LEFT JOIN season_predictions sp ON u.id = sp.user_id ${seasonYear ? 'AND sp.season_year = ?' : ''}
-      LEFT JOIN race_predictions rp ON u.id = rp.user_id ${seasonYear ? 'AND rp.season_year = ?' : ''}
-      WHERE u.is_admin = 0
+      LEFT JOIN season_predictions sp ON u.id = sp.user_id ${seasonYear ? 'AND sp.season_year = $1' : ''}
+      LEFT JOIN race_predictions rp ON u.id = rp.user_id ${seasonYear ? 'AND rp.season_year = $2' : ''}
+      WHERE u.is_admin = false
       GROUP BY u.id, u.display_name, sp.points_earned
       ORDER BY total_points DESC, u.display_name
     `;
@@ -143,7 +141,7 @@ export const exportToExcel = async (req: AuthRequest, res: Response) => {
       SELECT sp.*, u.display_name
       FROM season_predictions sp
       JOIN users u ON sp.user_id = u.id
-      ${seasonYear ? 'WHERE sp.season_year = ?' : ''}
+      ${seasonYear ? 'WHERE sp.season_year = $1' : ''}
       ORDER BY u.display_name
     `).all(...(seasonYear ? [seasonYear] : [])) as any[];
 
@@ -174,7 +172,7 @@ export const exportToExcel = async (req: AuthRequest, res: Response) => {
     const raceRounds = await db.prepare(`
       SELECT DISTINCT season_year, round_number
       FROM race_predictions
-      ${seasonYear ? 'WHERE season_year = ?' : ''}
+      ${seasonYear ? 'WHERE season_year = $1' : ''}
       ORDER BY season_year, round_number
     `).all(...(seasonYear ? [seasonYear] : [])) as any[];
 
@@ -193,7 +191,7 @@ export const exportToExcel = async (req: AuthRequest, res: Response) => {
         SELECT rp.*, u.display_name
         FROM race_predictions rp
         JOIN users u ON rp.user_id = u.id
-        WHERE rp.season_year = ? AND rp.round_number = ?
+        WHERE rp.season_year = $1 AND rp.round_number = $2
         ORDER BY u.display_name
       `).all(raceRound.season_year, raceRound.round_number) as any[];
 
