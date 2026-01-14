@@ -52,12 +52,12 @@ export const getTeams = async (req: AuthRequest, res: Response) => {
 /**
  * Get team principals for a specific season from grid-data.json
  */
-export const getTeamPrincipals = (req: AuthRequest, res: Response) => {
+export const getTeamPrincipals = async (req: AuthRequest, res: Response) => {
   try {
     const year = req.query.year ? parseInt(req.query.year as string) : new Date().getFullYear();
 
     // Get principals from database (seeded from grid-data.json)
-    const principals = db.prepare(`
+    const principals = await db.prepare(`
       SELECT id, name, constructor_id, season_year
       FROM team_principals
       WHERE season_year = $1

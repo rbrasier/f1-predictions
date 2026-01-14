@@ -29,10 +29,10 @@ export const getLeaderboard = async (req: AuthRequest, res: Response) => {
     }
 
     const params = seasonYear ? [seasonYear, seasonYear] : [];
-    const leaderboard = db.prepare(query).all(...params);
+    const leaderboard = await db.prepare(query).all(...params) as any[];
 
     // Add rank
-    const rankedLeaderboard = (await leaderboard).map((entry: any, index: number) => ({
+    const rankedLeaderboard = leaderboard.map((entry: any, index: number) => ({
       rank: index + 1,
       ...entry
     }));
@@ -44,20 +44,20 @@ export const getLeaderboard = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const getUserBreakdown = (req: AuthRequest, res: Response) => {
+export const getUserBreakdown = async (req: AuthRequest, res: Response) => {
   try {
     const { userId } = req.params;
     const seasonYear = req.query.seasonYear ? parseInt(req.query.seasonYear as string) : undefined;
 
     // Get season prediction
-    const seasonPrediction = db.prepare(`
+    const seasonPrediction = await db.prepare(`
       SELECT sp.*
       FROM season_predictions sp
       WHERE sp.user_id = $1 ${seasonYear ? 'AND sp.season_year = $2' : ''}
     `).get(...(seasonYear ? [userId, seasonYear] : [userId]));
 
     // Get race predictions
-    const racePredictions = db.prepare(`
+    const racePredictions = await db.prepare(`
       SELECT rp.*
       FROM race_predictions rp
       WHERE rp.user_id = $1 ${seasonYear ? 'AND rp.season_year = $2' : ''}
