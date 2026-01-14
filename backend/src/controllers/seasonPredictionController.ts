@@ -19,15 +19,14 @@ export const seasonPredictionValidation = [
     .isIn(['audi', 'cadillac'])
     .withMessage('Must choose either audi or cadillac'),
   body('first_career_race_winner')
-    .isString()
-    .notEmpty()
-    .withMessage('Must select a driver for first career race winner'),
+    .isArray()
+    .withMessage('First career race winner must be an array'),
   body('grid_2027')
-    .isArray({ min: 20, max: 20 })
-    .withMessage('Must provide exactly 20 driver-team pairings for 2027'),
+    .isArray({ min: 22, max: 22 })
+    .withMessage('Must provide exactly 22 driver-team pairings for 2027'),
   body('grid_2028')
-    .isArray({ min: 20, max: 20 })
-    .withMessage('Must provide exactly 20 driver-team pairings for 2028')
+    .isArray({ min: 22, max: 22 })
+    .withMessage('Must provide exactly 22 driver-team pairings for 2028')
 ];
 
 export const submitSeasonPrediction = async (req: AuthRequest, res: Response) => {
@@ -101,7 +100,7 @@ export const submitSeasonPrediction = async (req: AuthRequest, res: Response) =>
         sackingsJson,
         audi_vs_cadillac,
         crazy_prediction || null,
-        first_career_race_winner,
+        JSON.stringify(first_career_race_winner || []),
         grid2027Json,
         grid2028Json,
         existing.id
@@ -126,7 +125,7 @@ export const submitSeasonPrediction = async (req: AuthRequest, res: Response) =>
         sackingsJson,
         audi_vs_cadillac,
         crazy_prediction || null,
-        first_career_race_winner,
+        JSON.stringify(first_career_race_winner || []),
         grid2027Json,
         grid2028Json
       );

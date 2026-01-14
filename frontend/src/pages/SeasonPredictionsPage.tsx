@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Layout } from '../components/common/Layout';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { ChampionshipOrderPicker } from '../components/predictions/ChampionshipOrderPicker';
+import { DriverAutocomplete } from '../components/predictions/DriverAutocomplete';
 import { CountdownTimer } from '../components/dashboard/CountdownTimer';
 import { useToast } from '../contexts/ToastContext';
 import {
@@ -33,10 +34,10 @@ export const SeasonPredictionsPage = () => {
   const [sackings, setSackings] = useState<string[]>([]);
   const [audiVsCadillac, setAudiVsCadillac] = useState<'audi' | 'cadillac'>('audi');
   const [crazyPrediction, setCrazyPrediction] = useState('');
-  const [firstCareerRaceWinner, setFirstCareerRaceWinner] = useState('');
+  const [firstCareerRaceWinner, setFirstCareerRaceWinner] = useState<string[]>([]);
   const [grid2027, setGrid2027] = useState<DriverTeamPairing[]>([]);
   const [grid2028, setGrid2028] = useState<DriverTeamPairing[]>([]);
-  const [customDriverNames, setCustomDriverNames] = useState<{[key: number]: string}>({});
+
 
   useEffect(() => {
     const fetchData = async () => {
@@ -57,16 +58,43 @@ export const SeasonPredictionsPage = () => {
         setDriversOrder(driversData.map((d: Driver) => d.driverId));
         setConstructorsOrder(teamsData.map((t: Team) => t.constructorId));
 
-        // Initialize first career race winner with first driver
-        if (driversData.length > 0) {
-          setFirstCareerRaceWinner(driversData[0].driverId);
+        // Initialize first career race winner
+        // (default empty array, unlike before where we picked the first driver)
+
+        // Initialize grid with 22 seats (11 teams * 2 drivers)
+        // We need to ensure we have 11 teams. If only 10 (current grid), add Cadillac.
+        let gridTeams = [...teamsData];
+        if (gridTeams.length === 10) {
+          gridTeams.push({
+            constructorId: 'cadillac',
+            name: 'Cadillac F1 Team',
+            url: '',
+            nationality: 'USA'
+          } as Team);
         }
 
-        // Initialize grid with first 20 drivers and their current teams
-        const initialGrid = driversData.slice(0, 20).map((d: Driver) => ({
-          driver_api_id: d.driverId,
-          constructor_api_id: teamsData[0]?.constructorId || ''
-        }));
+        const initialGrid: DriverTeamPairing[] = [];
+        gridTeams.forEach((team: Team) => {
+          // Add 2 seats for each team
+          initialGrid.push({ driver_api_id: '', constructor_api_id: team.constructorId });
+          initialGrid.push({ driver_api_id: '', constructor_api_id: team.constructorId });
+        });
+
+        // If we have default drivers for first 20 spots, could fill them, but maybe better to leave blank or mapped?
+        // Existing logic mapped first 20 drivers. Let's try to map them but respect the new structure?
+        // Actually user wants "2 seats for each team", so pre-filling might be messy if we don't know who goes where.
+        // Let's just initialize structure correctly.
+
+        // However, we must ensure we don't lose data if we reload standard defaults.
+        // The previous code:
+        // const initialGrid = driversData.slice(0, 20).map((d: Driver) => ({
+        //   driver_api_id: d.driverId,
+        //   constructor_api_id: teamsData[0]?.constructorId || ''
+        // }));
+        // This was assigning everyone to the first team? That seems like a bug or placeholder in previous code.
+        // I will initialize empty for now, or maybe pre-fill if possible.
+        // Let's just set the structure.
+
         setGrid2027(initialGrid);
         // Initialize grid2028 with same default structure to satisfy backend validation
         setGrid2028(initialGrid);
@@ -79,7 +107,9 @@ export const SeasonPredictionsPage = () => {
           setSackings(existing.mid_season_sackings ? JSON.parse(existing.mid_season_sackings) : []);
           setAudiVsCadillac(existing.audi_vs_cadillac as 'audi' | 'cadillac');
           setCrazyPrediction(existing.crazy_prediction || '');
-          setFirstCareerRaceWinner(existing.first_career_race_winner || driversData[0].driverId);
+          setFirstCareerRaceWinner(
+            existing.first_career_race_winner ? JSON.parse(existing.first_career_race_winner) : []
+          );
           setGrid2027(JSON.parse(existing.grid_2027));
         } catch (err) {
           // No existing prediction, use defaults
@@ -129,28 +159,21 @@ export const SeasonPredictionsPage = () => {
     );
   };
 
+  const toggleFirstWinner = (id: string) => {
+    setFirstCareerRaceWinner(prev =>
+      prev.includes(id) ? prev.filter(w => w !== id) : [...prev, id]
+    );
+  };
+
   const updateGridPairing = (index: number, field: 'driver_api_id' | 'constructor_api_id', value: string) => {
     setGrid2027(prev => {
       const newGrid = [...prev];
       newGrid[index] = { ...newGrid[index], [field]: value };
       return newGrid;
     });
-    // Clear custom name if switching away from "custom"
-    if (field === 'driver_api_id' && value !== 'custom') {
-      setCustomDriverNames(prev => {
-        const newNames = { ...prev };
-        delete newNames[index];
-        return newNames;
-      });
-    }
   };
 
-  const updateCustomDriverName = (index: number, name: string) => {
-    setCustomDriverNames(prev => ({
-      ...prev,
-      [index]: name
-    }));
-  };
+
 
   if (loading) {
     return (
@@ -322,72 +345,87 @@ export const SeasonPredictionsPage = () => {
           <div className="bg-white p-6 rounded-lg shadow text-gray-900">
             <h3 className="text-xl font-bold mb-4 text-gray-900">First Career Race Winner</h3>
             <p className="text-sm text-gray-600 mb-4">
-              Which driver will win their first race of their career this season?
+              Which driver will win their first race of their career this season? Select all that apply.
             </p>
-            <select
-              value={firstCareerRaceWinner}
-              onChange={(e) => setFirstCareerRaceWinner(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-f1-red"
-            >
+
+            <div className="mb-4">
+              <label className="flex items-center space-x-2 cursor-pointer bg-gray-100 p-3 rounded-lg border-2 border-gray-300">
+                <input
+                  type="checkbox"
+                  checked={firstCareerRaceWinner.includes('no_new_winners')}
+                  onChange={() => toggleFirstWinner('no_new_winners')}
+                  className="w-4 h-4"
+                />
+                <span className="font-bold text-gray-900">No new race winners in {season.year}</span>
+              </label>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {drivers.map(driver => (
-                <option key={driver.driverId} value={driver.driverId}>
-                  {driver.givenName} {driver.familyName}
-                </option>
+                <label key={driver.driverId} className="flex items-center space-x-2 cursor-pointer p-2 hover:bg-gray-50 rounded">
+                  <input
+                    type="checkbox"
+                    checked={firstCareerRaceWinner.includes(driver.driverId)}
+                    onChange={() => toggleFirstWinner(driver.driverId)}
+                    disabled={firstCareerRaceWinner.includes('no_new_winners')}
+                    className="w-4 h-4 disabled:opacity-50"
+                  />
+                  <span className="text-gray-900">{driver.givenName} {driver.familyName}</span>
+                </label>
               ))}
-            </select>
+            </div>
           </div>
 
           {/* 2027 Grid */}
           <div className="bg-white p-6 rounded-lg shadow text-gray-900">
             <h3 className="text-xl font-bold mb-4 text-gray-900">2027 Grid Predictions</h3>
             <p className="text-sm text-gray-600 mb-4">
-              Predict the driver-team pairings for the 2027 season (20 seats)
+              Predict the driver-team pairings for the 2027 season (22 seats, 2 per team).
             </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {grid2027.map((pairing, index) => {
-                const isCustomDriver = pairing.driver_api_id === 'custom';
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {Array.from({ length: Math.ceil(grid2027.length / 2) }).map((_, teamIndex) => {
+                // Group by team (every 2 items)
+                const seat1Index = teamIndex * 2;
+                const seat2Index = teamIndex * 2 + 1;
+                const seat1 = grid2027[seat1Index];
+                const seat2 = grid2027[seat2Index];
+
+                if (!seat1) return null;
+
+                // Find team name from constructorId
+                const team = teams.find(t => t.constructorId === seat1.constructor_api_id) ||
+                  (seat1.constructor_api_id === 'cadillac' ? { name: 'Cadillac F1 Team' } as any : null);
 
                 return (
-                  <div key={index} className="border border-gray-200 rounded-lg p-3">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-xs font-bold text-gray-500 w-8">#{index + 1}</span>
-                      <select
-                        value={isCustomDriver ? 'custom' : pairing.driver_api_id}
-                        onChange={(e) => updateGridPairing(index, 'driver_api_id', e.target.value)}
-                        className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-f1-red"
-                      >
-                        {drivers.map(d => (
-                          <option key={d.driverId} value={d.driverId}>
-                            {d.givenName} {d.familyName}
-                          </option>
-                        ))}
-                        <option value="custom">Someone else...</option>
-                      </select>
-                    </div>
+                  <div key={teamIndex} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                    <h4 className="font-bold text-gray-900 mb-3 border-b border-gray-200 pb-2">
+                      {team ? team.name : seat1.constructor_api_id}
+                    </h4>
 
-                    {isCustomDriver && (
-                      <div className="mb-2">
-                        <input
-                          type="text"
-                          placeholder="Enter driver name"
-                          value={customDriverNames[index] || ''}
-                          onChange={(e) => updateCustomDriverName(index, e.target.value)}
-                          className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-f1-red"
+                    <div className="space-y-4">
+                      {/* Seat 1 */}
+                      <div>
+                        <label className="block text-xs font-bold text-gray-500 mb-1">Driver 1</label>
+                        <DriverAutocomplete
+                          drivers={drivers}
+                          selectedDriverId={seat1.driver_api_id}
+                          onSelect={(val) => updateGridPairing(seat1Index, 'driver_api_id', val)}
+                          placeholder="Select driver..."
                         />
                       </div>
-                    )}
 
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-gray-500 w-8">@</span>
-                      <select
-                        value={pairing.constructor_api_id}
-                        onChange={(e) => updateGridPairing(index, 'constructor_api_id', e.target.value)}
-                        className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-f1-red"
-                      >
-                        {teams.map(t => (
-                          <option key={t.constructorId} value={t.constructorId}>{t.name}</option>
-                        ))}
-                      </select>
+                      {/* Seat 2 */}
+                      <div>
+                        <label className="block text-xs font-bold text-gray-500 mb-1">Driver 2</label>
+                        {seat2 && (
+                          <DriverAutocomplete
+                            drivers={drivers}
+                            selectedDriverId={seat2.driver_api_id}
+                            onSelect={(val) => updateGridPairing(seat2Index, 'driver_api_id', val)}
+                            placeholder="Select driver..."
+                          />
+                        )}
+                      </div>
                     </div>
                   </div>
                 );

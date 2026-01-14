@@ -45,7 +45,7 @@ export interface SeasonPredictionRequest {
   mid_season_sackings: string[]; // Array of principal/driver API IDs
   audi_vs_cadillac: 'audi' | 'cadillac';
   crazy_prediction: string;
-  first_career_race_winner: string; // Driver API ID of predicted first-time race winner
+  first_career_race_winner: string[]; // Array of Driver API IDs of predicted first-time race winners
   grid_2027: DriverTeamPairing[];
   grid_2028: DriverTeamPairing[];
 }
