@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './hooks/useAuth';
 import { ToastProvider } from './contexts/ToastContext';
+import { LeagueProvider } from './contexts/LeagueContext';
 import { ToastContainer } from './components/common/ToastContainer';
 import { LoginForm } from './components/auth/LoginForm';
 import { RegisterForm } from './components/auth/RegisterForm';
@@ -10,6 +11,7 @@ import { RaceDetailsPage } from './pages/RaceDetailsPage';
 import { LeaderboardPage } from './pages/LeaderboardPage';
 import { ValidationsPage } from './pages/ValidationsPage';
 import { AdminPage } from './pages/AdminPage';
+import SettingsPage from './pages/SettingsPage';
 import { LoadingSpinner } from './components/common/LoadingSpinner';
 import { CompareTipsPage } from './pages/CompareTipsPage';
 
@@ -109,6 +111,14 @@ const AppRoutes = () => {
         }
       />
       <Route
+        path="/settings"
+        element={
+          <ProtectedRoute>
+            <SettingsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/admin"
         element={
           <AdminRoute>
@@ -126,10 +136,12 @@ function App() {
   return (
     <AuthProvider>
       <ToastProvider>
-        <BrowserRouter>
-          <ToastContainer />
-          <AppRoutes />
-        </BrowserRouter>
+        <LeagueProvider>
+          <BrowserRouter>
+            <ToastContainer />
+            <AppRoutes />
+          </BrowserRouter>
+        </LeagueProvider>
       </ToastProvider>
     </AuthProvider>
   );
