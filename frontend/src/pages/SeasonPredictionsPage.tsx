@@ -135,7 +135,22 @@ export const SeasonPredictionsPage = () => {
               loadedGrid2027.push({ driver_api_id: '', constructor_api_id: 'cadillac' });
             }
           }
-          setGrid2027(loadedGrid2027);
+          // Map custom drivers
+          const mappedGrid2027 = loadedGrid2027.map((pairing: DriverTeamPairing, idx: number) => {
+            // Skip empty
+            if (!pairing.driver_api_id) return pairing;
+
+            const isStandardDriver = driversData.some((d: Driver) => d.driverId === pairing.driver_api_id);
+
+            // If not a standard driver ID, it must be a custom name
+            if (!isStandardDriver) {
+              setCustomDriverNames(prev => ({ ...prev, [idx]: pairing.driver_api_id }));
+              return { ...pairing, driver_api_id: 'custom' };
+            }
+            return pairing;
+          });
+
+          setGrid2027(mappedGrid2027);
         } catch (err) {
           // No existing prediction, use defaults
         }
