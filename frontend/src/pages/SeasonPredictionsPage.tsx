@@ -493,43 +493,14 @@ export const SeasonPredictionsPage = () => {
                         {team ? team.name : seat1.constructor_api_id}
                       </h4>
 
-                      {team && team.constructorId !== 'cadillac' && (
-                        <label className="flex items-center space-x-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                applyCurrentDrivers(teamIndex, team.constructorId);
-                                // Uncheck immediately after applying? Or keep checked and disable?
-                                // User request: "checkbox... No change for 2027". 
-                                // Usually implies state. If uncheck, what happens? Nothing? Clears?
-                                // Let's treat it as a "Apply" action to be safe, but UI looks like toggle.
-                                // Better: make it a button or behave like a one-off "Copy current" action?
-                                // "a checkbox ... which says No change". 
-                                // I will implement as a checkbox that, when checked, fills the data.
-                                // If the user changes data manually, we should probably uncheck it.
-                                // But tracking that state is complex.
-                                // Simplest: Checkbox that toggles "No Change" mode. 
-                                // If checked: fill data and DISABLE inputs.
-                                // If unchecked: enable inputs (data remains).
-                              }
-                            }}
-                            // Just use a simple controlled/uncontrolled approach or treating as action?
-                            // Let's use it as an action for now, but style as checkbox.
-                            // Actually, disabling inputs is a nice touch for "No change". 
-                            // I'd need state for "noChangeSelected" per team.
-                            checked={false} // forcing unchecked for now to act as button, or need state?
-                          // Let's add state if I want it to persist. 
-                          // Given complexity, let's just make it Click-to-fill for now, 
-                          // checking it fills data. Unchecking does nothing?
-                          // User asked for checkbox.
-                          // Let's make it simple: Checkbox that fills data on click.
-                          // To avoid state complexity, I'll just leave it unchecked visually? No that's confusing.
-                          // I'll add a local state for it?
-                          // Actually, let's just fire the fill on change.
-                          />
-                          <span className="text-xs text-gray-600 font-bold">No change (Current drivers)</span>
-                        </label>
+                      {team && (
+                        <button
+                          type="button"
+                          onClick={() => applyCurrentDrivers(teamIndex, team.constructorId)}
+                          className="text-xs text-f1-red font-bold hover:underline"
+                        >
+                          Populate current drivers
+                        </button>
                       )}
                     </div>
 
