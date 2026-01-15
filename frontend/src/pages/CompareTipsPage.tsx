@@ -14,10 +14,12 @@ import {
     getLastRoundResults
 } from '../services/api';
 import { User, Driver, Team, SeasonPrediction, RacePrediction, Race } from '../types';
+import { useLeague } from '../contexts/LeagueContext';
 
 type ViewMode = 'season' | 'race';
 
 export const CompareTipsPage = () => {
+    const { defaultLeague } = useLeague();
     const [searchParams] = useSearchParams();
     const [viewMode, setViewMode] = useState<ViewMode>((searchParams.get('mode') as ViewMode) || 'season');
     const [loading, setLoading] = useState(true);
@@ -53,6 +55,8 @@ export const CompareTipsPage = () => {
     };
 
     useEffect(() => {
+        if (!defaultLeague) return;
+
         const fetchData = async () => {
             try {
                 setLoading(true);
@@ -70,20 +74,20 @@ export const CompareTipsPage = () => {
                 setNextRace(raceData);
 
                 if (seasonData) {
-                    const sPreds = await getAllSeasonPredictions(seasonData.year);
+                    const sPreds = await getAllSeasonPredictions(seasonData.year, defaultLeague?.id);
                     setSeasonPreds(sPreds);
                 }
 
                 if (raceData) {
-                    const rPreds = await getAllRacePredictions(`${raceData.season}-${raceData.round}`, 100);
+                    const rPreds = await getAllRacePredictions(`${raceData.season}-${raceData.round}`, 100, defaultLeague?.id);
                     setRacePreds(rPreds);
                 } else if (seasonData) {
                     // Fallback to last round if no next race?
                     try {
-                        const lastRound = await getLastRoundResults(seasonData.year);
+                        const lastRound = await getLastRoundResults(seasonData.year, defaultLeague?.id);
                         if (lastRound && lastRound.round) {
                             setLastRace(lastRound);
-                            const rPreds = await getAllRacePredictions(`${seasonData.year}-${lastRound.round}`, 100);
+                            const rPreds = await getAllRacePredictions(`${seasonData.year}-${lastRound.round}`, 100, defaultLeague?.id);
                             setRacePreds(rPreds);
                         }
                     } catch (e) { }
@@ -97,7 +101,7 @@ export const CompareTipsPage = () => {
         };
 
         fetchData();
-    }, []);
+    }, [defaultLeague]);
 
     if (loading) return <Layout><LoadingSpinner /></Layout>;
     if (error) return <Layout><div className="text-white p-4">Error: {error}</div></Layout>;

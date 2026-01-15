@@ -3,8 +3,10 @@ import { Layout } from '../components/common/Layout';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { getPendingValidations, validateCrazyPrediction } from '../services/api';
 import { PendingValidation } from '../types';
+import { useLeague } from '../contexts/LeagueContext';
 
 export const ValidationsPage = () => {
+  const { defaultLeague } = useLeague();
   const [predictions, setPredictions] = useState<PendingValidation[]>([]);
   const [loading, setLoading] = useState(true);
   const [validating, setValidating] = useState<number | null>(null);
@@ -12,12 +14,14 @@ export const ValidationsPage = () => {
   const [success, setSuccess] = useState('');
 
   useEffect(() => {
-    fetchPendingValidations();
-  }, []);
+    if (defaultLeague) {
+      fetchPendingValidations();
+    }
+  }, [defaultLeague]);
 
   const fetchPendingValidations = async () => {
     try {
-      const data = await getPendingValidations();
+      const data = await getPendingValidations(defaultLeague?.id);
       setPredictions(data);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to load validations');

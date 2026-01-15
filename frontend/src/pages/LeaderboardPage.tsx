@@ -3,8 +3,10 @@ import { Layout } from '../components/common/Layout';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { getLeaderboard, getUserBreakdown, exportLeaderboard } from '../services/api';
 import { LeaderboardEntry } from '../types';
+import { useLeague } from '../contexts/LeagueContext';
 
 export const LeaderboardPage = () => {
+  const { defaultLeague } = useLeague();
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [expandedUserId, setExpandedUserId] = useState<number | null>(null);
   const [userBreakdown, setUserBreakdown] = useState<any>(null);
@@ -14,12 +16,14 @@ export const LeaderboardPage = () => {
   const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
-    fetchLeaderboard();
-  }, []);
+    if (defaultLeague) {
+      fetchLeaderboard();
+    }
+  }, [defaultLeague]);
 
   const fetchLeaderboard = async () => {
     try {
-      const data = await getLeaderboard();
+      const data = await getLeaderboard(undefined, undefined, defaultLeague?.id);
       setLeaderboard(data);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to load leaderboard');
@@ -51,7 +55,7 @@ export const LeaderboardPage = () => {
   const handleExport = async () => {
     setExporting(true);
     try {
-      const blob = await exportLeaderboard();
+      const blob = await exportLeaderboard(undefined, defaultLeague?.id);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -77,9 +81,9 @@ export const LeaderboardPage = () => {
 
   return (
     <Layout>
-      <div className="max-w-6xl mx-auto px-6 py-8">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-4xl font-bold text-white italic">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-4">
+          <h1 className="text-3xl sm:text-4xl font-bold text-white italic">
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-paddock-red to-paddock-coral">
               THE STANDINGS
             </span>
@@ -87,7 +91,7 @@ export const LeaderboardPage = () => {
           <button
             onClick={handleExport}
             disabled={exporting}
-            className="bg-green-600 text-white px-6 py-2 rounded font-bold hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed uppercase text-sm tracking-wide"
+            className="bg-green-600 text-white px-4 sm:px-6 py-2 rounded font-bold hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed uppercase text-xs sm:text-sm tracking-wide"
           >
             {exporting ? 'Exporting...' : '📊 Export to Excel'}
           </button>
@@ -100,52 +104,53 @@ export const LeaderboardPage = () => {
         )}
 
         <div className="bg-paddock-gray rounded-lg border border-paddock-lightgray overflow-hidden">
-          <table className="w-full">
-            <thead className="bg-paddock-darkgray text-gray-400">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-bold uppercase tracking-wider">Rank</th>
-                <th className="px-6 py-3 text-left text-xs font-bold uppercase tracking-wider">Player</th>
-                <th className="px-6 py-3 text-center text-xs font-bold uppercase tracking-wider">Season Points</th>
-                <th className="px-6 py-3 text-center text-xs font-bold uppercase tracking-wider">Race Points</th>
-                <th className="px-6 py-3 text-center text-xs font-bold uppercase tracking-wider">Total Points</th>
-                <th className="px-6 py-3 text-center text-xs font-bold uppercase tracking-wider">Details</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-paddock-lightgray">
-              {leaderboard.map((entry) => (
-                <>
-                  <tr
-                    key={entry.user_id}
-                    className={`hover:bg-paddock-lightgray transition ${
-                      entry.rank <= 3 ? 'bg-paddock-lightgray/50' : ''
-                    }`}
-                  >
-                    <td className="px-6 py-4">
-                      <span className="text-2xl font-bold">
-                        {entry.rank === 1 ? '🥇' :
-                         entry.rank === 2 ? '🥈' :
-                         entry.rank === 3 ? '🥉' :
-                         <span className="text-gray-400">{String(entry.rank).padStart(2, '0')}</span>}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 font-medium text-white">{entry.display_name}</td>
-                    <td className="px-6 py-4 text-center text-gray-300">{entry.season_points}</td>
-                    <td className="px-6 py-4 text-center text-gray-300">{entry.race_points}</td>
-                    <td className="px-6 py-4 text-center font-bold text-paddock-coral">
-                      {entry.total_points}
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <button
-                        onClick={() => toggleUserExpand(entry.user_id)}
-                        className="text-paddock-red hover:text-paddock-coral font-medium"
-                      >
-                        {expandedUserId === entry.user_id ? '▼ Hide' : '▶ Show'}
-                      </button>
-                    </td>
-                  </tr>
-                  {expandedUserId === entry.user_id && (
-                    <tr>
-                      <td colSpan={6} className="px-6 py-4 bg-paddock-darkgray">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-paddock-darkgray text-gray-400">
+                <tr>
+                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-bold uppercase tracking-wider">Rank</th>
+                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-bold uppercase tracking-wider">Player</th>
+                  <th className="px-3 sm:px-6 py-3 text-center text-xs font-bold uppercase tracking-wider hidden md:table-cell">Season</th>
+                  <th className="px-3 sm:px-6 py-3 text-center text-xs font-bold uppercase tracking-wider hidden md:table-cell">Race</th>
+                  <th className="px-3 sm:px-6 py-3 text-center text-xs font-bold uppercase tracking-wider">Total</th>
+                  <th className="px-3 sm:px-6 py-3 text-center text-xs font-bold uppercase tracking-wider">Details</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-paddock-lightgray">
+                {leaderboard.map((entry) => (
+                  <>
+                    <tr
+                      key={entry.user_id}
+                      className={`hover:bg-paddock-lightgray transition ${
+                        entry.rank <= 3 ? 'bg-paddock-lightgray/50' : ''
+                      }`}
+                    >
+                      <td className="px-3 sm:px-6 py-4">
+                        <span className="text-xl sm:text-2xl font-bold">
+                          {entry.rank === 1 ? '🥇' :
+                           entry.rank === 2 ? '🥈' :
+                           entry.rank === 3 ? '🥉' :
+                           <span className="text-gray-400">{String(entry.rank).padStart(2, '0')}</span>}
+                        </span>
+                      </td>
+                      <td className="px-3 sm:px-6 py-4 font-medium text-white text-sm sm:text-base">{entry.display_name}</td>
+                      <td className="px-3 sm:px-6 py-4 text-center text-gray-300 hidden md:table-cell">{entry.season_points}</td>
+                      <td className="px-3 sm:px-6 py-4 text-center text-gray-300 hidden md:table-cell">{entry.race_points}</td>
+                      <td className="px-3 sm:px-6 py-4 text-center font-bold text-paddock-coral text-sm sm:text-base">
+                        {entry.total_points}
+                      </td>
+                      <td className="px-3 sm:px-6 py-4 text-center">
+                        <button
+                          onClick={() => toggleUserExpand(entry.user_id)}
+                          className="text-paddock-red hover:text-paddock-coral font-medium text-xs sm:text-sm"
+                        >
+                          {expandedUserId === entry.user_id ? '▼ Hide' : '▶ Show'}
+                        </button>
+                      </td>
+                    </tr>
+                    {expandedUserId === entry.user_id && (
+                      <tr>
+                        <td colSpan={6} className="px-3 sm:px-6 py-4 bg-paddock-darkgray">
                         {loadingBreakdown ? (
                           <div className="flex justify-center py-4">
                             <LoadingSpinner />
@@ -208,11 +213,12 @@ export const LeaderboardPage = () => {
                         )}
                       </td>
                     </tr>
-                  )}
-                </>
-              ))}
-            </tbody>
-          </table>
+                    )}
+                  </>
+                ))}
+              </tbody>
+            </table>
+          </div>
 
           {leaderboard.length === 0 && (
             <div className="text-center py-12 text-gray-500">
@@ -222,9 +228,9 @@ export const LeaderboardPage = () => {
         </div>
 
         {/* Legend */}
-        <div className="mt-6 bg-paddock-gray p-6 rounded-lg border border-paddock-lightgray">
-          <h3 className="font-bold mb-4 text-white text-lg uppercase tracking-wide">Scoring Legend</h3>
-          <div className="text-sm text-gray-300 space-y-2">
+        <div className="mt-6 bg-paddock-gray p-4 sm:p-6 rounded-lg border border-paddock-lightgray">
+          <h3 className="font-bold mb-4 text-white text-base sm:text-lg uppercase tracking-wide">Scoring Legend</h3>
+          <div className="text-xs sm:text-sm text-gray-300 space-y-2">
             <p>• <strong className="text-paddock-coral">Season Points:</strong> Championship orders, sackings, grid predictions (1 pt each)</p>
             <p>• <strong className="text-paddock-coral">Race Points:</strong> Pole (1 pt), Podium (3 pts for perfect), Midfield Hero (1 pt), Sprint (1 pt each)</p>
             <p>• <strong className="text-paddock-coral">Crazy Predictions:</strong> Must be validated by peers AND marked as happened by admin (1 pt)</p>
