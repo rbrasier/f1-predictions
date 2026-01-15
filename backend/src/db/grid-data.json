@@ -1,21 +1,149 @@
-{"2026":{
-  "season_start":"2026-03-15",
-  "prediction_deadline":"2026-02-16T00:00:00Z",
-  "is_active":true,
-  "top_four_teams":[
-  "red_bull","mercedes","ferrari","mclaren"]
-,
-"team_principals":[
-{"name":"Christian Horner","constructorId":"red_bull"},
-{"name":"Toto Wolff","constructorId":"mercedes"},
-{"name":"Fred Vasseur","constructorId":"ferrari"},
-{"name":"Andrea Stella","constructorId":"mclaren"},
-{"name":"Mike Krack","constructorId":"aston_martin"},
-{"name":"Oliver Oakes","constructorId":"alpine"},
-{"name":"James Vowles","constructorId":"williams"},
-{"name":"Laurent Mekies","constructorId":"rb"},
-{"name":"Mattia Binotto","constructorId":"audi"},
-{"name":"Ayao Komatsu","constructorId":"haas"},
-{"name":"Graeme Lowdon","constructorId":"cadillac"}
-]
-}}
+{
+  "2026": {
+    "season_start": "2026-03-15",
+    "prediction_deadline": "2026-02-16T00:00:00Z",
+    "is_active": true,
+    "top_four_teams": [
+      "red_bull",
+      "mercedes",
+      "ferrari",
+      "mclaren"
+    ],
+    "team_principals": [
+      {
+        "name": "Christian Horner",
+        "constructorId": "red_bull"
+      },
+      {
+        "name": "Toto Wolff",
+        "constructorId": "mercedes"
+      },
+      {
+        "name": "Fred Vasseur",
+        "constructorId": "ferrari"
+      },
+      {
+        "name": "Andrea Stella",
+        "constructorId": "mclaren"
+      },
+      {
+        "name": "Mike Krack",
+        "constructorId": "aston_martin"
+      },
+      {
+        "name": "Oliver Oakes",
+        "constructorId": "alpine"
+      },
+      {
+        "name": "James Vowles",
+        "constructorId": "williams"
+      },
+      {
+        "name": "Laurent Mekies",
+        "constructorId": "rb"
+      },
+      {
+        "name": "Mattia Binotto",
+        "constructorId": "audi"
+      },
+      {
+        "name": "Ayao Komatsu",
+        "constructorId": "haas"
+      },
+      {
+        "name": "Graeme Lowdon",
+        "constructorId": "cadillac"
+      }
+    ],
+    "driver_lineup_fallback": [
+      {
+        "driverId": "norris",
+        "constructorId": "mclaren"
+      },
+      {
+        "driverId": "piastri",
+        "constructorId": "mclaren"
+      },
+      {
+        "driverId": "leclerc",
+        "constructorId": "ferrari"
+      },
+      {
+        "driverId": "hamilton",
+        "constructorId": "ferrari"
+      },
+      {
+        "driverId": "max_verstappen",
+        "constructorId": "red_bull"
+      },
+      {
+        "driverId": "hadjar",
+        "constructorId": "red_bull"
+      },
+      {
+        "driverId": "russell",
+        "constructorId": "mercedes"
+      },
+      {
+        "driverId": "antonelli",
+        "constructorId": "mercedes"
+      },
+      {
+        "driverId": "alonso",
+        "constructorId": "aston_martin"
+      },
+      {
+        "driverId": "stroll",
+        "constructorId": "aston_martin"
+      },
+      {
+        "driverId": "gasly",
+        "constructorId": "alpine"
+      },
+      {
+        "driverId": "colapinto",
+        "constructorId": "alpine"
+      },
+      {
+        "driverId": "albon",
+        "constructorId": "williams"
+      },
+      {
+        "driverId": "sainz",
+        "constructorId": "williams"
+      },
+      {
+        "driverId": "ocon",
+        "constructorId": "haas"
+      },
+      {
+        "driverId": "bearman",
+        "constructorId": "haas"
+      },
+      {
+        "driverId": "lawson",
+        "constructorId": "rb"
+      },
+      {
+        "driverId": "lindblad",
+        "constructorId": "rb"
+      },
+      {
+        "driverId": "hulkenberg",
+        "constructorId": "audi"
+      },
+      {
+        "driverId": "bortoleto",
+        "constructorId": "audi"
+      },
+      {
+        "driverId": "bottas",
+        "constructorId": "cadillac"
+      },
+      {
+        "driverId": "perez",
+        "constructorId": "cadillac"
+      }
+    ]
+  }
+}

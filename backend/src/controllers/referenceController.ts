@@ -132,12 +132,44 @@ export const getDriverStandings = async (req: AuthRequest, res: Response) => {
     let standings = data?.MRData?.StandingsTable?.StandingsLists?.[0]?.DriverStandings || [];
     let usedYear = year;
 
-    // If no standings for current year (season hasn't started), try previous year
+    // If no standings for current year (season hasn't started), check for fallback or try previous year
     if (standings.length === 0) {
-      console.warn(`No driver standings found for year ${year}, trying ${year - 1}...`);
-      data = await f1ApiService.fetchDriverStandings(year - 1);
-      standings = data?.MRData?.StandingsTable?.StandingsLists?.[0]?.DriverStandings || [];
-      usedYear = year - 1;
+      const gridData = getOriginalGrid(year.toString());
+
+      if (gridData?.driver_lineup_fallback) {
+        console.log(`Using driver lineup fallback for year ${year}...`);
+
+        // Fetch drivers and constructors to populate the details
+        const driversData = await f1ApiService.fetchDrivers(year);
+        const drivers = driversData?.MRData?.DriverTable?.Drivers || [];
+
+        const constructorsData = await f1ApiService.fetchConstructors(year);
+        const constructors = constructorsData?.MRData?.ConstructorTable?.Constructors || [];
+
+        // Map fallback data to synthetic standings
+        standings = gridData.driver_lineup_fallback.map((item: any, index: number) => {
+          const driver = drivers.find((d: any) => d.driverId === item.driverId);
+          const constructor = constructors.find((c: any) => c.constructorId === item.constructorId);
+
+          if (!driver || !constructor) return null;
+
+          return {
+            position: (index + 1).toString(),
+            positionText: (index + 1).toString(),
+            points: "0",
+            wins: "0",
+            Driver: driver,
+            Constructors: [constructor]
+          };
+        }).filter((s: any) => s !== null);
+
+        usedYear = year;
+      } else {
+        console.warn(`No driver standings found for year ${year}, trying ${year - 1}...`);
+        data = await f1ApiService.fetchDriverStandings(year - 1);
+        standings = data?.MRData?.StandingsTable?.StandingsLists?.[0]?.DriverStandings || [];
+        usedYear = year - 1;
+      }
     }
 
     console.log(`Found ${standings.length} drivers in standings from year ${usedYear}`);

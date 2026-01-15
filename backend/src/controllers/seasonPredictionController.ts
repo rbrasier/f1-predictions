@@ -7,11 +7,11 @@ import gridData from '../utils/gridData';
 
 export const seasonPredictionValidation = [
   body('drivers_championship_order')
-    .isArray({ min: 20, max: 20 })
-    .withMessage('Must provide exactly 20 drivers in order'),
+    .isArray({ min: 22, max: 22 })
+    .withMessage('Must provide exactly 22 drivers in order'),
   body('constructors_championship_order')
-    .isArray({ min: 10, max: 10 })
-    .withMessage('Must provide exactly 10 teams in order'),
+    .isArray({ min: 11, max: 11 })
+    .withMessage('Must provide exactly 11 teams in order'),
   body('mid_season_sackings')
     .isArray()
     .withMessage('Mid season sackings must be an array'),
@@ -33,14 +33,16 @@ export const submitSeasonPrediction = async (req: AuthRequest, res: Response) =>
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.error('Validation errors:', JSON.stringify(errors.array(), null, 2));
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { year } = req.params;
-    const seasonYear = parseInt(year);
+    const { seasonId } = req.params;
+    const seasonYear = parseInt(seasonId);
     const userId = req.user!.id;
 
     if (isNaN(seasonYear)) {
+      console.error('Invalid season year:', seasonId);
       return res.status(400).json({ error: 'Invalid year' });
     }
 
@@ -56,8 +58,9 @@ export const submitSeasonPrediction = async (req: AuthRequest, res: Response) =>
     } = req.body as SeasonPredictionRequest;
 
     // Get season info from grid-data.json
-    const seasonData = gridData[year];
+    const seasonData = gridData[seasonId];
     if (!seasonData) {
+      console.error('Season not found in gridData:', seasonId);
       return res.status(404).json({ error: 'Season not found' });
     }
 
@@ -66,6 +69,7 @@ export const submitSeasonPrediction = async (req: AuthRequest, res: Response) =>
     const deadline = new Date(seasonData.prediction_deadline);
 
     if (now > deadline) {
+      console.error('Deadline passed:', { now, deadline });
       return res.status(400).json({ error: 'Prediction deadline has passed' });
     }
 
@@ -141,8 +145,8 @@ export const submitSeasonPrediction = async (req: AuthRequest, res: Response) =>
 
 export const getMySeasonPrediction = async (req: AuthRequest, res: Response) => {
   try {
-    const { year } = req.params;
-    const seasonYear = parseInt(year);
+    const { seasonId } = req.params;
+    const seasonYear = parseInt(seasonId);
     const userId = req.user!.id;
 
     if (isNaN(seasonYear)) {
@@ -167,8 +171,8 @@ export const getMySeasonPrediction = async (req: AuthRequest, res: Response) => 
 
 export const getAllSeasonPredictions = async (req: AuthRequest, res: Response) => {
   try {
-    const { year } = req.params;
-    const seasonYear = parseInt(year);
+    const { seasonId } = req.params;
+    const seasonYear = parseInt(seasonId);
 
     if (isNaN(seasonYear)) {
       return res.status(400).json({ error: 'Invalid year' });

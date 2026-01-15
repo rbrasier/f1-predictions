@@ -11,6 +11,10 @@ export interface SeasonData {
   is_active: boolean;
   top_four_teams: string[]; // Array of constructor IDs
   team_principals: TeamPrincipal[];
+  driver_lineup_fallback?: {
+    driverId: string;
+    constructorId: string;
+  }[];
 }
 
 export interface GridData {
