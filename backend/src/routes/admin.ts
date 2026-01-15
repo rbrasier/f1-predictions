@@ -15,7 +15,10 @@ import {
   importRaceResults,
   importSeasonStandings,
   bulkImportSeason,
-  populateDriverImages
+  populateDriverImages,
+  getBackups,
+  downloadBackup,
+  triggerBackup
 } from '../controllers/adminController';
 import { authenticate, requireAdmin } from '../middleware/auth';
 
@@ -48,5 +51,10 @@ router.post('/f1-data/import-race/:year/:round', importRaceResults);
 router.post('/f1-data/import-standings/:year', importSeasonStandings);
 router.post('/f1-data/import-season/:year', bulkImportSeason);
 router.post('/f1-data/populate-driver-images/:year', populateDriverImages);
+
+// Backups
+router.get('/backups', getBackups);
+router.get('/backups/:id/download', downloadBackup);
+router.post('/backups/trigger', triggerBackup);
 
 export default router;

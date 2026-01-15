@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { initializeDatabase } from './db/database';
+import { scheduler } from './scheduler';
 
 // Routes
 import authRoutes from './routes/auth';
@@ -80,6 +81,9 @@ async function start() {
   try {
     // Run migrations and create admin user
     await initializeDatabase();
+
+    // Initialize scheduler
+    scheduler.init();
 
     // Start server - Railway will handle routing
     const server = app.listen(PORT, () => {

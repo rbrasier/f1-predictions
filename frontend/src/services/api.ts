@@ -273,4 +273,43 @@ export const bulkImportSeason = async (year: number): Promise<any> => {
   return data;
 };
 
+// Backups
+export const getBackups = async (): Promise<any[]> => {
+  const { data } = await api.get('/admin/backups');
+  return data;
+};
+
+export const downloadBackup = async (id: number): Promise<void> => {
+  const response = await api.get(`/admin/backups/${id}/download`, {
+    responseType: 'blob'
+  });
+
+  // Create download link
+  const url = window.URL.createObjectURL(new Blob([response.data]));
+  const link = document.createElement('a');
+  link.href = url;
+
+  // Extract filename from header if possible, or generate one
+  const date = new Date().toISOString().split('T')[0];
+  const contentDisposition = response.headers['content-disposition'];
+  let filename = `f1-tips-backup-${date}.json`;
+
+  if (contentDisposition) {
+    const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
+    if (filenameMatch && filenameMatch.length === 2) {
+      filename = filenameMatch[1];
+    }
+  }
+
+  link.setAttribute('download', filename);
+  document.body.appendChild(link);
+  link.click();
+  link.parentNode?.removeChild(link);
+};
+
+export const triggerBackup = async (): Promise<any> => {
+  const { data } = await api.post('/admin/backups/trigger');
+  return data;
+};
+
 export default api;

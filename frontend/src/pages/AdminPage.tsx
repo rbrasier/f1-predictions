@@ -19,12 +19,16 @@ import {
   importSeasonStandings,
   bulkImportSeason,
   getAllUsers,
-  grantAdminAccess
+  grantAdminAccess,
+  getBackups,
+  downloadBackup,
+  triggerBackup
 } from '../services/api';
 import { Race, Driver, Team, Season } from '../types';
 
 export const AdminPage = () => {
-  const [activeTab, setActiveTab] = useState<'admin' | 'races' | 'season' | 'f1data'>('admin');
+  const [activeTab, setActiveTab] = useState<'admin' | 'races' | 'season' | 'f1data' | 'backups'>('admin');
+  const [backups, setBackups] = useState<any[]>([]);
   const [races, setRaces] = useState<Race[]>([]);
   const [selectedRace, setSelectedRace] = useState<Race | null>(null);
   const [drivers, setDrivers] = useState<Driver[]>([]);
@@ -257,6 +261,44 @@ export const AdminPage = () => {
     }
   };
 
+  // Backups
+  const loadBackups = async () => {
+    try {
+      setLoading(true);
+      const data = await getBackups();
+      setBackups(data);
+    } catch (err) {
+      console.error('Failed to load backups');
+      setError('Failed to load backups');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDownloadBackup = async (id: number) => {
+    try {
+      await downloadBackup(id);
+    } catch (err) {
+      console.error('Failed to download backup');
+      setError('Failed to download backup');
+    }
+  };
+
+  const handleTriggerBackup = async () => {
+    setSubmitting(true);
+    setError('');
+    setSuccess('');
+    try {
+      await triggerBackup();
+      setSuccess('Backup created successfully!');
+      await loadBackups();
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to trigger backup');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   // Import handlers
   const handleImportRaceResults = async () => {
     setDataLoading(true);
@@ -354,21 +396,19 @@ export const AdminPage = () => {
         <div className="flex space-x-4 mb-6">
           <button
             onClick={() => setActiveTab('admin')}
-            className={`px-6 py-3 rounded-lg font-bold ${
-              activeTab === 'admin'
-                ? 'bg-f1-red text-white'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-            }`}
+            className={`px-6 py-3 rounded-lg font-bold ${activeTab === 'admin'
+              ? 'bg-f1-red text-white'
+              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
           >
             Admin Access
           </button>
           <button
             onClick={() => setActiveTab('races')}
-            className={`px-6 py-3 rounded-lg font-bold ${
-              activeTab === 'races'
-                ? 'bg-f1-red text-white'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-            }`}
+            className={`px-6 py-3 rounded-lg font-bold ${activeTab === 'races'
+              ? 'bg-f1-red text-white'
+              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
           >
             Enter Race Results
           </button>
@@ -377,11 +417,10 @@ export const AdminPage = () => {
               setActiveTab('season');
               if (season) loadSeasonPredictions(season.year);
             }}
-            className={`px-6 py-3 rounded-lg font-bold ${
-              activeTab === 'season'
-                ? 'bg-f1-red text-white'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-            }`}
+            className={`px-6 py-3 rounded-lg font-bold ${activeTab === 'season'
+              ? 'bg-f1-red text-white'
+              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
           >
             Enter Season Results
           </button>
@@ -390,13 +429,24 @@ export const AdminPage = () => {
               setActiveTab('f1data');
               loadCacheStatus();
             }}
-            className={`px-6 py-3 rounded-lg font-bold ${
-              activeTab === 'f1data'
-                ? 'bg-f1-red text-white'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-            }`}
+            className={`px-6 py-3 rounded-lg font-bold ${activeTab === 'f1data'
+              ? 'bg-f1-red text-white'
+              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
           >
             F1 Data Management
+          </button>
+          <button
+            onClick={() => {
+              setActiveTab('backups');
+              loadBackups();
+            }}
+            className={`px-6 py-3 rounded-lg font-bold ${activeTab === 'backups'
+              ? 'bg-f1-red text-white'
+              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+          >
+            Backups
           </button>
         </div>
 
@@ -475,11 +525,10 @@ export const AdminPage = () => {
                             handleRaceSelect(race);
                             handleLoadRaceResults(race);
                           }}
-                          className={`w-full p-2 rounded text-left text-sm transition ${
-                            selectedKey === raceKey
-                              ? 'bg-f1-red text-white'
-                              : 'bg-gray-100 hover:bg-gray-200'
-                          }`}
+                          className={`w-full p-2 rounded text-left text-sm transition ${selectedKey === raceKey
+                            ? 'bg-f1-red text-white'
+                            : 'bg-gray-100 hover:bg-gray-200'
+                            }`}
                         >
                           <div className="font-bold">R{race.round}</div>
                           <div className="text-xs truncate">{race.raceName}</div>
@@ -980,6 +1029,73 @@ export const AdminPage = () => {
                   Formula 1 data including race schedules, results, standings, driver and constructor
                   information.
                 </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Backups Tab */}
+        {activeTab === 'backups' && (
+          <div className="space-y-6">
+            <div className="bg-white p-6 rounded-lg shadow text-gray-900">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-bold text-gray-900">System Backups</h3>
+                <div className="flex space-x-2">
+                  <button
+                    onClick={handleTriggerBackup}
+                    disabled={submitting}
+                    className="bg-f1-red text-white px-4 py-2 rounded-lg font-bold hover:bg-red-700 disabled:opacity-50"
+                  >
+                    🚀 Backup now
+                  </button>
+                  <button
+                    onClick={loadBackups}
+                    disabled={loading}
+                    className="bg-gray-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-gray-700 disabled:opacity-50"
+                  >
+                    Refresh List
+                  </button>
+                </div>
+              </div>
+              <p className="text-gray-600 mb-4">
+                View and download weekly automated backups of all tipping data.
+              </p>
+
+              <div className="overflow-x-auto border rounded-lg">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Backup Date</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {backups.map((backup) => (
+                      <tr key={backup.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">#{backup.id}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          {new Date(backup.backup_date).toLocaleString()}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                          <button
+                            onClick={() => handleDownloadBackup(backup.id)}
+                            className="bg-blue-100 text-blue-700 px-3 py-1 rounded hover:bg-blue-200 font-bold"
+                          >
+                            ⬇️ Download JSON
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {backups.length === 0 && (
+                      <tr>
+                        <td colSpan={3} className="px-6 py-8 text-center text-sm text-gray-500">
+                          No backups found.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>

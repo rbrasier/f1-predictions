@@ -4,6 +4,7 @@ import db from '../db/database';
 import { AuthRequest } from '../middleware/auth';
 import { RaceResult, SeasonResult } from '../types';
 import { f1ApiService } from '../services/f1ApiService';
+import { backupService } from '../services/backupService';
 
 // Race Results
 export const raceResultValidation = [
@@ -1131,5 +1132,53 @@ export const populateDriverImages = async (req: AuthRequest, res: Response) => {
       error: 'Failed to populate driver images',
       details: error.message
     });
+  }
+};
+
+// Backups
+export const getBackups = async (req: AuthRequest, res: Response) => {
+  try {
+    const backups = await backupService.getBackups();
+    res.json(backups);
+  } catch (error) {
+    console.error('Get backups error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const downloadBackup = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const backupId = parseInt(id);
+
+    if (isNaN(backupId)) {
+      return res.status(400).json({ error: 'Invalid backup ID' });
+    }
+
+    const backup = await backupService.getBackupById(backupId);
+
+    if (!backup) {
+      return res.status(404).json({ error: 'Backup not found' });
+    }
+
+    // data_json is a string (TEXT type in DB)
+    res.setHeader('Content-Type', 'application/json');
+    // Basic filename with date (assuming backup_date is Date object from pg driver)
+    const dateStr = backup.backup_date instanceof Date ? backup.backup_date.toISOString().split('T')[0] : String(backup.backup_date).substring(0, 10);
+    res.setHeader('Content-Disposition', `attachment; filename=f1-tips-backup-${dateStr}.json`);
+    res.send(backup.data_json);
+  } catch (error) {
+    console.error('Download backup error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const triggerBackup = async (req: AuthRequest, res: Response) => {
+  try {
+    await backupService.createBackup();
+    res.json({ success: true, message: 'Backup created successfully' });
+  } catch (error) {
+    console.error('Trigger backup error:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 };
