@@ -11,6 +11,7 @@ import { LeaderboardPage } from './pages/LeaderboardPage';
 import { ValidationsPage } from './pages/ValidationsPage';
 import { AdminPage } from './pages/AdminPage';
 import { LoadingSpinner } from './components/common/LoadingSpinner';
+import { CompareTipsPage } from './pages/CompareTipsPage';
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
@@ -96,6 +97,14 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <ValidationsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/compare-tips"
+        element={
+          <ProtectedRoute>
+            <CompareTipsPage />
           </ProtectedRoute>
         }
       />

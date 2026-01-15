@@ -34,7 +34,7 @@ export const Navbar = () => {
           <Link to="/dashboard" className="flex items-center gap-3 hover:opacity-80 transition">
             <div className="w-8 h-8 bg-paddock-red flex items-center justify-center">
               <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M3 3h14l-1 14H4L3 3z"/>
+                <path d="M3 3h14l-1 14H4L3 3z" />
               </svg>
             </div>
             <span className="text-xl font-bold tracking-wider">
@@ -48,8 +48,8 @@ export const Navbar = () => {
               <Link to="/dashboard" className="text-white hover:text-paddock-red transition uppercase text-sm font-medium tracking-wide">
                 Dashboard
               </Link>
-              <Link to="/season-predictions" className="text-white hover:text-paddock-red transition uppercase text-sm font-medium tracking-wide">
-                Season Predictions
+              <Link to="/compare-tips" className="text-white hover:text-paddock-red transition uppercase text-sm font-medium tracking-wide">
+                Compare Tips
               </Link>
               <Link to="/leaderboard" className="text-white hover:text-paddock-red transition uppercase text-sm font-medium tracking-wide">
                 Leaderboard
@@ -72,8 +72,8 @@ export const Navbar = () => {
                 className="bg-white text-paddock-dark px-6 py-2 rounded font-bold hover:bg-gray-200 transition uppercase text-sm tracking-wide flex items-center gap-2"
               >
                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M14.4 6L14 4H5v17h2v-7h5.6l.4 2h7V6z"/>
-                  <path d="M0 0h24v24H0z" fill="none"/>
+                  <path d="M14.4 6L14 4H5v17h2v-7h5.6l.4 2h7V6z" />
+                  <path d="M0 0h24v24H0z" fill="none" />
                 </svg>
                 {user.display_name}
               </button>

@@ -232,12 +232,20 @@ export const DashboardPage = () => {
                     </h2>
                     <p className="text-gray-400">Championship Predictions Close</p>
                   </div>
-                  <Link
-                    to="/season-predictions"
-                    className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded font-bold uppercase text-sm tracking-wide transition"
-                  >
-                    {mySeasonPrediction ? 'Edit Predictions' : 'Submit Predictions'}
-                  </Link>
+                  <div className="flex gap-2">
+                    <Link
+                      to="/compare-tips?mode=season"
+                      className="bg-purple-800 hover:bg-purple-900 text-white px-6 py-3 rounded font-bold uppercase text-sm tracking-wide transition border border-purple-600"
+                    >
+                      Compare
+                    </Link>
+                    <Link
+                      to="/season-predictions"
+                      className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded font-bold uppercase text-sm tracking-wide transition"
+                    >
+                      {mySeasonPrediction ? 'Edit Predictions' : 'Submit Predictions'}
+                    </Link>
+                  </div>
                 </div>
 
                 <CountdownTimer
@@ -268,6 +276,12 @@ export const DashboardPage = () => {
                       <p className="text-gray-400 text-sm">{getRaceLocation(nextRace)}</p>
                     </div>
                     <div className="flex items-center gap-2">
+                      <Link
+                        to="/compare-tips?mode=race"
+                        className="bg-paddock-darkred hover:bg-red-900 text-white px-4 py-2 rounded font-bold uppercase text-xs tracking-wide transition border border-paddock-red"
+                      >
+                        Compare
+                      </Link>
                       <Link
                         to={`/race/${getRaceId(nextRace)}`}
                         className="bg-paddock-red hover:bg-red-600 text-white px-4 py-2 rounded font-bold uppercase text-xs tracking-wide transition"
