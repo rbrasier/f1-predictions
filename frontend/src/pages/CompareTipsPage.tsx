@@ -33,11 +33,11 @@ export const CompareTipsPage = () => {
     const [lastRace, setLastRace] = useState<any>(null);
 
     // Helper to get driver name
-    const getDriverName = (id: string | null) => {
+    /*const getDriverName = (id: string | null) => {
         if (!id) return '-';
         const driver = drivers.find(d => d.driverId === id);
         return driver ? `${driver.givenName} ${driver.familyName}` : id;
-    };
+    };*/
 
     const getDriverCode = (id: string | null) => {
         if (!id) return '-';
