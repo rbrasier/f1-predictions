@@ -191,6 +191,34 @@ export interface Season {
   is_active: boolean;
 }
 
+// League types
+export interface League {
+  id: number;
+  name: string;
+  invite_code: string;
+  is_world_league: boolean;
+  created_by_user_id: number | null;
+  created_at: string;
+  is_default?: boolean;
+  joined_at?: string;
+  member_count?: number;
+}
+
+export interface CreateLeagueRequest {
+  name: string;
+}
+
+export interface JoinLeagueRequest {
+  invite_code: string;
+}
+
+export interface LeagueUser {
+  id: number;
+  username: string;
+  display_name: string;
+  joined_at: string;
+}
+
 // Convenience aliases for API types
 export type Driver = F1Driver;
 export type Team = F1Constructor;

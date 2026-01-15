@@ -173,18 +173,23 @@ export const getAllSeasonPredictions = async (req: AuthRequest, res: Response) =
   try {
     const { seasonId } = req.params;
     const seasonYear = parseInt(seasonId);
+    const leagueId = req.query.leagueId ? parseInt(req.query.leagueId as string) : undefined;
 
     if (isNaN(seasonYear)) {
       return res.status(400).json({ error: 'Invalid year' });
     }
 
-    const predictions = await db.prepare(`
+    let query = `
       SELECT sp.*, u.display_name
       FROM season_predictions sp
       JOIN users u ON sp.user_id = u.id
-      WHERE sp.season_year = $1
+      ${leagueId ? 'INNER JOIN user_leagues ul ON u.id = ul.user_id' : ''}
+      WHERE sp.season_year = $1 ${leagueId ? 'AND ul.league_id = $2' : ''}
       ORDER BY u.display_name
-    `).all(seasonYear) as (SeasonPrediction & { display_name: string })[];
+    `;
+
+    const params = leagueId ? [seasonYear, leagueId] : [seasonYear];
+    const predictions = await db.prepare(query).all(...params) as (SeasonPrediction & { display_name: string })[];
 
     res.json(predictions);
   } catch (error) {
