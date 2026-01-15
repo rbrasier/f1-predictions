@@ -37,6 +37,11 @@ export const RaceDetailsPage = () => {
   const [sprintWinner, setSprintWinner] = useState<string>('');
   const [sprintMidfieldHero, setSprintMidfieldHero] = useState<string>('');
 
+  const getDriverName = (driverId: string) => {
+    const driver = drivers.find(d => d.driverId === driverId);
+    return driver ? `${driver.givenName} ${driver.familyName}` : 'Unknown Driver';
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       if (!raceId) return;
@@ -150,8 +155,32 @@ export const RaceDetailsPage = () => {
 
       await submitRacePrediction(raceId, prediction);
 
-      showToast('Race predictions saved successfully!', 'success');
-      setTimeout(() => navigate('/dashboard'), 1000);
+      const shareUrl = `https://wa.me/?text=${encodeURIComponent(
+        `My F1 Predictions for ${race?.raceName}:\n\n` +
+        `Pole: ${getDriverName(polePosition)}\n\n` +
+        `P1: ${getDriverName(podiumFirst)}\n` +
+        `P2: ${getDriverName(podiumSecond)}\n` +
+        `P3: ${getDriverName(podiumThird)}\n\n` +
+        `Midfield Hero: ${getDriverName(midfieldHero)}\n` +
+        `Crazy Prediction: ${crazyPrediction}`
+      )}`;
+
+      showToast(
+        <div>
+          Race predictions saved successfully!{' '}
+          <a
+            href={shareUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline font-bold hover:text-green-100"
+          >
+            Share on WhatsApp
+          </a>
+        </div>,
+        'success',
+        6000
+      );
+      setTimeout(() => navigate('/dashboard'), 2000);
     } catch (err: any) {
       setError(err.response?.data?.error || err.message || 'Failed to submit prediction');
     } finally {

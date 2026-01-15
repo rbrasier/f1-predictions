@@ -2,14 +2,14 @@ import React, { createContext, useContext, useState, useCallback } from 'react';
 
 export interface Toast {
   id: string;
-  message: string;
+  message: React.ReactNode;
   type: 'success' | 'error' | 'info' | 'warning';
   duration?: number;
 }
 
 interface ToastContextType {
   toasts: Toast[];
-  showToast: (message: string, type: Toast['type'], duration?: number) => void;
+  showToast: (message: React.ReactNode, type: Toast['type'], duration?: number) => void;
   removeToast: (id: string) => void;
 }
 
@@ -18,7 +18,7 @@ const ToastContext = createContext<ToastContextType | undefined>(undefined);
 export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [toasts, setToasts] = useState<Toast[]>([]);
 
-  const showToast = useCallback((message: string, type: Toast['type'], duration: number = 3000) => {
+  const showToast = useCallback((message: React.ReactNode, type: Toast['type'], duration: number = 3000) => {
     const id = Math.random().toString(36).substring(2, 9);
     const newToast: Toast = { id, message, type, duration };
 

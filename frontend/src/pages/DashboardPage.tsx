@@ -267,12 +267,32 @@ export const DashboardPage = () => {
                       </h3>
                       <p className="text-gray-400 text-sm">{getRaceLocation(nextRace)}</p>
                     </div>
-                    <Link
-                      to={`/race/${getRaceId(nextRace)}`}
-                      className="bg-paddock-red hover:bg-red-600 text-white px-4 py-2 rounded font-bold uppercase text-xs tracking-wide transition"
-                    >
-                      {myRacePrediction ? 'Edit Tips' : 'Submit Tips'}
-                    </Link>
+                    <div className="flex items-center gap-2">
+                      <Link
+                        to={`/race/${getRaceId(nextRace)}`}
+                        className="bg-paddock-red hover:bg-red-600 text-white px-4 py-2 rounded font-bold uppercase text-xs tracking-wide transition"
+                      >
+                        {myRacePrediction ? 'Edit Tips' : 'Submit Tips'}
+                      </Link>
+                      {myRacePrediction && (
+                        <a
+                          href={`https://wa.me/?text=${encodeURIComponent(
+                            `My F1 Predictions for ${nextRace.raceName}:\n\n` +
+                            `Pole: ${getDriverName(myRacePrediction.pole_position_driver_api_id)}\n\n` +
+                            `P1: ${getDriverName(myRacePrediction.podium_first_driver_api_id)}\n` +
+                            `P2: ${getDriverName(myRacePrediction.podium_second_driver_api_id)}\n` +
+                            `P3: ${getDriverName(myRacePrediction.podium_third_driver_api_id)}\n\n` +
+                            `Midfield Hero: ${getDriverName(myRacePrediction.midfield_hero_driver_api_id)}\n` +
+                            `Crazy Prediction: ${myRacePrediction.crazy_prediction}`
+                          )}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded font-bold uppercase text-xs tracking-wide transition"
+                        >
+                          Share
+                        </a>
+                      )}
+                    </div>
                   </div>
 
                   {myRacePrediction ? (
@@ -564,9 +584,8 @@ export const DashboardPage = () => {
                   {leaderboard.slice(0, 5).map((entry) => (
                     <div
                       key={entry.user_id}
-                      className={`flex items-center py-2 px-2 rounded ${
-                        entry.user_id === currentUser?.id ? 'bg-paddock-red/20' : ''
-                      }`}
+                      className={`flex items-center py-2 px-2 rounded ${entry.user_id === currentUser?.id ? 'bg-paddock-red/20' : ''
+                        }`}
                     >
                       <div className="w-12 text-white font-bold">
                         {entry.rank <= 3 ? (
