@@ -14,7 +14,11 @@ import type {
   RacePredictionRequest,
   LeaderboardEntry,
   PendingValidation,
-  CrazyPredictionValidation
+  CrazyPredictionValidation,
+  League,
+  CreateLeagueRequest,
+  JoinLeagueRequest,
+  LeagueUser
 } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4001/api';
@@ -36,13 +40,13 @@ api.interceptors.request.use((config) => {
 });
 
 // Auth
-export const register = async (username: string, password: string, display_name: string): Promise<AuthResponse> => {
-  const { data } = await api.post('/auth/register', { username, password, display_name });
+export const register = async (username: string, password: string, display_name: string, invite_code?: string): Promise<AuthResponse> => {
+  const { data } = await api.post('/auth/register', { username, password, display_name, invite_code });
   return data;
 };
 
-export const login = async (username: string, password: string): Promise<AuthResponse> => {
-  const { data } = await api.post('/auth/login', { username, password });
+export const login = async (username: string, password: string, invite_code?: string): Promise<AuthResponse> => {
+  const { data } = await api.post('/auth/login', { username, password, invite_code });
   return data;
 };
 
@@ -127,8 +131,9 @@ export const getMySeasonPrediction = async (seasonId: number): Promise<SeasonPre
   return data;
 };
 
-export const getAllSeasonPredictions = async (seasonId: number): Promise<SeasonPrediction[]> => {
-  const { data } = await api.get(`/seasons/${seasonId}/predictions`);
+export const getAllSeasonPredictions = async (seasonId: number, leagueId?: number): Promise<SeasonPrediction[]> => {
+  const params = leagueId ? { leagueId } : {};
+  const { data } = await api.get(`/seasons/${seasonId}/predictions`, { params });
   return data;
 };
 
@@ -143,14 +148,17 @@ export const getMyRacePrediction = async (raceId: string): Promise<RacePredictio
   return data;
 };
 
-export const getAllRacePredictions = async (raceId: string, limit?: number): Promise<RacePrediction[]> => {
-  const params = limit ? { limit: limit.toString() } : {};
+export const getAllRacePredictions = async (raceId: string, limit?: number, leagueId?: number): Promise<RacePrediction[]> => {
+  const params: any = {};
+  if (limit) params.limit = limit.toString();
+  if (leagueId) params.leagueId = leagueId;
   const { data } = await api.get(`/races/${raceId}/predictions`, { params });
   return data;
 };
 
-export const getLastRoundResults = async (seasonYear: number): Promise<any> => {
-  const { data } = await api.get(`/races/last-round/${seasonYear}`);
+export const getLastRoundResults = async (seasonYear: number, leagueId?: number): Promise<any> => {
+  const params = leagueId ? { leagueId } : {};
+  const { data } = await api.get(`/races/last-round/${seasonYear}`, { params });
   return data;
 };
 
@@ -168,8 +176,9 @@ export const validateCrazyPrediction = async (
   return data;
 };
 
-export const getPendingValidations = async (): Promise<PendingValidation[]> => {
-  const { data } = await api.get('/crazy-predictions/pending');
+export const getPendingValidations = async (leagueId?: number): Promise<PendingValidation[]> => {
+  const params = leagueId ? { leagueId } : {};
+  const { data } = await api.get('/crazy-predictions/pending', { params });
   return data;
 };
 
@@ -182,22 +191,26 @@ export const getValidationsForPrediction = async (
 };
 
 // Leaderboard
-export const getLeaderboard = async (seasonId?: number, limit?: number): Promise<LeaderboardEntry[]> => {
+export const getLeaderboard = async (seasonId?: number, limit?: number, leagueId?: number): Promise<LeaderboardEntry[]> => {
   const params: any = {};
-  if (seasonId) params.seasonId = seasonId;
+  if (seasonId) params.seasonYear = seasonId;
   if (limit) params.limit = limit;
+  if (leagueId) params.leagueId = leagueId;
   const { data } = await api.get('/leaderboard', { params });
   return data;
 };
 
 export const getUserBreakdown = async (userId: number, seasonId?: number): Promise<any> => {
-  const { data } = await api.get(`/leaderboard/${userId}`, { params: { seasonId } });
+  const { data } = await api.get(`/leaderboard/${userId}`, { params: { seasonYear: seasonId } });
   return data;
 };
 
-export const exportLeaderboard = async (seasonId?: number): Promise<Blob> => {
+export const exportLeaderboard = async (seasonId?: number, leagueId?: number): Promise<Blob> => {
+  const params: any = {};
+  if (seasonId) params.seasonYear = seasonId;
+  if (leagueId) params.leagueId = leagueId;
   const { data } = await api.get('/leaderboard/export', {
-    params: { seasonId },
+    params,
     responseType: 'blob'
   });
   return data;
@@ -309,6 +322,47 @@ export const downloadBackup = async (id: number): Promise<void> => {
 
 export const triggerBackup = async (): Promise<any> => {
   const { data } = await api.post('/admin/backups/trigger');
+  return data;
+};
+
+// Leagues
+export const createLeague = async (name: string): Promise<League> => {
+  const { data } = await api.post('/leagues', { name });
+  return data;
+};
+
+export const getUserLeagues = async (): Promise<League[]> => {
+  const { data} = await api.get('/leagues');
+  return data;
+};
+
+export const getDefaultLeague = async (): Promise<League> => {
+  const { data } = await api.get('/leagues/default');
+  return data;
+};
+
+export const joinLeague = async (invite_code: string): Promise<any> => {
+  const { data } = await api.post('/leagues/join', { invite_code });
+  return data;
+};
+
+export const joinWorldLeague = async (): Promise<any> => {
+  const { data } = await api.post('/leagues/world/join');
+  return data;
+};
+
+export const setDefaultLeague = async (leagueId: number): Promise<any> => {
+  const { data } = await api.put(`/leagues/${leagueId}/set-default`);
+  return data;
+};
+
+export const getLeagueUsers = async (leagueId: number): Promise<LeagueUser[]> => {
+  const { data } = await api.get(`/leagues/${leagueId}/users`);
+  return data;
+};
+
+export const leaveLeague = async (leagueId: number): Promise<any> => {
+  const { data } = await api.delete(`/leagues/${leagueId}/leave`);
   return data;
 };
 

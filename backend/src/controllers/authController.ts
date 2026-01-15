@@ -36,7 +36,7 @@ export const register = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { username, password, display_name } = req.body as RegisterRequest;
+    const { username, password, display_name, invite_code } = req.body as RegisterRequest & { invite_code?: string };
 
     // Check if username already exists
     const existingUser = await db.prepare('SELECT id FROM users WHERE username = $1').get(username);
@@ -55,6 +55,41 @@ export const register = async (req: AuthRequest, res: Response) => {
     `).run(username, password_hash, display_name);
 
     const userId = Number(result.rows[0].id);
+
+    // If invite code is provided, join that league
+    if (invite_code) {
+      try {
+        const league = await db.prepare(`
+          SELECT id FROM leagues WHERE invite_code = $1
+        `).get(invite_code.toUpperCase());
+
+        if (league) {
+          await db.prepare(`
+            INSERT INTO user_leagues (user_id, league_id, is_default)
+            VALUES ($1, $2, true)
+          `).run(userId, league.id);
+        }
+      } catch (error) {
+        console.error('Error joining league during registration:', error);
+        // Don't fail registration if league join fails
+      }
+    } else {
+      // If no invite code, add user to World League by default
+      try {
+        const worldLeague = await db.prepare(`
+          SELECT id FROM leagues WHERE is_world_league = true LIMIT 1
+        `).get();
+
+        if (worldLeague) {
+          await db.prepare(`
+            INSERT INTO user_leagues (user_id, league_id, is_default)
+            VALUES ($1, $2, true)
+          `).run(userId, worldLeague.id);
+        }
+      } catch (error) {
+        console.error('Error joining World League during registration:', error);
+      }
+    }
 
     // Generate JWT token
     const token = jwt.sign(
@@ -87,7 +122,7 @@ export const login = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { username, password } = req.body as LoginRequest;
+    const { username, password, invite_code } = req.body as LoginRequest & { invite_code?: string };
 
     // Find user
     const user = await db.prepare(`
@@ -104,6 +139,39 @@ export const login = async (req: AuthRequest, res: Response) => {
     const isValidPassword = await bcrypt.compare(password, user.password_hash);
     if (!isValidPassword) {
       return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    // If invite code is provided, join that league
+    if (invite_code) {
+      try {
+        const league = await db.prepare(`
+          SELECT id FROM leagues WHERE invite_code = $1
+        `).get(invite_code.toUpperCase());
+
+        if (league) {
+          // Check if user is already in the league
+          const existingMembership = await db.prepare(`
+            SELECT id FROM user_leagues WHERE user_id = $1 AND league_id = $2
+          `).get(user.id, league.id);
+
+          if (!existingMembership) {
+            // Check if this is the user's first league
+            const userLeaguesCount = await db.query(
+              'SELECT COUNT(*) as count FROM user_leagues WHERE user_id = $1',
+              [user.id]
+            );
+            const isFirstLeague = userLeaguesCount.rows[0].count === '0';
+
+            await db.prepare(`
+              INSERT INTO user_leagues (user_id, league_id, is_default)
+              VALUES ($1, $2, $3)
+            `).run(user.id, league.id, isFirstLeague);
+          }
+        }
+      } catch (error) {
+        console.error('Error joining league during login:', error);
+        // Don't fail login if league join fails
+      }
     }
 
     // Generate JWT token

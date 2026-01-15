@@ -15,12 +15,16 @@ export const backupService = {
             const users = await db.prepare('SELECT * FROM users').all();
             const seasonPredictions = await db.prepare('SELECT * FROM season_predictions').all();
             const racePredictions = await db.prepare('SELECT * FROM race_predictions').all();
+            const leagues = await db.prepare('SELECT * FROM leagues').all();
+            const userLeagues = await db.prepare('SELECT * FROM user_leagues').all();
 
             const backupData = {
                 timestamp: new Date().toISOString(),
                 users,
                 season_predictions: seasonPredictions,
-                race_predictions: racePredictions
+                race_predictions: racePredictions,
+                leagues,
+                user_leagues: userLeagues
             };
 
             const jsonString = JSON.stringify(backupData);

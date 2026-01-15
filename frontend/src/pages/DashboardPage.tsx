@@ -6,9 +6,11 @@ import { CountdownTimer } from '../components/dashboard/CountdownTimer';
 import { getActiveSeason, getNextRace, getUpcomingRaces, getAllUsers, getLeaderboard, getPendingValidations, getDrivers, getMyRacePrediction, getMySeasonPrediction, getAllRacePredictions, getValidationsForPrediction, getLastRoundResults, validateCrazyPrediction } from '../services/api';
 import { Season, Race, User, RacePrediction, LeaderboardEntry, Driver, SeasonPrediction } from '../types';
 import { useAuth } from '../hooks/useAuth';
+import { useLeague } from '../contexts/LeagueContext';
 
 export const DashboardPage = () => {
   const { user: currentUser } = useAuth();
+  const { defaultLeague } = useLeague();
   const [season, setSeason] = useState<Season | null>(null);
   const [nextRace, setNextRace] = useState<Race | null>(null);
   const [upcomingRaces, setUpcomingRaces] = useState<Race[]>([]);
@@ -55,7 +57,7 @@ export const DashboardPage = () => {
       // Refresh last round data to show updated validations (if available)
       if (season) {
         try {
-          const lastRound = await getLastRoundResults(season.year);
+          const lastRound = await getLastRoundResults(season.year, defaultLeague?.id);
           setLastRoundData(lastRound);
         } catch (err) {
           // No last round data available yet (no completed races)
@@ -66,7 +68,7 @@ export const DashboardPage = () => {
       // Refresh current round crazy predictions to show updated validations
       if (nextRace) {
         const raceId = `${nextRace.season}-${nextRace.round}`;
-        const allPredictions = await getAllRacePredictions(raceId, 10);
+        const allPredictions = await getAllRacePredictions(raceId, 10, defaultLeague?.id);
         const predictionsWithValidations = await Promise.all(
           allPredictions
             .filter(p => p.crazy_prediction)
@@ -91,6 +93,8 @@ export const DashboardPage = () => {
   };
 
   useEffect(() => {
+    if (!defaultLeague) return;
+
     const fetchData = async () => {
       try {
         const [seasonData, raceData, upcomingRacesData, allUsers, leaderboardData, driversData] = await Promise.all([
@@ -98,7 +102,7 @@ export const DashboardPage = () => {
           getNextRace().catch(() => null),
           getUpcomingRaces(5),
           getAllUsers(),
-          getLeaderboard().catch(() => []),
+          getLeaderboard(undefined, 5, defaultLeague?.id).catch(() => []),
           getDrivers().catch(() => [])
         ]);
 
@@ -115,7 +119,7 @@ export const DashboardPage = () => {
             const raceId = `${raceData.season}-${raceData.round}`;
             const [myPrediction, allPredictions] = await Promise.all([
               getMyRacePrediction(raceId).catch(() => null),
-              getAllRacePredictions(raceId, 10).catch(() => [])
+              getAllRacePredictions(raceId, 10, defaultLeague?.id).catch(() => [])
             ]);
             setMyRacePrediction(myPrediction);
 
@@ -152,7 +156,7 @@ export const DashboardPage = () => {
 
         // Fetch pending crazy prediction validations
         try {
-          await getPendingValidations();
+          await getPendingValidations(defaultLeague?.id);
         } catch (err) {
           // Ignore errors for pending validations
         }
@@ -160,7 +164,7 @@ export const DashboardPage = () => {
         // Fetch last round results if season exists
         if (seasonData) {
           try {
-            const lastRound = await getLastRoundResults(seasonData.year);
+            const lastRound = await getLastRoundResults(seasonData.year, defaultLeague?.id);
             setLastRoundData(lastRound);
           } catch (err) {
             // No last round data available yet (no completed races or results not entered)
@@ -175,7 +179,7 @@ export const DashboardPage = () => {
     };
 
     fetchData();
-  }, [currentUser]);
+  }, [currentUser, defaultLeague]);
 
   if (loading) {
     return (
