@@ -6,8 +6,9 @@ interface AuthContextType {
   user: User | null;
   token: string | null;
   loading: boolean;
-  login: (username: string, password: string) => Promise<void>;
-  register: (username: string, password: string, displayName: string) => Promise<void>;
+  isAuthenticated: boolean;
+  login: (username: string, password: string, inviteCode?: string) => Promise<void>;
+  register: (username: string, password: string, displayName: string, inviteCode?: string) => Promise<void>;
   logout: () => void;
 }
 
@@ -38,15 +39,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     initAuth();
   }, []);
 
-  const login = async (username: string, password: string) => {
-    const response = await api.login(username, password);
+  const login = async (username: string, password: string, inviteCode?: string) => {
+    const response = await api.login(username, password, inviteCode);
     localStorage.setItem('token', response.token);
     setToken(response.token);
     setUser(response.user);
   };
 
-  const register = async (username: string, password: string, displayName: string) => {
-    const response = await api.register(username, password, displayName);
+  const register = async (username: string, password: string, displayName: string, inviteCode?: string) => {
+    const response = await api.register(username, password, displayName, inviteCode);
     localStorage.setItem('token', response.token);
     setToken(response.token);
     setUser(response.user);
@@ -58,8 +59,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUser(null);
   };
 
+  const isAuthenticated = !!user && !!token;
+
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, token, loading, isAuthenticated, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   );
