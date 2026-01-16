@@ -79,16 +79,8 @@ const LeagueSelectionModal: React.FC<LeagueSelectionModalProps> = ({ isOpen, onC
             </p>
             <div className="space-y-3">
               <button
-                onClick={handleJoinWorld}
-                className="w-full px-4 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-left"
-                disabled={loading}
-              >
-                <div className="font-semibold">Join World League</div>
-                <div className="text-sm text-blue-100">Compete with everyone</div>
-              </button>
-              <button
                 onClick={() => setMode('join')}
-                className="w-full px-4 py-3 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-left"
+                className="w-full px-4 py-3 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-center"
                 disabled={loading}
               >
                 <div className="font-semibold">Join via Invite Code</div>
@@ -96,11 +88,20 @@ const LeagueSelectionModal: React.FC<LeagueSelectionModalProps> = ({ isOpen, onC
               </button>
               <button
                 onClick={() => setMode('create')}
-                className="w-full px-4 py-3 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors text-left"
+                className="w-full px-4 py-3 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors text-center"
                 disabled={loading}
               >
                 <div className="font-semibold">Create New League</div>
                 <div className="text-sm text-red-100">Start your own league</div>
+              </button>
+              <hr className="border-gray-600 my-2" />
+              <button
+                onClick={handleJoinWorld}
+                className="w-full px-4 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-center"
+                disabled={loading}
+              >
+                <div className="font-semibold">Join World League</div>
+                <div className="text-sm text-blue-100">Compete with everyone</div>
               </button>
             </div>
           </>
