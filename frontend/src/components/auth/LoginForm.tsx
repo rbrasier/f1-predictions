@@ -35,12 +35,30 @@ export const LoginForm = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-f1-dark to-f1-gray">
-      <div className="bg-white p-8 rounded-lg shadow-xl w-full max-w-md">
-        <h2 className="text-3xl font-bold text-center mb-2 text-f1-red flex items-center justify-center gap-2">
-          🏁 Paddock Pulse <span className="text-gray-600 text-xl">(F1 Tipping)</span>
-        </h2>
-        <p className="text-center text-gray-600 mb-6">Sign in to your account</p>
+    <div className="min-h-screen bg-gradient-to-br from-f1-dark to-f1-gray flex items-center justify-center">
+      {/* Container for both hero and form */}
+      <div className="w-full max-w-md px-4">
+        {/* Hero Section Box */}
+        <div className="p-8 mb-4">
+          <h1 className="text-2xl font-bold mb-4 italic tracking-tight leading-tight">
+            <span className="text-white">LIGHTS OUT</span>
+
+            <span className="text-white"> &</span>{' '}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-paddock-red to-paddock-coral">
+              AWAY WE GO
+            </span>
+          </h1>
+          <p className="text-gray-400 text-base">
+            The ultimate tipping battleground for you and your mates. Predict the podium, best of the rest, and crazy outcomes to claim the Championship Trophy.
+          </p>
+        </div>
+
+        {/* Form Box */}
+        <div className="bg-white p-8 rounded-lg shadow-xl">
+          <h2 className="text-3xl font-bold text-center mb-2 text-f1-red flex items-center justify-center gap-2">
+            🏁 Paddock Pulse
+          </h2>
+          <p className="text-center text-gray-600 mb-6">Sign in to your account</p>
 
         {inviteCode && (
           <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
@@ -92,12 +110,13 @@ export const LoginForm = () => {
           </button>
         </form>
 
-        <p className="mt-4 text-center text-sm text-gray-600">
-          Don't have an account?{' '}
-          <a href="/register" className="text-f1-red hover:underline">
-            Register here
-          </a>
-        </p>
+          <p className="mt-4 text-center text-sm text-gray-600">
+            Don't have an account?{' '}
+            <a href="/register" className="text-f1-red hover:underline">
+              Register here
+            </a>
+          </p>
+        </div>
       </div>
     </div>
   );
