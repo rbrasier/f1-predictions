@@ -15,7 +15,6 @@ const InviteModal: React.FC<InviteModalProps> = ({ isOpen, onClose }) => {
   if (!isOpen || !defaultLeague) return null;
 
   const inviteUrl = `${window.location.origin}/register?invite=${defaultLeague.invite_code}`;
-  const inviteMessage = `Join my F1 predictions league "${defaultLeague.name}"! Sign up here: ${inviteUrl}`;
 
   const handleCopyLink = async () => {
     try {
@@ -25,17 +24,6 @@ const InviteModal: React.FC<InviteModalProps> = ({ isOpen, onClose }) => {
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
       showToast('Failed to copy link', 'error');
-    }
-  };
-
-  const handleCopyMessage = async () => {
-    try {
-      await navigator.clipboard.writeText(inviteMessage);
-      setCopied(true);
-      showToast('Invite message copied to clipboard!', 'success');
-      setTimeout(() => setCopied(false), 2000);
-    } catch (error) {
-      showToast('Failed to copy message', 'error');
     }
   };
 
