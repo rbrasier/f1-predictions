@@ -73,23 +73,8 @@ export const register = async (req: AuthRequest, res: Response) => {
         console.error('Error joining league during registration:', error);
         // Don't fail registration if league join fails
       }
-    } else {
-      // If no invite code, add user to World League by default
-      try {
-        const worldLeague = await db.prepare(`
-          SELECT id FROM leagues WHERE is_world_league = true LIMIT 1
-        `).get();
-
-        if (worldLeague) {
-          await db.prepare(`
-            INSERT INTO user_leagues (user_id, league_id, is_default)
-            VALUES ($1, $2, true)
-          `).run(userId, worldLeague.id);
-        }
-      } catch (error) {
-        console.error('Error joining World League during registration:', error);
-      }
     }
+    // Users without an invite code will be shown the league selection modal
 
     // Generate JWT token
     const token = jwt.sign(
