@@ -14,6 +14,7 @@ import { AdminPage } from './pages/AdminPage';
 import SettingsPage from './pages/SettingsPage';
 import { LoadingSpinner } from './components/common/LoadingSpinner';
 import { CompareTipsPage } from './pages/CompareTipsPage';
+import { FirstTimeLeagueSetup } from './components/leagues/FirstTimeLeagueSetup';
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
@@ -139,7 +140,9 @@ function App() {
         <LeagueProvider>
           <BrowserRouter>
             <ToastContainer />
-            <AppRoutes />
+            <FirstTimeLeagueSetup>
+              <AppRoutes />
+            </FirstTimeLeagueSetup>
           </BrowserRouter>
         </LeagueProvider>
       </ToastProvider>

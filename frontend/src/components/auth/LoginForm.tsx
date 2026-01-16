@@ -1,14 +1,23 @@
-import { useState, FormEvent } from 'react';
+import { useState, FormEvent, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 export const LoginForm = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [inviteCode, setInviteCode] = useState<string | undefined>(undefined);
   const { login } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  useEffect(() => {
+    const invite = searchParams.get('invite');
+    if (invite) {
+      setInviteCode(invite.toUpperCase());
+    }
+  }, [searchParams]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -16,7 +25,7 @@ export const LoginForm = () => {
     setLoading(true);
 
     try {
-      await login(username, password);
+      await login(username, password, inviteCode);
       navigate('/dashboard');
     } catch (err: any) {
       setError(err.response?.data?.error || 'Login failed');
@@ -32,6 +41,12 @@ export const LoginForm = () => {
           🏁 Paddock Pulse <span className="text-gray-600 text-xl">(F1 Tipping)</span>
         </h2>
         <p className="text-center text-gray-600 mb-6">Sign in to your account</p>
+
+        {inviteCode && (
+          <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
+            🎉 You're joining a league! Invite code: <strong>{inviteCode}</strong>
+          </div>
+        )}
 
         {error && (
           <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">

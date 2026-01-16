@@ -3,12 +3,14 @@ import { useAuth } from '../../hooks/useAuth';
 import { useLeague } from '../../contexts/LeagueContext';
 import { useState, useEffect } from 'react';
 import { getPendingValidations } from '../../services/api';
+import InviteModal from '../leagues/InviteModal';
 
 export const Navbar = () => {
   const { user, logout } = useAuth();
   const { defaultLeague } = useLeague();
   const [pendingCount, setPendingCount] = useState(0);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [inviteModalOpen, setInviteModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchPending = async () => {
@@ -48,52 +50,10 @@ export const Navbar = () => {
 
           {user && (
             <>
-              {/* Desktop Menu */}
-              <div className="hidden lg:flex items-center space-x-6">
-                {defaultLeague && (
-                  <div className="text-gray-400 text-sm">
-                    <span className="hidden xl:inline">League: </span>
-                    <span className="text-white font-medium">{defaultLeague.name}</span>
-                  </div>
-                )}
-                <Link to="/dashboard" className="text-white hover:text-paddock-red transition uppercase text-sm font-medium tracking-wide">
-                  Dashboard
-                </Link>
-                <Link to="/compare-tips" className="text-white hover:text-paddock-red transition uppercase text-sm font-medium tracking-wide">
-                  Compare Tips
-                </Link>
-                <Link to="/leaderboard" className="text-white hover:text-paddock-red transition uppercase text-sm font-medium tracking-wide">
-                  Leaderboard
-                </Link>
-                <Link to="/validations" className="hover:text-paddock-red transition uppercase text-sm font-medium tracking-wide relative">
-                  <span className={pendingCount > 0 ? 'text-paddock-red' : 'text-white'}>Validations</span>
-                  {pendingCount > 0 && (
-                    <span className="absolute -top-2 -right-3 bg-paddock-red text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                      {pendingCount}
-                    </span>
-                  )}
-                </Link>
-                <Link to="/settings" className="text-white hover:text-paddock-red transition uppercase text-sm font-medium tracking-wide">
-                  Settings
-                </Link>
-                {user.is_admin && (
-                  <Link to="/admin" className="text-white hover:text-paddock-red transition uppercase text-sm font-medium tracking-wide">
-                    Admin
-                  </Link>
-                )}
-                <button
-                  onClick={logout}
-                  className="bg-white text-paddock-dark px-4 xl:px-6 py-2 rounded font-bold hover:bg-gray-200 transition uppercase text-sm tracking-wide flex items-center gap-2"
-                >
-                  <span className="hidden xl:inline">{user.display_name}</span>
-                  <span className="xl:hidden">Logout</span>
-                </button>
-              </div>
-
-              {/* Mobile Hamburger */}
+              {/* Hamburger Menu Button */}
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="lg:hidden z-50 p-2 text-white hover:text-paddock-red transition"
+                className="z-50 p-2 text-white hover:text-paddock-red transition"
                 aria-label="Toggle menu"
               >
                 {mobileMenuOpen ? (
@@ -107,9 +67,9 @@ export const Navbar = () => {
                 )}
               </button>
 
-              {/* Mobile Menu */}
+              {/* Menu */}
               {mobileMenuOpen && (
-                <div className="lg:hidden fixed inset-0 bg-paddock-dark z-40 pt-20">
+                <div className="fixed inset-0 bg-paddock-dark z-40 pt-20">
                   <div className="flex flex-col space-y-4 px-6 py-4">
                     {defaultLeague && (
                       <div className="text-gray-400 text-sm border-b border-gray-700 pb-4">
@@ -149,6 +109,16 @@ export const Navbar = () => {
                         </span>
                       )}
                     </Link>
+                    <button
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        setInviteModalOpen(true);
+                      }}
+                      className="text-white hover:text-paddock-red transition uppercase text-lg font-medium tracking-wide py-2 text-left"
+                      disabled={!defaultLeague}
+                    >
+                      Invite Friends
+                    </button>
                     <Link
                       to="/settings"
                       className="text-white hover:text-paddock-red transition uppercase text-lg font-medium tracking-wide py-2"
@@ -185,6 +155,7 @@ export const Navbar = () => {
           )}
         </div>
       </div>
+      <InviteModal isOpen={inviteModalOpen} onClose={() => setInviteModalOpen(false)} />
     </nav>
   );
 };
