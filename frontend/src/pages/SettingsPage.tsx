@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import Layout from '../components/common/Layout';
+import { Layout } from '../components/common/Layout';
 import { useLeague } from '../contexts/LeagueContext';
 import { useToast } from '../contexts/ToastContext';
 import CreateLeagueModal from '../components/leagues/CreateLeagueModal';

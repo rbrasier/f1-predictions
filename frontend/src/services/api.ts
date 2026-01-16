@@ -16,8 +16,6 @@ import type {
   PendingValidation,
   CrazyPredictionValidation,
   League,
-  CreateLeagueRequest,
-  JoinLeagueRequest,
   LeagueUser
 } from '../types';
 

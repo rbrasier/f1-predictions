@@ -21,10 +21,10 @@ export const LeagueProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const [leagues, setLeagues] = useState<League[]>([]);
   const [defaultLeague, setDefaultLeagueState] = useState<League | null>(null);
   const [loading, setLoading] = useState(true);
-  const { isAuthenticated } = useAuth();
+  const { token } = useAuth();
 
   const refreshLeagues = async () => {
-    if (!isAuthenticated) {
+    if (!token) {
       setLeagues([]);
       setDefaultLeagueState(null);
       setLoading(false);
@@ -97,14 +97,14 @@ export const LeagueProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   };
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (token) {
       refreshLeagues();
     } else {
       setLeagues([]);
       setDefaultLeagueState(null);
       setLoading(false);
     }
-  }, [isAuthenticated]);
+  }, [token]);
 
   return (
     <LeagueContext.Provider
