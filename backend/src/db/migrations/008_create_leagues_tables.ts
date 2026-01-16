@@ -37,7 +37,16 @@ export async function up(db: any) {
     ON CONFLICT (invite_code) DO NOTHING
   `);
 
-    console.log('  Created World League');
+  console.log('  Created World League');
+
+  // Create a common league for existing users
+    await db.query(`
+    INSERT INTO leagues (name, invite_code, is_world_league)
+    VALUES ('Tinted Papaya', 'papaya', FALSE)
+    ON CONFLICT (invite_code) DO NOTHING
+  `);
+
+    console.log('  Created Papaya League');
 
     // Add all existing users to the World League with it as their default
     await db.query(`
@@ -45,7 +54,7 @@ export async function up(db: any) {
     SELECT u.id, l.id, TRUE
     FROM users u
     CROSS JOIN leagues l
-    WHERE l.is_world_league = TRUE
+    WHERE l.is_world_league = FALSE
     ON CONFLICT (user_id, league_id) DO NOTHING
   `);
 
