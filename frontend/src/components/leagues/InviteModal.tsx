@@ -93,7 +93,7 @@ const InviteModal: React.FC<InviteModalProps> = ({ isOpen, onClose }) => {
           </div>
 
           {/* Full Message */}
-          <div>
+          {/* <div>
             <label className="block text-gray-400 text-sm mb-2">Share Message</label>
             <div className="bg-gray-700 border border-gray-600 rounded-md p-3 mb-2">
               <p className="text-white text-sm">{inviteMessage}</p>
@@ -104,7 +104,7 @@ const InviteModal: React.FC<InviteModalProps> = ({ isOpen, onClose }) => {
             >
               Copy Full Message
             </button>
-          </div>
+          </div> */}
 
           <div className="pt-4 border-t border-gray-700">
             <p className="text-gray-400 text-sm">

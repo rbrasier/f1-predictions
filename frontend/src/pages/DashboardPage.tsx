@@ -388,7 +388,7 @@ export const DashboardPage = () => {
                                     disabled={votingOnPrediction === prediction.id}
                                     className="px-2 py-1 bg-green-600 hover:bg-green-700 text-white text-xs rounded font-bold disabled:opacity-50 transition"
                                   >
-                                    Agree
+                                    Legit
                                   </button>
                                   <button
                                     onClick={() => handleVoteCrazyPrediction(prediction.id, false)}

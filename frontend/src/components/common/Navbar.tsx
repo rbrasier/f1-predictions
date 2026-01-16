@@ -50,12 +50,27 @@ export const Navbar = () => {
 
           {user && (
             <>
-              {/* Hamburger Menu Button */}
-              <button
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="z-50 p-2 text-white hover:text-paddock-red transition"
-                aria-label="Toggle menu"
-              >
+              {/* Icon Buttons Group */}
+              <div className="flex items-center gap-2">
+                {/* Invite Friends Icon Button */}
+                <button
+                  onClick={() => setInviteModalOpen(true)}
+                  className="z-50 p-2 text-white hover:text-paddock-red transition"
+                  aria-label="Invite friends"
+                  disabled={!defaultLeague}
+                  title="Invite friends to this league"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                  </svg>
+                </button>
+
+                {/* Hamburger Menu Button */}
+                <button
+                  onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                  className="z-50 p-2 text-white hover:text-paddock-red transition"
+                  aria-label="Toggle menu"
+                >
                 {mobileMenuOpen ? (
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -65,17 +80,38 @@ export const Navbar = () => {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                   </svg>
                 )}
-              </button>
+                </button>
+              </div>
 
               {/* Menu */}
               {mobileMenuOpen && (
-                <div className="fixed inset-0 bg-paddock-dark z-40 pt-20">
-                  <div className="flex flex-col space-y-4 px-6 py-4">
+                <>
+                  {/* Backdrop overlay with blur */}
+                  <div
+                    className="fixed inset-0 bg-black/50 backdrop-blur-sm z-30"
+                    onClick={() => setMobileMenuOpen(false)}
+                  />
+                  {/* Sliding menu panel */}
+                  <div className="fixed top-0 right-0 h-screen w-[92vw] bg-paddock-dark z-40 pt-20 shadow-2xl animate-in slide-in-from-right duration-300">
+                    <div className="flex flex-col space-y-4 px-6 py-4 overflow-y-auto h-full">
                     {defaultLeague && (
-                      <div className="text-gray-400 text-sm border-b border-gray-700 pb-4">
+                      <div className="text-gray-400 text-sm border-b border-gray-700 pb-4 mb-2">
                         League: <span className="text-white font-medium">{defaultLeague.name}</span>
                       </div>
                     )}
+                    <button
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        setInviteModalOpen(true);
+                      }}
+                      disabled={!defaultLeague}
+                      className="w-full bg-paddock-red hover:bg-red-600 text-white px-6 py-3 rounded font-bold uppercase text-sm tracking-wide transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                      </svg>
+                      Invite Friends
+                    </button>
                     <Link
                       to="/dashboard"
                       className="text-white hover:text-paddock-red transition uppercase text-lg font-medium tracking-wide py-2"
@@ -109,16 +145,6 @@ export const Navbar = () => {
                         </span>
                       )}
                     </Link>
-                    <button
-                      onClick={() => {
-                        setMobileMenuOpen(false);
-                        setInviteModalOpen(true);
-                      }}
-                      className="text-white hover:text-paddock-red transition uppercase text-lg font-medium tracking-wide py-2 text-left"
-                      disabled={!defaultLeague}
-                    >
-                      Invite Friends
-                    </button>
                     <Link
                       to="/settings"
                       className="text-white hover:text-paddock-red transition uppercase text-lg font-medium tracking-wide py-2"
@@ -149,7 +175,8 @@ export const Navbar = () => {
                       </button>
                     </div>
                   </div>
-                </div>
+                  </div>
+                </>
               )}
             </>
           )}
