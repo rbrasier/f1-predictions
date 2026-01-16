@@ -4,6 +4,7 @@ import db from '../db/database';
 import { AuthRequest } from '../middleware/auth';
 import { RacePrediction, RacePredictionRequest } from '../types';
 import { f1ApiService } from '../services/f1ApiService';
+import { logger } from '../utils/logger';
 
 export const racePredictionValidation = [
   body('pole_position_driver_api_id').isString().withMessage('Pole position driver is required'),
@@ -139,7 +140,7 @@ export const submitRacePrediction = async (req: AuthRequest, res: Response) => {
       res.status(201).json(created);
     }
   } catch (error) {
-    console.error('Submit race prediction error:', error);
+    logger.error('Submit race prediction error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -169,7 +170,7 @@ export const getMyRacePrediction = async (req: AuthRequest, res: Response) => {
 
     res.json(prediction);
   } catch (error) {
-    console.error('Get my race prediction error:', error);
+    logger.error('Get my race prediction error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -178,6 +179,7 @@ export const getAllRacePredictions = async (req: AuthRequest, res: Response) => 
   try {
     const { raceId } = req.params;
     const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
+    const leagueId = req.query.leagueId ? parseInt(req.query.leagueId as string) : undefined;
 
     // Parse raceId format: "year-round" (e.g., "2026-1")
     const [yearStr, roundStr] = raceId.split('-');
@@ -194,7 +196,8 @@ export const getAllRacePredictions = async (req: AuthRequest, res: Response) => 
         u.display_name
       FROM race_predictions rp
       JOIN users u ON rp.user_id = u.id
-      WHERE rp.season_year = $1 AND rp.round_number = $2
+      ${leagueId ? 'INNER JOIN user_leagues ul ON u.id = ul.user_id' : ''}
+      WHERE rp.season_year = $1 AND rp.round_number = $2 ${leagueId ? 'AND ul.league_id = $3' : ''}
       ORDER BY u.display_name
     `;
 
@@ -202,11 +205,12 @@ export const getAllRacePredictions = async (req: AuthRequest, res: Response) => 
       query += ` LIMIT ${limit}`;
     }
 
-    const predictions = await db.prepare(query).all(seasonYear, roundNumber) as (RacePrediction & { display_name: string })[];
+    const params = leagueId ? [seasonYear, roundNumber, leagueId] : [seasonYear, roundNumber];
+    const predictions = await db.prepare(query).all(...params) as (RacePrediction & { display_name: string })[];
 
     res.json(predictions);
   } catch (error) {
-    console.error('Get all race predictions error:', error);
+    logger.error('Get all race predictions error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -215,6 +219,7 @@ export const getLastRoundResults = async (req: AuthRequest, res: Response) => {
   try {
     const { seasonYear } = req.params;
     const year = parseInt(seasonYear);
+    const leagueId = req.query.leagueId ? parseInt(req.query.leagueId as string) : undefined;
 
     if (isNaN(year)) {
       return res.status(400).json({ error: 'Invalid season year' });
@@ -250,16 +255,20 @@ export const getLastRoundResults = async (req: AuthRequest, res: Response) => {
     }
 
     // Get all predictions for this round with user info
-    const predictions = await db.prepare(`
+    let predictionsQuery = `
       SELECT
         rp.*,
         u.display_name,
         u.id as user_id
       FROM race_predictions rp
       JOIN users u ON rp.user_id = u.id
-      WHERE rp.season_year = $1 AND rp.round_number = $2
+      ${leagueId ? 'INNER JOIN user_leagues ul ON u.id = ul.user_id' : ''}
+      WHERE rp.season_year = $1 AND rp.round_number = $2 ${leagueId ? 'AND ul.league_id = $3' : ''}
       ORDER BY u.display_name
-    `).all(year, lastCompletedRound) as any[];
+    `;
+
+    const predictionsParams = leagueId ? [year, lastCompletedRound, leagueId] : [year, lastCompletedRound];
+    const predictions = await db.prepare(predictionsQuery).all(...predictionsParams) as any[];
 
     // Calculate scores for each prediction
     const predictionsWithScores = predictions.map(pred => {
@@ -352,7 +361,7 @@ export const getLastRoundResults = async (req: AuthRequest, res: Response) => {
       crazy_validations: crazyValidations
     });
   } catch (error) {
-    console.error('Get last round results error:', error);
+    logger.error('Get last round results error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };

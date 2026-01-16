@@ -1,5 +1,6 @@
 import db from '../db/database';
 import { f1ApiService } from './f1ApiService';
+import { logger } from '../utils/logger';
 
 /**
  * F1 Data Transformer Service
@@ -16,7 +17,7 @@ export class F1DataTransformer {
     results?: any;
   }> {
     try {
-      console.log(`\nImporting race results for ${year} Round ${round}...`);
+      logger.log(`\nImporting race results for ${year} Round ${round}...`);
 
       // Fetch data from API
       const [resultsData, qualifyingData] = await Promise.all([
@@ -29,7 +30,7 @@ export class F1DataTransformer {
       try {
         sprintData = await f1ApiService.fetchSprintResults(year, round, true);
       } catch (err) {
-        console.log('  (No sprint data available)');
+        logger.log('  (No sprint data available)');
       }
 
       // Parse API responses
@@ -114,7 +115,7 @@ export class F1DataTransformer {
           sprintMidfieldHeroId,
           existing.id
         );
-        console.log('  ✓ Updated existing race results');
+        logger.log('  ✓ Updated existing race results');
       } else {
         // Insert new results
         await db.prepare(`
@@ -134,12 +135,12 @@ export class F1DataTransformer {
           sprintWinnerId,
           sprintMidfieldHeroId
         );
-        console.log('  ✓ Inserted new race results');
+        logger.log('  ✓ Inserted new race results');
       }
 
       // Calculate scores for this race
       await this.calculateRaceScores(race.id);
-      console.log('  ✓ Calculated prediction scores');
+      logger.log('  ✓ Calculated prediction scores');
 
       const results = await db.prepare('SELECT * FROM race_results WHERE race_id = $1').get(race.id);
 
@@ -149,7 +150,7 @@ export class F1DataTransformer {
         results
       };
     } catch (error: any) {
-      console.error('Error importing race results:', error);
+      logger.error('Error importing race results:', error);
       return {
         success: false,
         message: `Failed to import race results: ${error.message}`
@@ -166,7 +167,7 @@ export class F1DataTransformer {
     results?: any;
   }> {
     try {
-      console.log(`\nImporting season standings for ${year}...`);
+      logger.log(`\nImporting season standings for ${year}...`);
 
       // Fetch data from API
       const [driverStandings, constructorStandings] = await Promise.all([
@@ -235,7 +236,7 @@ export class F1DataTransformer {
               entered_at = CURRENT_TIMESTAMP
           WHERE id = $3
         `).run(driversJson, constructorsJson, existing.id);
-        console.log('  ✓ Updated existing season results');
+        logger.log('  ✓ Updated existing season results');
       } else {
         // Insert new results (with empty arrays for fields we don't have from API)
         await db.prepare(`
@@ -244,12 +245,12 @@ export class F1DataTransformer {
             mid_season_sackings, audi_vs_cadillac_winner
           ) VALUES ($1, $2, $3, '[]', NULL)
         `).run(season.id, driversJson, constructorsJson);
-        console.log('  ✓ Inserted new season results');
+        logger.log('  ✓ Inserted new season results');
       }
 
       // Calculate scores for season predictions
       await this.calculateSeasonScores(season.id);
-      console.log('  ✓ Calculated season prediction scores');
+      logger.log('  ✓ Calculated season prediction scores');
 
       const results = await db.prepare('SELECT * FROM season_results WHERE season_id = $1').get(season.id);
 
@@ -259,7 +260,7 @@ export class F1DataTransformer {
         results
       };
     } catch (error: any) {
-      console.error('Error importing season standings:', error);
+      logger.error('Error importing season standings:', error);
       return {
         success: false,
         message: `Failed to import season standings: ${error.message}`
@@ -277,7 +278,7 @@ export class F1DataTransformer {
     failed: number;
   }> {
     try {
-      console.log(`\nBulk importing all race results for ${year} season...`);
+      logger.log(`\nBulk importing all race results for ${year} season...`);
 
       // Fetch schedule to get number of races
       const scheduleData = await f1ApiService.fetchSchedule(year, true);
@@ -298,14 +299,14 @@ export class F1DataTransformer {
       // Import each race
       for (const race of races) {
         const round = parseInt(race.round);
-        console.log(`\n  Processing Round ${round}: ${race.raceName}...`);
+        logger.log(`\n  Processing Round ${round}: ${race.raceName}...`);
 
         const result = await this.importRaceResults(year, round);
         if (result.success) {
           imported++;
         } else {
           failed++;
-          console.log(`    ✗ ${result.message}`);
+          logger.log(`    ✗ ${result.message}`);
         }
 
         // Small delay to avoid rate limiting
@@ -319,7 +320,7 @@ export class F1DataTransformer {
         failed
       };
     } catch (error: any) {
-      console.error('Error in bulk import:', error);
+      logger.error('Error in bulk import:', error);
       return {
         success: false,
         message: `Bulk import failed: ${error.message}`,
@@ -383,7 +384,7 @@ export class F1DataTransformer {
       }
     }
 
-    console.warn(`  ⚠ Could not find driver for API ID: ${apiDriverId}`);
+    logger.warn(`  ⚠ Could not find driver for API ID: ${apiDriverId}`);
     return null;
   }
 
@@ -412,7 +413,7 @@ export class F1DataTransformer {
       }
     }
 
-    console.warn(`  ⚠ Could not find team for API ID: ${apiConstructorId}`);
+    logger.warn(`  ⚠ Could not find team for API ID: ${apiConstructorId}`);
     return null;
   }
 

@@ -1,6 +1,7 @@
 import db from './database';
 import fs from 'fs';
 import path from 'path';
+import { logger } from '../utils/logger';
 
 interface Migration {
   id: string;
@@ -57,7 +58,7 @@ function loadMigrations(): Migration[] {
 
 // Run pending migrations
 export async function runMigrations() {
-  console.log('Running database migrations...');
+  logger.log('Running database migrations...');
 
   try {
     await initMigrationsTable();
@@ -68,28 +69,28 @@ export async function runMigrations() {
     const pendingMigrations = allMigrations.filter(m => !appliedMigrations.has(m.id));
 
     if (pendingMigrations.length === 0) {
-      console.log('No pending migrations');
+      logger.log('No pending migrations');
       return;
     }
 
-    console.log(`Found ${pendingMigrations.length} pending migration(s)`);
+    logger.log(`Found ${pendingMigrations.length} pending migration(s)`);
 
     for (const migration of pendingMigrations) {
-      console.log(`  Running migration: ${migration.name}`);
+      logger.log(`  Running migration: ${migration.name}`);
 
       try {
         await migration.up(db);
         await recordMigration(migration.id, migration.name);
-        console.log(`  ✓ Migration ${migration.name} completed`);
+        logger.log(`  ✓ Migration ${migration.name} completed`);
       } catch (error) {
-        console.error(`  ✗ Migration ${migration.name} failed:`, error);
+        logger.error(`  ✗ Migration ${migration.name} failed:`, error);
         throw error;
       }
     }
 
-    console.log('All migrations completed successfully');
+    logger.log('All migrations completed successfully');
   } catch (error) {
-    console.error('Migration error:', error);
+    logger.error('Migration error:', error);
     throw error;
   }
 }

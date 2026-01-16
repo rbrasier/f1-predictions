@@ -4,6 +4,7 @@ import db from '../db/database';
 import { AuthRequest } from '../middleware/auth';
 import { SeasonPrediction, SeasonPredictionRequest } from '../types';
 import gridData from '../utils/gridData';
+import { logger } from '../utils/logger';
 
 export const seasonPredictionValidation = [
   body('drivers_championship_order')
@@ -33,7 +34,7 @@ export const submitSeasonPrediction = async (req: AuthRequest, res: Response) =>
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      console.error('Validation errors:', JSON.stringify(errors.array(), null, 2));
+      logger.error('Validation errors:', JSON.stringify(errors.array(), null, 2));
       return res.status(400).json({ errors: errors.array() });
     }
 
@@ -42,7 +43,7 @@ export const submitSeasonPrediction = async (req: AuthRequest, res: Response) =>
     const userId = req.user!.id;
 
     if (isNaN(seasonYear)) {
-      console.error('Invalid season year:', seasonId);
+      logger.error('Invalid season year:', seasonId);
       return res.status(400).json({ error: 'Invalid year' });
     }
 
@@ -60,7 +61,7 @@ export const submitSeasonPrediction = async (req: AuthRequest, res: Response) =>
     // Get season info from grid-data.json
     const seasonData = gridData[seasonId];
     if (!seasonData) {
-      console.error('Season not found in gridData:', seasonId);
+      logger.error('Season not found in gridData:', seasonId);
       return res.status(404).json({ error: 'Season not found' });
     }
 
@@ -69,7 +70,7 @@ export const submitSeasonPrediction = async (req: AuthRequest, res: Response) =>
     const deadline = new Date(seasonData.prediction_deadline);
 
     if (now > deadline) {
-      console.error('Deadline passed:', { now, deadline });
+      logger.error('Deadline passed:', { now, deadline });
       return res.status(400).json({ error: 'Prediction deadline has passed' });
     }
 
@@ -138,7 +139,7 @@ export const submitSeasonPrediction = async (req: AuthRequest, res: Response) =>
       res.status(201).json(created);
     }
   } catch (error) {
-    console.error('Submit season prediction error:', error);
+    logger.error('Submit season prediction error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -164,7 +165,7 @@ export const getMySeasonPrediction = async (req: AuthRequest, res: Response) => 
 
     res.json(prediction);
   } catch (error) {
-    console.error('Get my season prediction error:', error);
+    logger.error('Get my season prediction error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -173,22 +174,27 @@ export const getAllSeasonPredictions = async (req: AuthRequest, res: Response) =
   try {
     const { seasonId } = req.params;
     const seasonYear = parseInt(seasonId);
+    const leagueId = req.query.leagueId ? parseInt(req.query.leagueId as string) : undefined;
 
     if (isNaN(seasonYear)) {
       return res.status(400).json({ error: 'Invalid year' });
     }
 
-    const predictions = await db.prepare(`
+    let query = `
       SELECT sp.*, u.display_name
       FROM season_predictions sp
       JOIN users u ON sp.user_id = u.id
-      WHERE sp.season_year = $1
+      ${leagueId ? 'INNER JOIN user_leagues ul ON u.id = ul.user_id' : ''}
+      WHERE sp.season_year = $1 ${leagueId ? 'AND ul.league_id = $2' : ''}
       ORDER BY u.display_name
-    `).all(seasonYear) as (SeasonPrediction & { display_name: string })[];
+    `;
+
+    const params = leagueId ? [seasonYear, leagueId] : [seasonYear];
+    const predictions = await db.prepare(query).all(...params) as (SeasonPrediction & { display_name: string })[];
 
     res.json(predictions);
   } catch (error) {
-    console.error('Get all season predictions error:', error);
+    logger.error('Get all season predictions error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };

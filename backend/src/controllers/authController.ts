@@ -5,6 +5,7 @@ import { body, validationResult } from 'express-validator';
 import db from '../db/database';
 import { AuthRequest } from '../middleware/auth';
 import { User, RegisterRequest, LoginRequest, AuthResponse } from '../types';
+import { logger } from '../utils/logger';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'default-secret';
 const JWT_EXPIRES_IN = '365d'; // 1 year
@@ -36,7 +37,7 @@ export const register = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { username, password, display_name } = req.body as RegisterRequest;
+    const { username, password, display_name, invite_code } = req.body as RegisterRequest & { invite_code?: string };
 
     // Check if username already exists
     const existingUser = await db.prepare('SELECT id FROM users WHERE username = $1').get(username);
@@ -55,6 +56,26 @@ export const register = async (req: AuthRequest, res: Response) => {
     `).run(username, password_hash, display_name);
 
     const userId = Number(result.rows[0].id);
+
+    // If invite code is provided, join that league
+    if (invite_code) {
+      try {
+        const league = await db.prepare(`
+          SELECT id FROM leagues WHERE invite_code = $1
+        `).get(invite_code.toUpperCase());
+
+        if (league) {
+          await db.prepare(`
+            INSERT INTO user_leagues (user_id, league_id, is_default)
+            VALUES ($1, $2, true)
+          `).run(userId, league.id);
+        }
+      } catch (error) {
+        logger.error('Error joining league during registration:', error);
+        // Don't fail registration if league join fails
+      }
+    }
+    // Users without an invite code will be shown the league selection modal
 
     // Generate JWT token
     const token = jwt.sign(
@@ -75,7 +96,7 @@ export const register = async (req: AuthRequest, res: Response) => {
 
     res.status(201).json(response);
   } catch (error) {
-    console.error('Registration error:', error);
+    logger.error('Registration error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -87,7 +108,7 @@ export const login = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { username, password } = req.body as LoginRequest;
+    const { username, password, invite_code } = req.body as LoginRequest & { invite_code?: string };
 
     // Find user
     const user = await db.prepare(`
@@ -104,6 +125,39 @@ export const login = async (req: AuthRequest, res: Response) => {
     const isValidPassword = await bcrypt.compare(password, user.password_hash);
     if (!isValidPassword) {
       return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    // If invite code is provided, join that league
+    if (invite_code) {
+      try {
+        const league = await db.prepare(`
+          SELECT id FROM leagues WHERE invite_code = $1
+        `).get(invite_code.toUpperCase());
+
+        if (league) {
+          // Check if user is already in the league
+          const existingMembership = await db.prepare(`
+            SELECT id FROM user_leagues WHERE user_id = $1 AND league_id = $2
+          `).get(user.id, league.id);
+
+          if (!existingMembership) {
+            // Check if this is the user's first league
+            const userLeaguesCount = await db.query(
+              'SELECT COUNT(*) as count FROM user_leagues WHERE user_id = $1',
+              [user.id]
+            );
+            const isFirstLeague = userLeaguesCount.rows[0].count === '0';
+
+            await db.prepare(`
+              INSERT INTO user_leagues (user_id, league_id, is_default)
+              VALUES ($1, $2, $3)
+            `).run(user.id, league.id, isFirstLeague);
+          }
+        }
+      } catch (error) {
+        logger.error('Error joining league during login:', error);
+        // Don't fail login if league join fails
+      }
     }
 
     // Generate JWT token
@@ -125,7 +179,7 @@ export const login = async (req: AuthRequest, res: Response) => {
 
     res.json(response);
   } catch (error) {
-    console.error('Login error:', error);
+    logger.error('Login error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -153,7 +207,7 @@ export const getMe = async (req: AuthRequest, res: Response) => {
       is_admin: Boolean(user.is_admin)
     });
   } catch (error) {
-    console.error('Get me error:', error);
+    logger.error('Get me error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -168,7 +222,7 @@ export const getAllUsers = async (req: AuthRequest, res: Response) => {
 
     res.json(users);
   } catch (error) {
-    console.error('Get users error:', error);
+    logger.error('Get users error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -197,7 +251,7 @@ export const grantAdminAccess = async (req: AuthRequest, res: Response) => {
 
     res.json({ message: 'Admin access granted successfully', user: { ...user, is_admin: true } });
   } catch (error) {
-    console.error('Grant admin error:', error);
+    logger.error('Grant admin error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };

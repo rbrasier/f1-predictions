@@ -2,11 +2,13 @@ import { Response } from 'express';
 import ExcelJS from 'exceljs';
 import db from '../db/database';
 import { AuthRequest } from '../middleware/auth';
+import { logger } from '../utils/logger';
 
 export const getLeaderboard = async (req: AuthRequest, res: Response) => {
   try {
     const seasonYear = req.query.seasonYear ? parseInt(req.query.seasonYear as string) : undefined;
     const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
+    const leagueId = req.query.leagueId ? parseInt(req.query.leagueId as string) : undefined;
 
     // Get all users with their total points
     let query = `
@@ -17,9 +19,10 @@ export const getLeaderboard = async (req: AuthRequest, res: Response) => {
         COALESCE(SUM(rp.points_earned), 0) as race_points,
         COALESCE(sp.points_earned, 0) + COALESCE(SUM(rp.points_earned), 0) as total_points
       FROM users u
+      ${leagueId ? 'INNER JOIN user_leagues ul ON u.id = ul.user_id' : ''}
       LEFT JOIN season_predictions sp ON u.id = sp.user_id ${seasonYear ? 'AND sp.season_year = $1' : ''}
       LEFT JOIN race_predictions rp ON u.id = rp.user_id ${seasonYear ? 'AND rp.season_year = $2' : ''}
-      WHERE u.is_admin = false
+      WHERE u.is_admin = false ${leagueId ? (seasonYear ? 'AND ul.league_id = $3' : 'AND ul.league_id = $1') : ''}
       GROUP BY u.id, u.display_name, sp.points_earned
       ORDER BY total_points DESC, u.display_name
     `;
@@ -28,7 +31,14 @@ export const getLeaderboard = async (req: AuthRequest, res: Response) => {
       query += ` LIMIT ${limit}`;
     }
 
-    const params = seasonYear ? [seasonYear, seasonYear] : [];
+    const params: number[] = [];
+    if (seasonYear) {
+      params.push(seasonYear, seasonYear);
+    }
+    if (leagueId) {
+      params.push(leagueId);
+    }
+
     const leaderboard = await db.prepare(query).all(...params) as any[];
 
     // Add rank
@@ -39,7 +49,7 @@ export const getLeaderboard = async (req: AuthRequest, res: Response) => {
 
     res.json(rankedLeaderboard);
   } catch (error) {
-    console.error('Get leaderboard error:', error);
+    logger.error('Get leaderboard error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -69,7 +79,7 @@ export const getUserBreakdown = async (req: AuthRequest, res: Response) => {
       race_predictions: racePredictions
     });
   } catch (error) {
-    console.error('Get user breakdown error:', error);
+    logger.error('Get user breakdown error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -77,6 +87,7 @@ export const getUserBreakdown = async (req: AuthRequest, res: Response) => {
 export const exportToExcel = async (req: AuthRequest, res: Response) => {
   try {
     const seasonYear = req.query.seasonYear ? parseInt(req.query.seasonYear as string) : undefined;
+    const leagueId = req.query.leagueId ? parseInt(req.query.leagueId as string) : undefined;
 
     const workbook = new ExcelJS.Workbook();
     workbook.creator = 'F1 Tipping Competition';
@@ -100,14 +111,21 @@ export const exportToExcel = async (req: AuthRequest, res: Response) => {
         COALESCE(SUM(rp.points_earned), 0) as race_points,
         COALESCE(sp.points_earned, 0) + COALESCE(SUM(rp.points_earned), 0) as total_points
       FROM users u
+      ${leagueId ? 'INNER JOIN user_leagues ul ON u.id = ul.user_id' : ''}
       LEFT JOIN season_predictions sp ON u.id = sp.user_id ${seasonYear ? 'AND sp.season_year = $1' : ''}
       LEFT JOIN race_predictions rp ON u.id = rp.user_id ${seasonYear ? 'AND rp.season_year = $2' : ''}
-      WHERE u.is_admin = false
+      WHERE u.is_admin = false ${leagueId ? (seasonYear ? 'AND ul.league_id = $3' : 'AND ul.league_id = $1') : ''}
       GROUP BY u.id, u.display_name, sp.points_earned
       ORDER BY total_points DESC, u.display_name
     `;
 
-    const params = seasonYear ? [seasonYear, seasonYear] : [];
+    const params: number[] = [];
+    if (seasonYear) {
+      params.push(seasonYear, seasonYear);
+    }
+    if (leagueId) {
+      params.push(leagueId);
+    }
     const leaderboard = await db.prepare(leaderboardQuery).all(...params) as any[];
 
     leaderboard.forEach((entry, index) => {
@@ -137,13 +155,34 @@ export const exportToExcel = async (req: AuthRequest, res: Response) => {
       { header: 'Points', key: 'points', width: 10 }
     ];
 
-    const seasonPredictions = await db.prepare(`
+    // Build season predictions query
+    let seasonPredictionsQuery = `
       SELECT sp.*, u.display_name
       FROM season_predictions sp
       JOIN users u ON sp.user_id = u.id
-      ${seasonYear ? 'WHERE sp.season_year = $1' : ''}
-      ORDER BY u.display_name
-    `).all(...(seasonYear ? [seasonYear] : [])) as any[];
+      ${leagueId ? 'INNER JOIN user_leagues ul ON u.id = ul.user_id' : ''}
+    `;
+
+    const whereConditions: string[] = [];
+    const seasonParams: number[] = [];
+
+    if (seasonYear) {
+      whereConditions.push('sp.season_year = $1');
+      seasonParams.push(seasonYear);
+    }
+
+    if (leagueId) {
+      whereConditions.push(`ul.league_id = $${seasonParams.length + 1}`);
+      seasonParams.push(leagueId);
+    }
+
+    if (whereConditions.length > 0) {
+      seasonPredictionsQuery += ' WHERE ' + whereConditions.join(' AND ');
+    }
+
+    seasonPredictionsQuery += ' ORDER BY u.display_name';
+
+    const seasonPredictions = await db.prepare(seasonPredictionsQuery).all(...seasonParams) as any[];
 
     seasonPredictions.forEach(pred => {
       const driversOrder = JSON.parse(pred.drivers_championship_order);
@@ -169,12 +208,32 @@ export const exportToExcel = async (req: AuthRequest, res: Response) => {
 
     // Sheet 3+: Race by Race
     // Get unique race rounds from predictions
-    const raceRounds = await db.prepare(`
-      SELECT DISTINCT season_year, round_number
-      FROM race_predictions
-      ${seasonYear ? 'WHERE season_year = $1' : ''}
-      ORDER BY season_year, round_number
-    `).all(...(seasonYear ? [seasonYear] : [])) as any[];
+    let raceRoundsQuery = `
+      SELECT DISTINCT rp.season_year, rp.round_number
+      FROM race_predictions rp
+      ${leagueId ? 'INNER JOIN user_leagues ul ON rp.user_id = ul.user_id' : ''}
+    `;
+
+    const raceRoundsConditions: string[] = [];
+    const raceRoundsParams: number[] = [];
+
+    if (seasonYear) {
+      raceRoundsConditions.push('rp.season_year = $1');
+      raceRoundsParams.push(seasonYear);
+    }
+
+    if (leagueId) {
+      raceRoundsConditions.push(`ul.league_id = $${raceRoundsParams.length + 1}`);
+      raceRoundsParams.push(leagueId);
+    }
+
+    if (raceRoundsConditions.length > 0) {
+      raceRoundsQuery += ' WHERE ' + raceRoundsConditions.join(' AND ');
+    }
+
+    raceRoundsQuery += ' ORDER BY rp.season_year, rp.round_number';
+
+    const raceRounds = await db.prepare(raceRoundsQuery).all(...raceRoundsParams) as any[];
 
     for (const raceRound of raceRounds) {
       const raceSheet = workbook.addWorksheet(`${raceRound.season_year} R${raceRound.round_number}`);
@@ -187,13 +246,25 @@ export const exportToExcel = async (req: AuthRequest, res: Response) => {
         { header: 'Points', key: 'points', width: 10 }
       ];
 
-      const predictions = await db.prepare(`
+      // Build race predictions query for this round
+      let racePredictionsQuery = `
         SELECT rp.*, u.display_name
         FROM race_predictions rp
         JOIN users u ON rp.user_id = u.id
+        ${leagueId ? 'INNER JOIN user_leagues ul ON u.id = ul.user_id' : ''}
         WHERE rp.season_year = $1 AND rp.round_number = $2
-        ORDER BY u.display_name
-      `).all(raceRound.season_year, raceRound.round_number) as any[];
+      `;
+
+      const racePredParams = [raceRound.season_year, raceRound.round_number];
+
+      if (leagueId) {
+        racePredictionsQuery += ' AND ul.league_id = $3';
+        racePredParams.push(leagueId);
+      }
+
+      racePredictionsQuery += ' ORDER BY u.display_name';
+
+      const predictions = await db.prepare(racePredictionsQuery).all(...racePredParams) as any[];
 
       predictions.forEach(pred => {
         raceSheet.addRow({
@@ -228,7 +299,7 @@ export const exportToExcel = async (req: AuthRequest, res: Response) => {
     await workbook.xlsx.write(res);
     res.end();
   } catch (error) {
-    console.error('Export to Excel error:', error);
+    logger.error('Export to Excel error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };

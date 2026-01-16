@@ -3,6 +3,7 @@ import { body, validationResult } from 'express-validator';
 import db from '../db/database';
 import { AuthRequest } from '../middleware/auth';
 import { CrazyPredictionValidation } from '../types';
+import { logger } from '../utils/logger';
 
 export const validatePredictionValidation = [
   body('prediction_type').isIn(['season', 'race']).withMessage('Type must be season or race'),
@@ -67,7 +68,7 @@ export const validateCrazyPrediction = async (req: AuthRequest, res: Response) =
       res.status(201).json(created);
     }
   } catch (error) {
-    console.error('Validate crazy prediction error:', error);
+    logger.error('Validate crazy prediction error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -75,9 +76,10 @@ export const validateCrazyPrediction = async (req: AuthRequest, res: Response) =
 export const getPendingValidations = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
+    const leagueId = req.query.leagueId ? parseInt(req.query.leagueId as string) : undefined;
 
     // Get season predictions with crazy predictions that need validation
-    const seasonPredictions = await db.prepare(`
+    let seasonQuery = `
       SELECT
         sp.id,
         sp.user_id,
@@ -92,12 +94,16 @@ export const getPendingValidations = async (req: AuthRequest, res: Response) => 
          AND validator_user_id = $1) as already_validated
       FROM season_predictions sp
       JOIN users u ON sp.user_id = u.id
+      ${leagueId ? 'INNER JOIN user_leagues ul ON u.id = ul.user_id' : ''}
       WHERE sp.crazy_prediction IS NOT NULL
-      AND sp.user_id != $2
-    `).all(userId, userId) as any[];
+      AND sp.user_id != $2 ${leagueId ? 'AND ul.league_id = $3' : ''}
+    `;
+
+    const seasonParams = leagueId ? [userId, userId, leagueId] : [userId, userId];
+    const seasonPredictions = await db.prepare(seasonQuery).all(...seasonParams) as any[];
 
     // Get race predictions with crazy predictions that need validation
-    const racePredictions = await db.prepare(`
+    let raceQuery = `
       SELECT
         rp.id,
         rp.user_id,
@@ -112,15 +118,19 @@ export const getPendingValidations = async (req: AuthRequest, res: Response) => 
          AND validator_user_id = $1) as already_validated
       FROM race_predictions rp
       JOIN users u ON rp.user_id = u.id
+      ${leagueId ? 'INNER JOIN user_leagues ul ON u.id = ul.user_id' : ''}
       WHERE rp.crazy_prediction IS NOT NULL
-      AND rp.user_id != $2
-    `).all(userId, userId) as any[];
+      AND rp.user_id != $2 ${leagueId ? 'AND ul.league_id = $3' : ''}
+    `;
+
+    const raceParams = leagueId ? [userId, userId, leagueId] : [userId, userId];
+    const racePredictions = await db.prepare(raceQuery).all(...raceParams) as any[];
 
     const allPredictions = [...seasonPredictions, ...racePredictions];
 
     res.json(allPredictions);
   } catch (error) {
-    console.error('Get pending validations error:', error);
+    logger.error('Get pending validations error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -143,7 +153,7 @@ export const getValidationsForPrediction = async (req: AuthRequest, res: Respons
 
     res.json(validations);
   } catch (error) {
-    console.error('Get validations error:', error);
+    logger.error('Get validations error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };

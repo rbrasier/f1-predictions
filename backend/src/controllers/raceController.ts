@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import { f1ApiService } from '../services/f1ApiService';
+import { logger } from '../utils/logger';
 
 /**
  * Get races for a specific season from API
@@ -15,7 +16,7 @@ export const getRaces = async (req: AuthRequest, res: Response) => {
 
     res.json(races);
   } catch (error) {
-    console.error('Get races error:', error);
+    logger.error('Get races error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -47,7 +48,7 @@ export const getRace = async (req: AuthRequest, res: Response) => {
 
     res.json(race);
   } catch (error) {
-    console.error('Get race error:', error);
+    logger.error('Get race error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -76,7 +77,7 @@ export const getNextRace = async (req: AuthRequest, res: Response) => {
 
     res.json(nextRace);
   } catch (error) {
-    console.error('Get next race error:', error);
+    logger.error('Get next race error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -104,7 +105,7 @@ export const getUpcomingRaces = async (req: AuthRequest, res: Response) => {
 
     res.json(upcomingRaces);
   } catch (error) {
-    console.error('Get upcoming races error:', error);
+    logger.error('Get upcoming races error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };

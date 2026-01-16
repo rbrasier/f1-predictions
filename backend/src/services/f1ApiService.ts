@@ -1,5 +1,6 @@
 import db from '../db/database';
 import axios from 'axios';
+import { logger } from '../utils/logger';
 
 const JOLPICA_BASE_URL = 'https://api.jolpi.ca/ergast/f1';
 const CACHE_DURATION_HOURS = 24; // Cache data for 24 hours
@@ -110,7 +111,7 @@ export class F1ApiService {
    * This will fetch schedule, drivers, constructors, and standings
    */
   async refreshSeasonData(year: number): Promise<void> {
-    console.log(`Refreshing all data for ${year} season...`);
+    logger.log(`Refreshing all data for ${year} season...`);
 
     try {
       await Promise.all([
@@ -121,9 +122,9 @@ export class F1ApiService {
         this.fetchConstructorStandings(year, undefined, true)
       ]);
 
-      console.log(`✓ Successfully refreshed all data for ${year} season`);
+      logger.log(`✓ Successfully refreshed all data for ${year} season`);
     } catch (error) {
-      console.error(`✗ Error refreshing season data:`, error);
+      logger.error(`✗ Error refreshing season data:`, error);
       throw error;
     }
   }
@@ -132,7 +133,7 @@ export class F1ApiService {
    * Refresh results for a specific race
    */
   async refreshRaceResults(year: number, round: number): Promise<void> {
-    console.log(`Refreshing results for ${year} Round ${round}...`);
+    logger.log(`Refreshing results for ${year} Round ${round}...`);
 
     try {
       await Promise.all([
@@ -140,13 +141,13 @@ export class F1ApiService {
         this.fetchQualifyingResults(year, round, true),
         // Sprint results might not exist for all races, so we'll try but not fail if it doesn't exist
         this.fetchSprintResults(year, round, true).catch(() => {
-          console.log(`  (No sprint data for Round ${round})`);
+          logger.log(`  (No sprint data for Round ${round})`);
         })
       ]);
 
-      console.log(`✓ Successfully refreshed results for ${year} Round ${round}`);
+      logger.log(`✓ Successfully refreshed results for ${year} Round ${round}`);
     } catch (error) {
-      console.error(`✗ Error refreshing race results:`, error);
+      logger.error(`✗ Error refreshing race results:`, error);
       throw error;
     }
   }
@@ -183,7 +184,7 @@ export class F1ApiService {
 
       return JSON.parse(row.data_json);
     } catch (error) {
-      console.error('Error getting cached data:', error);
+      logger.error('Error getting cached data:', error);
       return null;
     }
   }
@@ -224,7 +225,7 @@ export class F1ApiService {
 
       return hoursSinceLastFetch < CACHE_DURATION_HOURS;
     } catch (error) {
-      console.error('Error checking cache freshness:', error);
+      logger.error('Error checking cache freshness:', error);
       return false;
     }
   }
@@ -244,13 +245,13 @@ export class F1ApiService {
     if (!forceRefresh && await this.isCacheFresh(resourceType, seasonYear || undefined, roundNumber || undefined, resourceId || undefined)) {
       const cached = this.getCachedData(resourceType, seasonYear || undefined, roundNumber || undefined, resourceId || undefined);
       if (cached) {
-        console.log(`  Using cached ${resourceType} data`);
+        logger.log(`  Using cached ${resourceType} data`);
         return cached;
       }
     }
 
     // Fetch fresh data from API
-    console.log(`  Fetching ${resourceType} from API: ${apiUrl}`);
+    logger.log(`  Fetching ${resourceType} from API: ${apiUrl}`);
 
     try {
       const response = await axios.get(apiUrl, {
@@ -267,12 +268,12 @@ export class F1ApiService {
 
       return data;
     } catch (error: any) {
-      console.error(`Error fetching ${resourceType}:`, error.message);
+      logger.error(`Error fetching ${resourceType}:`, error.message);
 
       // If fetch fails, try to return stale cached data if available
       const cached = this.getCachedData(resourceType, seasonYear || undefined, roundNumber || undefined, resourceId || undefined);
       if (cached) {
-        console.log(`  Returning stale cached ${resourceType} data due to API error`);
+        logger.log(`  Returning stale cached ${resourceType} data due to API error`);
         return cached;
       }
 
@@ -305,9 +306,9 @@ export class F1ApiService {
 
       await stmt.run(resourceType, seasonYear, roundNumber, resourceId, dataJson, now);
 
-      console.log(`  ✓ Cached ${resourceType} data`);
+      logger.log(`  ✓ Cached ${resourceType} data`);
     } catch (error) {
-      console.error('Error caching data:', error);
+      logger.error('Error caching data:', error);
       // Don't throw - caching failure shouldn't break the API fetch
     }
   }
@@ -318,9 +319,9 @@ export class F1ApiService {
   async clearCache(): Promise<void> {
     try {
       await db.prepare('DELETE FROM f1_api_cache').run();
-      console.log('✓ Cleared all cached F1 API data');
+      logger.log('✓ Cleared all cached F1 API data');
     } catch (error) {
-      console.error('Error clearing cache:', error);
+      logger.error('Error clearing cache:', error);
       throw error;
     }
   }
@@ -331,9 +332,9 @@ export class F1ApiService {
   async clearSeasonCache(year: number): Promise<void> {
     try {
       await db.prepare('DELETE FROM f1_api_cache WHERE season_year = $1').run(year);
-      console.log(`✓ Cleared cached data for ${year} season`);
+      logger.log(`✓ Cleared cached data for ${year} season`);
     } catch (error) {
-      console.error('Error clearing season cache:', error);
+      logger.error('Error clearing season cache:', error);
       throw error;
     }
   }
