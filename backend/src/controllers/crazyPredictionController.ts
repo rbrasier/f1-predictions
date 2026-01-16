@@ -3,6 +3,7 @@ import { body, validationResult } from 'express-validator';
 import db from '../db/database';
 import { AuthRequest } from '../middleware/auth';
 import { CrazyPredictionValidation } from '../types';
+import { logger } from '../utils/logger';
 
 export const validatePredictionValidation = [
   body('prediction_type').isIn(['season', 'race']).withMessage('Type must be season or race'),
@@ -67,7 +68,7 @@ export const validateCrazyPrediction = async (req: AuthRequest, res: Response) =
       res.status(201).json(created);
     }
   } catch (error) {
-    console.error('Validate crazy prediction error:', error);
+    logger.error('Validate crazy prediction error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -129,7 +130,7 @@ export const getPendingValidations = async (req: AuthRequest, res: Response) => 
 
     res.json(allPredictions);
   } catch (error) {
-    console.error('Get pending validations error:', error);
+    logger.error('Get pending validations error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -152,7 +153,7 @@ export const getValidationsForPrediction = async (req: AuthRequest, res: Respons
 
     res.json(validations);
   } catch (error) {
-    console.error('Get validations error:', error);
+    logger.error('Get validations error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };

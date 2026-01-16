@@ -2,6 +2,7 @@ import { Response } from 'express';
 import ExcelJS from 'exceljs';
 import db from '../db/database';
 import { AuthRequest } from '../middleware/auth';
+import { logger } from '../utils/logger';
 
 export const getLeaderboard = async (req: AuthRequest, res: Response) => {
   try {
@@ -48,7 +49,7 @@ export const getLeaderboard = async (req: AuthRequest, res: Response) => {
 
     res.json(rankedLeaderboard);
   } catch (error) {
-    console.error('Get leaderboard error:', error);
+    logger.error('Get leaderboard error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -78,7 +79,7 @@ export const getUserBreakdown = async (req: AuthRequest, res: Response) => {
       race_predictions: racePredictions
     });
   } catch (error) {
-    console.error('Get user breakdown error:', error);
+    logger.error('Get user breakdown error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -298,7 +299,7 @@ export const exportToExcel = async (req: AuthRequest, res: Response) => {
     await workbook.xlsx.write(res);
     res.end();
   } catch (error) {
-    console.error('Export to Excel error:', error);
+    logger.error('Export to Excel error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };

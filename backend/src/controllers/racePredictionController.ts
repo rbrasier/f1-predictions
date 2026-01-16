@@ -4,6 +4,7 @@ import db from '../db/database';
 import { AuthRequest } from '../middleware/auth';
 import { RacePrediction, RacePredictionRequest } from '../types';
 import { f1ApiService } from '../services/f1ApiService';
+import { logger } from '../utils/logger';
 
 export const racePredictionValidation = [
   body('pole_position_driver_api_id').isString().withMessage('Pole position driver is required'),
@@ -139,7 +140,7 @@ export const submitRacePrediction = async (req: AuthRequest, res: Response) => {
       res.status(201).json(created);
     }
   } catch (error) {
-    console.error('Submit race prediction error:', error);
+    logger.error('Submit race prediction error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -169,7 +170,7 @@ export const getMyRacePrediction = async (req: AuthRequest, res: Response) => {
 
     res.json(prediction);
   } catch (error) {
-    console.error('Get my race prediction error:', error);
+    logger.error('Get my race prediction error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -209,7 +210,7 @@ export const getAllRacePredictions = async (req: AuthRequest, res: Response) => 
 
     res.json(predictions);
   } catch (error) {
-    console.error('Get all race predictions error:', error);
+    logger.error('Get all race predictions error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -360,7 +361,7 @@ export const getLastRoundResults = async (req: AuthRequest, res: Response) => {
       crazy_validations: crazyValidations
     });
   } catch (error) {
-    console.error('Get last round results error:', error);
+    logger.error('Get last round results error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };

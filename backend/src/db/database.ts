@@ -2,6 +2,7 @@ import { Pool, PoolClient, QueryResult } from 'pg';
 import bcrypt from 'bcrypt';
 import dotenv from 'dotenv';
 import { runMigrations } from './migrations';
+import { logger } from '../utils/logger';
 
 dotenv.config();
 
@@ -59,7 +60,7 @@ export async function initializeDatabase() {
   try {
     // Test connection
     const client = await pool.connect();
-    console.log('✅ PostgreSQL connection established');
+    logger.log('✅ PostgreSQL connection established');
     client.release();
 
     // Run migrations
@@ -68,7 +69,7 @@ export async function initializeDatabase() {
     // Create default admin user if it doesn't exist
     await createDefaultAdminUser();
   } catch (error) {
-    console.error('❌ Failed to initialize database:', error);
+    logger.error('❌ Failed to initialize database:', error);
     throw error;
   }
 }
@@ -92,12 +93,12 @@ async function createDefaultAdminUser() {
         VALUES ($1, $2, $3, true)
       `).run(adminUsername, password_hash, adminDisplayName);
 
-      console.log(`✅ Default admin user created: ${adminUsername}`);
+      logger.log(`✅ Default admin user created: ${adminUsername}`);
     } else {
-      console.log(`ℹ️  Admin user '${adminUsername}' already exists`);
+      logger.log(`ℹ️  Admin user '${adminUsername}' already exists`);
     }
   } catch (error) {
-    console.error('Error creating default admin user:', error);
+    logger.error('Error creating default admin user:', error);
   }
 }
 

@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { initializeDatabase } from './db/database';
 import { scheduler } from './scheduler';
+import { logger } from './utils/logger';
 
 // Routes
 import authRoutes from './routes/auth';
@@ -28,9 +29,9 @@ const allowedOrigins = [
   'http://localhost:5173'
 ];
 
-console.log('🌐 CORS Configuration:');
-console.log('  FRONTEND_URL:', process.env.FRONTEND_URL);
-console.log('  Allowed origins:', allowedOrigins);
+logger.log('🌐 CORS Configuration:');
+logger.log('  FRONTEND_URL:', process.env.FRONTEND_URL);
+logger.log('  Allowed origins:', allowedOrigins);
 
 app.use(cors({
   origin: (origin, callback) => {
@@ -40,7 +41,7 @@ app.use(cors({
     if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      console.log(`CORS blocked origin: ${origin}. Allowed origins:`, allowedOrigins);
+      logger.log(`CORS blocked origin: ${origin}. Allowed origins:`, allowedOrigins);
       callback(new Error('Not allowed by CORS'));
     }
   },
@@ -72,7 +73,7 @@ app.use('/api/leagues', leaguesRoutes);
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error('Error:', err);
+  logger.error('Error:', err);
   res.status(err.status || 500).json({
     error: err.message || 'Internal server error'
   });
@@ -90,13 +91,13 @@ async function start() {
     // Start server - Railway will handle routing
     const server = app.listen(PORT, () => {
       const address = server.address();
-      console.log(`🏎️  F1 Tipping API server running on port ${PORT}`);
-      console.log(`🔌 Server address:`, address);
-      console.log(`📊 Health check: http://localhost:${PORT}/health`);
-      console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+      logger.log(`🏎️  F1 Tipping API server running on port ${PORT}`);
+      logger.log(`🔌 Server address:`, address);
+      logger.log(`📊 Health check: http://localhost:${PORT}/health`);
+      logger.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
     });
   } catch (error) {
-    console.error('Failed to start server:', error);
+    logger.error('Failed to start server:', error);
     process.exit(1);
   }
 }

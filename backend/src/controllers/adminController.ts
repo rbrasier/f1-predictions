@@ -5,6 +5,7 @@ import { AuthRequest } from '../middleware/auth';
 import { RaceResult, SeasonResult } from '../types';
 import { f1ApiService } from '../services/f1ApiService';
 import { backupService } from '../services/backupService';
+import { logger } from '../utils/logger';
 
 // Race Results
 export const raceResultValidation = [
@@ -130,7 +131,7 @@ export const enterRaceResults = async (req: AuthRequest, res: Response) => {
 
     res.json(results);
   } catch (error) {
-    console.error('Enter race results error:', error);
+    logger.error('Enter race results error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -156,7 +157,7 @@ export const getRaceResults = async (req: AuthRequest, res: Response) => {
 
     res.json(results);
   } catch (error) {
-    console.error('Get race results error:', error);
+    logger.error('Get race results error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -280,7 +281,7 @@ export const enterSeasonResults = async (req: AuthRequest, res: Response) => {
 
     res.json(results);
   } catch (error) {
-    console.error('Enter season results error:', error);
+    logger.error('Enter season results error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -304,7 +305,7 @@ export const getSeasonResults = async (req: AuthRequest, res: Response) => {
 
     res.json(results);
   } catch (error) {
-    console.error('Get season results error:', error);
+    logger.error('Get season results error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -520,7 +521,7 @@ export const recalculateAllScores = async (req: AuthRequest, res: Response) => {
 
     res.json({ message: 'All scores recalculated successfully' });
   } catch (error) {
-    console.error('Recalculate scores error:', error);
+    logger.error('Recalculate scores error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -548,7 +549,7 @@ export const refreshSeasonData = async (req: AuthRequest, res: Response) => {
       year: seasonYear
     });
   } catch (error: any) {
-    console.error('Refresh season data error:', error);
+    logger.error('Refresh season data error:', error);
     res.status(500).json({
       error: 'Failed to refresh season data',
       details: error.message
@@ -579,7 +580,7 @@ export const refreshRaceResults = async (req: AuthRequest, res: Response) => {
       round: roundNumber
     });
   } catch (error: any) {
-    console.error('Refresh race results error:', error);
+    logger.error('Refresh race results error:', error);
     res.status(500).json({
       error: 'Failed to refresh race results',
       details: error.message
@@ -641,7 +642,7 @@ export const getCacheStatus = async (req: AuthRequest, res: Response) => {
       records: cacheRecords
     });
   } catch (error) {
-    console.error('Get cache status error:', error);
+    logger.error('Get cache status error:', error);
     res.status(500).json({ error: 'Failed to get cache status' });
   }
 };
@@ -667,7 +668,7 @@ export const clearSeasonCache = async (req: AuthRequest, res: Response) => {
       year: seasonYear
     });
   } catch (error: any) {
-    console.error('Clear season cache error:', error);
+    logger.error('Clear season cache error:', error);
     res.status(500).json({
       error: 'Failed to clear cache',
       details: error.message
@@ -688,7 +689,7 @@ export const clearAllCache = async (req: AuthRequest, res: Response) => {
       message: 'Successfully cleared all cached F1 API data'
     });
   } catch (error: any) {
-    console.error('Clear all cache error:', error);
+    logger.error('Clear all cache error:', error);
     res.status(500).json({
       error: 'Failed to clear cache',
       details: error.message
@@ -834,7 +835,7 @@ export const importRaceResults = async (req: AuthRequest, res: Response) => {
       data: results
     });
   } catch (error: any) {
-    console.error('Import race results error:', error);
+    logger.error('Import race results error:', error);
     res.status(500).json({
       error: 'Failed to import race results',
       details: error.message
@@ -927,7 +928,7 @@ export const importSeasonStandings = async (req: AuthRequest, res: Response) => 
       data: results
     });
   } catch (error: any) {
-    console.error('Import season standings error:', error);
+    logger.error('Import season standings error:', error);
     res.status(500).json({
       error: 'Failed to import season standings',
       details: error.message
@@ -1077,7 +1078,7 @@ export const bulkImportSeason = async (req: AuthRequest, res: Response) => {
       failedRaces
     });
   } catch (error: any) {
-    console.error('Bulk import season error:', error);
+    logger.error('Bulk import season error:', error);
     res.status(500).json({
       error: 'Failed to bulk import season',
       details: error.message
@@ -1127,7 +1128,7 @@ export const populateDriverImages = async (req: AuthRequest, res: Response) => {
       }))
     });
   } catch (error: any) {
-    console.error('Populate driver images error:', error);
+    logger.error('Populate driver images error:', error);
     res.status(500).json({
       error: 'Failed to populate driver images',
       details: error.message
@@ -1141,7 +1142,7 @@ export const getBackups = async (req: AuthRequest, res: Response) => {
     const backups = await backupService.getBackups();
     res.json(backups);
   } catch (error) {
-    console.error('Get backups error:', error);
+    logger.error('Get backups error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -1168,7 +1169,7 @@ export const downloadBackup = async (req: AuthRequest, res: Response) => {
     res.setHeader('Content-Disposition', `attachment; filename=f1-tips-backup-${dateStr}.json`);
     res.send(backup.data_json);
   } catch (error) {
-    console.error('Download backup error:', error);
+    logger.error('Download backup error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -1178,7 +1179,7 @@ export const triggerBackup = async (req: AuthRequest, res: Response) => {
     await backupService.createBackup();
     res.json({ success: true, message: 'Backup created successfully' });
   } catch (error) {
-    console.error('Trigger backup error:', error);
+    logger.error('Trigger backup error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };

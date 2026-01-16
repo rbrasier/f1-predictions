@@ -3,6 +3,7 @@ import { body, validationResult } from 'express-validator';
 import db from '../db/database';
 import { AuthRequest } from '../middleware/auth';
 import crypto from 'crypto';
+import { logger } from '../utils/logger';
 
 // Generate a unique invite code
 function generateInviteCode(): string {
@@ -74,7 +75,7 @@ export const createLeague = async (req: AuthRequest, res: Response) => {
 
     res.status(201).json(league);
   } catch (error) {
-    console.error('Create league error:', error);
+    logger.error('Create league error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -97,7 +98,7 @@ export const getUserLeagues = async (req: AuthRequest, res: Response) => {
 
     res.json(leagues);
   } catch (error) {
-    console.error('Get user leagues error:', error);
+    logger.error('Get user leagues error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -123,7 +124,7 @@ export const getDefaultLeague = async (req: AuthRequest, res: Response) => {
 
     res.json(league);
   } catch (error) {
-    console.error('Get default league error:', error);
+    logger.error('Get default league error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -182,7 +183,7 @@ export const joinLeague = async (req: AuthRequest, res: Response) => {
       league
     });
   } catch (error) {
-    console.error('Join league error:', error);
+    logger.error('Join league error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -228,7 +229,7 @@ export const setDefaultLeague = async (req: AuthRequest, res: Response) => {
 
     res.json({ message: 'Default league updated successfully' });
   } catch (error) {
-    console.error('Set default league error:', error);
+    logger.error('Set default league error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -268,7 +269,7 @@ export const getLeagueUsers = async (req: AuthRequest, res: Response) => {
 
     res.json(users);
   } catch (error) {
-    console.error('Get league users error:', error);
+    logger.error('Get league users error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -322,7 +323,7 @@ export const joinWorldLeague = async (req: AuthRequest, res: Response) => {
       league: worldLeague
     });
   } catch (error) {
-    console.error('Join world league error:', error);
+    logger.error('Join world league error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -386,7 +387,7 @@ export const leaveLeague = async (req: AuthRequest, res: Response) => {
 
     res.json({ message: 'Successfully left league' });
   } catch (error) {
-    console.error('Leave league error:', error);
+    logger.error('Leave league error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };

@@ -3,6 +3,7 @@ import db from '../db/database';
 import { AuthRequest } from '../middleware/auth';
 import { f1ApiService } from '../services/f1ApiService';
 import { getOriginalGrid, getAllSeasons } from '../utils/gridData';
+import { logger } from '../utils/logger';
 
 /**
  * Get drivers for a specific season from API
@@ -17,7 +18,7 @@ export const getDrivers = async (req: AuthRequest, res: Response) => {
 
     res.json(drivers);
   } catch (error) {
-    console.error('Get drivers error:', error);
+    logger.error('Get drivers error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -44,7 +45,7 @@ export const getTeams = async (req: AuthRequest, res: Response) => {
 
     res.json(teams);
   } catch (error) {
-    console.error('Get teams error:', error);
+    logger.error('Get teams error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -66,7 +67,7 @@ export const getTeamPrincipals = async (req: AuthRequest, res: Response) => {
 
     res.json(principals);
   } catch (error) {
-    console.error('Get team principals error:', error);
+    logger.error('Get team principals error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -88,7 +89,7 @@ export const getSeasons = (req: AuthRequest, res: Response) => {
 
     res.json(seasonData);
   } catch (error) {
-    console.error('Get seasons error:', error);
+    logger.error('Get seasons error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -112,7 +113,7 @@ export const getActiveSeason = (req: AuthRequest, res: Response) => {
 
     return res.status(404).json({ error: 'No active season found' });
   } catch (error) {
-    console.error('Get active season error:', error);
+    logger.error('Get active season error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -125,7 +126,7 @@ export const getDriverStandings = async (req: AuthRequest, res: Response) => {
   try {
     const year = req.query.year ? parseInt(req.query.year as string) : new Date().getFullYear();
 
-    console.log(`Fetching driver standings for year ${year}...`);
+    logger.log(`Fetching driver standings for year ${year}...`);
 
     // Fetch driver standings from API (includes constructor associations)
     let data = await f1ApiService.fetchDriverStandings(year);
@@ -137,7 +138,7 @@ export const getDriverStandings = async (req: AuthRequest, res: Response) => {
       const gridData = getOriginalGrid(year.toString());
 
       if (gridData?.driver_lineup_fallback) {
-        console.log(`Using driver lineup fallback for year ${year}...`);
+        logger.log(`Using driver lineup fallback for year ${year}...`);
 
         // Fetch drivers and constructors to populate the details
         const driversData = await f1ApiService.fetchDrivers(year);
@@ -165,17 +166,17 @@ export const getDriverStandings = async (req: AuthRequest, res: Response) => {
 
         usedYear = year;
       } else {
-        console.warn(`No driver standings found for year ${year}, trying ${year - 1}...`);
+        logger.warn(`No driver standings found for year ${year}, trying ${year - 1}...`);
         data = await f1ApiService.fetchDriverStandings(year - 1);
         standings = data?.MRData?.StandingsTable?.StandingsLists?.[0]?.DriverStandings || [];
         usedYear = year - 1;
       }
     }
 
-    console.log(`Found ${standings.length} drivers in standings from year ${usedYear}`);
+    logger.log(`Found ${standings.length} drivers in standings from year ${usedYear}`);
 
     if (standings.length === 0) {
-      console.warn(`No driver standings found for ${year} or ${year - 1}`);
+      logger.warn(`No driver standings found for ${year} or ${year - 1}`);
       return res.json([]);
     }
 
@@ -183,7 +184,7 @@ export const getDriverStandings = async (req: AuthRequest, res: Response) => {
     const gridData = getOriginalGrid(year.toString());
     const topFourTeams = gridData?.top_four_teams || [];
 
-    console.log('Top four teams:', topFourTeams);
+    logger.log('Top four teams:', topFourTeams);
 
     // Add is_top_four flag to each driver based on their team
     const enrichedStandings = standings.map((standing: any) => {
@@ -196,12 +197,12 @@ export const getDriverStandings = async (req: AuthRequest, res: Response) => {
       };
     });
 
-    console.log('Top 4 team drivers:', enrichedStandings.filter((s: any) => s.is_top_four_team).map((s: any) => s.Driver.familyName));
-    console.log('Midfield drivers:', enrichedStandings.filter((s: any) => !s.is_top_four_team).map((s: any) => s.Driver.familyName));
+    logger.log('Top 4 team drivers:', enrichedStandings.filter((s: any) => s.is_top_four_team).map((s: any) => s.Driver.familyName));
+    logger.log('Midfield drivers:', enrichedStandings.filter((s: any) => !s.is_top_four_team).map((s: any) => s.Driver.familyName));
 
     res.json(enrichedStandings);
   } catch (error) {
-    console.error('Get driver standings error:', error);
+    logger.error('Get driver standings error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };

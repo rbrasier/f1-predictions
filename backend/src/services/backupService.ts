@@ -1,4 +1,5 @@
 import db from '../db/database';
+import { logger } from '../utils/logger';
 
 export interface Backup {
     id: number;
@@ -9,7 +10,7 @@ export interface Backup {
 
 export const backupService = {
     async createBackup() {
-        console.log('Starting backup process...');
+        logger.log('Starting backup process...');
         try {
             // Fetch all data
             const users = await db.prepare('SELECT * FROM users').all();
@@ -34,10 +35,10 @@ export const backupService = {
         VALUES (CURRENT_TIMESTAMP, $1)
       `).run(jsonString);
 
-            console.log('Backup created successfully');
+            logger.log('Backup created successfully');
             return true;
         } catch (error) {
-            console.error('Backup failed:', error);
+            logger.error('Backup failed:', error);
             throw error;
         }
     },

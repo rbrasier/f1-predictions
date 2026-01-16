@@ -5,6 +5,7 @@ import { body, validationResult } from 'express-validator';
 import db from '../db/database';
 import { AuthRequest } from '../middleware/auth';
 import { User, RegisterRequest, LoginRequest, AuthResponse } from '../types';
+import { logger } from '../utils/logger';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'default-secret';
 const JWT_EXPIRES_IN = '365d'; // 1 year
@@ -70,7 +71,7 @@ export const register = async (req: AuthRequest, res: Response) => {
           `).run(userId, league.id);
         }
       } catch (error) {
-        console.error('Error joining league during registration:', error);
+        logger.error('Error joining league during registration:', error);
         // Don't fail registration if league join fails
       }
     }
@@ -95,7 +96,7 @@ export const register = async (req: AuthRequest, res: Response) => {
 
     res.status(201).json(response);
   } catch (error) {
-    console.error('Registration error:', error);
+    logger.error('Registration error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -154,7 +155,7 @@ export const login = async (req: AuthRequest, res: Response) => {
           }
         }
       } catch (error) {
-        console.error('Error joining league during login:', error);
+        logger.error('Error joining league during login:', error);
         // Don't fail login if league join fails
       }
     }
@@ -178,7 +179,7 @@ export const login = async (req: AuthRequest, res: Response) => {
 
     res.json(response);
   } catch (error) {
-    console.error('Login error:', error);
+    logger.error('Login error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -206,7 +207,7 @@ export const getMe = async (req: AuthRequest, res: Response) => {
       is_admin: Boolean(user.is_admin)
     });
   } catch (error) {
-    console.error('Get me error:', error);
+    logger.error('Get me error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -221,7 +222,7 @@ export const getAllUsers = async (req: AuthRequest, res: Response) => {
 
     res.json(users);
   } catch (error) {
-    console.error('Get users error:', error);
+    logger.error('Get users error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -250,7 +251,7 @@ export const grantAdminAccess = async (req: AuthRequest, res: Response) => {
 
     res.json({ message: 'Admin access granted successfully', user: { ...user, is_admin: true } });
   } catch (error) {
-    console.error('Grant admin error:', error);
+    logger.error('Grant admin error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };

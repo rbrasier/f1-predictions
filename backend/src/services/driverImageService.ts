@@ -1,4 +1,5 @@
 import db from '../db/database';
+import { logger } from '../utils/logger';
 
 /**
  * Service to manage driver profile images
@@ -31,7 +32,7 @@ function generateDriverImageUrl(driverName: string, code: string, number: string
     const imageId = `${driverCode}01`;
     return `${F1_DRIVER_IMAGE_BASE}/${firstLetter}/${imageId}.png.transform/1col/image.png`;
   } catch (error) {
-    console.error(`Error generating image URL for ${driverName}:`, error);
+    logger.error(`Error generating image URL for ${driverName}:`, error);
     return F1_FALLBACK_IMAGE;
   }
 }
@@ -102,7 +103,7 @@ async function extractDriversFromCache(year: number): Promise<DriverApiData[]> {
     `).get(year) as { data_json: string } | undefined;
 
     if (!cacheRecord) {
-      console.warn(`No cached driver data found for ${year}`);
+      logger.warn(`No cached driver data found for ${year}`);
       return [];
     }
 
@@ -117,7 +118,7 @@ async function extractDriversFromCache(year: number): Promise<DriverApiData[]> {
       familyName: d.familyName
     }));
   } catch (error) {
-    console.error(`Error extracting drivers from cache:`, error);
+    logger.error(`Error extracting drivers from cache:`, error);
     return [];
   }
 }
@@ -126,18 +127,18 @@ async function extractDriversFromCache(year: number): Promise<DriverApiData[]> {
  * Update drivers table with generated image URLs
  */
 export async function populateDriverImages(year: number = 2026): Promise<number> {
-  console.log(`Populating driver images for ${year}...`);
+  logger.log(`Populating driver images for ${year}...`);
 
   try {
     // Extract drivers from cached API data
     const apiDrivers = extractDriversFromCache(year);
 
     if ((await apiDrivers).length === 0) {
-      console.warn('No drivers found in cached API data');
+      logger.warn('No drivers found in cached API data');
       return 0;
     }
 
-    console.log(`Found ${(await apiDrivers).length} drivers in cached API data`);
+    logger.log(`Found ${(await apiDrivers).length} drivers in cached API data`);
 
     let updated = 0;
 
@@ -151,7 +152,7 @@ export async function populateDriverImages(year: number = 2026): Promise<number>
       `).get(fullName, `%${apiDriver.familyName}%`) as { id: number; name: string } | undefined;
 
       if (!dbDriver) {
-        console.warn(`  ⚠ Driver not found in database: ${fullName}`);
+        logger.warn(`  ⚠ Driver not found in database: ${fullName}`);
         continue;
       }
 
@@ -165,14 +166,14 @@ export async function populateDriverImages(year: number = 2026): Promise<number>
         WHERE id = $2
       `).run(imageUrl, dbDriver.id);
 
-      console.log(`  ✓ Updated ${dbDriver.name}: ${imageUrl}`);
+      logger.log(`  ✓ Updated ${dbDriver.name}: ${imageUrl}`);
       updated++;
     }
 
-    console.log(`✓ Successfully updated ${updated} driver images`);
+    logger.log(`✓ Successfully updated ${updated} driver images`);
     return updated;
   } catch (error) {
-    console.error('Error populating driver images:', error);
+    logger.error('Error populating driver images:', error);
     throw error;
   }
 }
@@ -219,7 +220,7 @@ export async function getDriverImageUrl(driverId: number): Promise<string | null
 
     return driver?.image_url || null;
   } catch (error) {
-    console.error(`Error getting driver image for ID ${driverId}:`, error);
+    logger.error(`Error getting driver image for ID ${driverId}:`, error);
     return null;
   }
 }
