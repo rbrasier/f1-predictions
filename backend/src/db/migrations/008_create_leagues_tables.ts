@@ -42,7 +42,7 @@ export async function up(db: any) {
   // Create a common league for existing users
     await db.query(`
     INSERT INTO leagues (name, invite_code, is_world_league)
-    VALUES ('Tinted Papaya', 'papaya', FALSE)
+    VALUES ('Tinted Papaya', 'PAPAYA', FALSE)
     ON CONFLICT (invite_code) DO NOTHING
   `);
 
