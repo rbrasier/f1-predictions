@@ -206,18 +206,17 @@ export const DashboardPage = () => {
       <div className="max-w-7xl mx-auto px-6 py-8">
         {/* Hero Section */}
         <div className="mb-12">
-          <h1 className="text-2xl font-bold mb-4 italic tracking-tight leading-tight">
-            <span className="text-white">LIGHTS OUT</span>
-            
-            <span className="text-white"> &</span>{' '}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-paddock-red to-paddock-coral">
-              AWAY WE GO
+          <h1 className="text-2xl font-bold italic tracking-tight leading-tight flex items-center gap-4">
+            <span className="text-white">
+              {defaultLeague?.name || 'League'} ({defaultLeague?.member_count || 0} members)
             </span>
+            <Link
+              to="/leaderboard"
+              className="text-sm font-normal not-italic text-paddock-red hover:text-paddock-coral underline"
+            >
+              View leaderboard
+            </Link>
           </h1>
-          <p className="text-gray-400 text-lg max-w-2xl">
-            The ultimate tipping battleground for you and your mates. Predict the podium,
-            best of the rest, and crazy outcomes to claim the Championship Trophy.
-          </p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
