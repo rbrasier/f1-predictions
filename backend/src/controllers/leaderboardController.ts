@@ -22,7 +22,7 @@ export const getLeaderboard = async (req: AuthRequest, res: Response) => {
       ${leagueId ? 'INNER JOIN user_leagues ul ON u.id = ul.user_id' : ''}
       LEFT JOIN season_predictions sp ON u.id = sp.user_id ${seasonYear ? 'AND sp.season_year = $1' : ''}
       LEFT JOIN race_predictions rp ON u.id = rp.user_id ${seasonYear ? 'AND rp.season_year = $2' : ''}
-      WHERE u.is_admin = false ${leagueId ? (seasonYear ? 'AND ul.league_id = $3' : 'AND ul.league_id = $1') : ''}
+      WHERE u.username != 'admin' ${leagueId ? (seasonYear ? 'AND ul.league_id = $3' : 'AND ul.league_id = $1') : ''}
       GROUP BY u.id, u.display_name
       ORDER BY total_points DESC, u.display_name
     `;
@@ -114,7 +114,7 @@ export const exportToExcel = async (req: AuthRequest, res: Response) => {
       ${leagueId ? 'INNER JOIN user_leagues ul ON u.id = ul.user_id' : ''}
       LEFT JOIN season_predictions sp ON u.id = sp.user_id ${seasonYear ? 'AND sp.season_year = $1' : ''}
       LEFT JOIN race_predictions rp ON u.id = rp.user_id ${seasonYear ? 'AND rp.season_year = $2' : ''}
-      WHERE u.is_admin = false ${leagueId ? (seasonYear ? 'AND ul.league_id = $3' : 'AND ul.league_id = $1') : ''}
+      WHERE u.username != 'admin' ${leagueId ? (seasonYear ? 'AND ul.league_id = $3' : 'AND ul.league_id = $1') : ''}
       GROUP BY u.id, u.display_name
       ORDER BY total_points DESC, u.display_name
     `;
