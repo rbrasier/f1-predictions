@@ -4,6 +4,7 @@ import {
   closestCenter,
   KeyboardSensor,
   PointerSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   DragEndEvent
@@ -62,7 +63,7 @@ const SortableItem = ({ item, index }: SortableItemProps) => {
   return (
     <div
       ref={setNodeRef}
-      style={style}
+      style={{ ...style, touchAction: 'none' }}
       {...attributes}
       {...listeners}
       className={`bg-white border-2 border-gray-200 rounded-lg p-4 mb-2 cursor-move hover:border-f1-red transition-all ${
@@ -109,7 +110,12 @@ export const ChampionshipOrderPicker = ({ items, onChange, title }: Championship
   const [orderedItems, setOrderedItems] = useState<Item[]>(items);
 
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(TouchSensor, {
+      distance: 8
+    }),
+    useSensor(PointerSensor, {
+      distance: 8
+    }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates
     })
