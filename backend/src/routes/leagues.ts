@@ -8,6 +8,7 @@ import {
   getLeagueUsers,
   joinWorldLeague,
   leaveLeague,
+  getLeagueByInviteCode,
   createLeagueValidation,
   joinLeagueValidation
 } from '../controllers/leaguesController';
@@ -15,7 +16,10 @@ import { authenticate } from '../middleware/auth';
 
 const router = Router();
 
-// All routes require authentication
+// Public route - no authentication required
+router.get('/invite/:inviteCode', getLeagueByInviteCode);
+
+// All other routes require authentication
 router.post('/', authenticate, createLeagueValidation, createLeague);
 router.get('/', authenticate, getUserLeagues);
 router.get('/default', authenticate, getDefaultLeague);

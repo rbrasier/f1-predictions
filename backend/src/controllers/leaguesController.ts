@@ -111,7 +111,8 @@ export const getDefaultLeague = async (req: AuthRequest, res: Response) => {
     }
 
     const league = await db.prepare(`
-      SELECT l.id, l.name, l.invite_code, l.is_world_league, l.created_by_user_id, l.created_at, ul.is_default, ul.joined_at
+      SELECT l.id, l.name, l.invite_code, l.is_world_league, l.created_by_user_id, l.created_at, ul.is_default, ul.joined_at,
+             (SELECT COUNT(*) FROM user_leagues WHERE league_id = l.id) as member_count
       FROM leagues l
       INNER JOIN user_leagues ul ON l.id = ul.league_id
       WHERE ul.user_id = $1 AND ul.is_default = true
@@ -388,6 +389,34 @@ export const leaveLeague = async (req: AuthRequest, res: Response) => {
     res.json({ message: 'Successfully left league' });
   } catch (error) {
     logger.error('Leave league error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// Get league info by invite code (public endpoint - no auth required)
+export const getLeagueByInviteCode = async (req: AuthRequest, res: Response) => {
+  try {
+    const { inviteCode } = req.params;
+
+    if (!inviteCode) {
+      return res.status(400).json({ error: 'Invite code is required' });
+    }
+
+    // Find the league and get member count
+    const league = await db.prepare(`
+      SELECT l.id, l.name, l.invite_code, l.is_world_league,
+             (SELECT COUNT(*) FROM user_leagues WHERE league_id = l.id) as member_count
+      FROM leagues l
+      WHERE l.invite_code = $1
+    `).get(inviteCode.toUpperCase());
+
+    if (!league) {
+      return res.status(404).json({ error: 'League not found' });
+    }
+
+    res.json(league);
+  } catch (error) {
+    logger.error('Get league by invite code error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
