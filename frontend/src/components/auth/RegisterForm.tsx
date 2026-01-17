@@ -1,6 +1,7 @@
 import { useState, FormEvent, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { getLeagueByInviteCode } from '../../services/api';
 
 export const RegisterForm = () => {
   const [username, setUsername] = useState('');
@@ -9,6 +10,7 @@ export const RegisterForm = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [inviteCode, setInviteCode] = useState<string | undefined>(undefined);
+  const [leagueInfo, setLeagueInfo] = useState<{ name: string; member_count: number } | null>(null);
   const { register } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -16,7 +18,21 @@ export const RegisterForm = () => {
   useEffect(() => {
     const invite = searchParams.get('invite');
     if (invite) {
-      setInviteCode(invite.toUpperCase());
+      const code = invite.toUpperCase();
+      setInviteCode(code);
+
+      // Fetch league info
+      getLeagueByInviteCode(code)
+        .then((league) => {
+          setLeagueInfo({
+            name: league.name,
+            member_count: league.member_count
+          });
+        })
+        .catch(() => {
+          // If league not found, we'll just show the invite code
+          setLeagueInfo(null);
+        });
     }
   }, [searchParams]);
 
@@ -63,7 +79,17 @@ export const RegisterForm = () => {
 
         {inviteCode && (
           <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
-            🎉 You're joining a league! Invite code: <strong>{inviteCode}</strong>
+            {leagueInfo ? (
+              <>
+                🎉 You've been invited to <strong>{leagueInfo.name}</strong> (joining {leagueInfo.member_count} other competitor{leagueInfo.member_count !== 1 ? 's' : ''}).
+                <br />
+                Invite code: <strong>{inviteCode}</strong>
+              </>
+            ) : (
+              <>
+                🎉 You're joining a league! Invite code: <strong>{inviteCode}</strong>
+              </>
+            )}
           </div>
         )}
 

@@ -364,4 +364,9 @@ export const leaveLeague = async (leagueId: number): Promise<any> => {
   return data;
 };
 
+export const getLeagueByInviteCode = async (invite_code: string): Promise<League & { member_count: number }> => {
+  const { data } = await api.get(`/leagues/invite/${invite_code}`);
+  return data;
+};
+
 export default api;
