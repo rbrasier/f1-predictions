@@ -213,9 +213,10 @@ export class F1ApiService {
         seasonYear || null,
         roundNumber || null,
         resourceId || null
-      ) as { last_fetched_at: string } | undefined;
+      ) as { last_fetched_at: string | Date } | undefined;
 
       if (!row) {
+        logger.log(`  ❌ No cache found for ${resourceType} (year: ${seasonYear}, round: ${roundNumber})`);
         return false;
       }
 
@@ -223,7 +224,15 @@ export class F1ApiService {
       const now = new Date();
       const hoursSinceLastFetch = (now.getTime() - lastFetched.getTime()) / (1000 * 60 * 60);
 
-      return hoursSinceLastFetch < CACHE_DURATION_HOURS;
+      logger.log(`  📦 Cache found: ${resourceType} fetched ${hoursSinceLastFetch.toFixed(2)} hours ago`);
+
+      if (hoursSinceLastFetch < CACHE_DURATION_HOURS) {
+        logger.log(`  ✅ Cache is fresh`);
+        return true;
+      } else {
+        logger.log(`  ⏰ Cache expired (${hoursSinceLastFetch.toFixed(2)} > ${CACHE_DURATION_HOURS})`);
+        return false;
+      }
     } catch (error) {
       logger.error('Error checking cache freshness:', error);
       return false;
@@ -242,12 +251,19 @@ export class F1ApiService {
     apiUrl: string
   ): Promise<any> {
     // Check if we have fresh cached data and don't need to refresh
-    if (!forceRefresh && await this.isCacheFresh(resourceType, seasonYear || undefined, roundNumber || undefined, resourceId || undefined)) {
-      const cached = await this.getCachedData(resourceType, seasonYear || undefined, roundNumber || undefined, resourceId || undefined);
-      if (cached) {
-        logger.log(`  Using cached ${resourceType} data`);
-        return cached;
+    if (!forceRefresh) {
+      logger.log(`  🔍 Checking cache for ${resourceType} (year: ${seasonYear}, round: ${roundNumber})`);
+      if (await this.isCacheFresh(resourceType, seasonYear || undefined, roundNumber || undefined, resourceId || undefined)) {
+        const cached = await this.getCachedData(resourceType, seasonYear || undefined, roundNumber || undefined, resourceId || undefined);
+        if (cached) {
+          logger.log(`  ✓ Using cached ${resourceType} data`);
+          return cached;
+        } else {
+          logger.log(`  ⚠️  Cache fresh check passed but no data found!`);
+        }
       }
+    } else {
+      logger.log(`  🔄 Force refresh requested for ${resourceType}`);
     }
 
     // Fetch fresh data from API
