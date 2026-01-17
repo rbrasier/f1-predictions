@@ -213,7 +213,7 @@ export class F1ApiService {
         seasonYear || null,
         roundNumber || null,
         resourceId || null
-      ) as { last_fetched_at: string } | undefined;
+      ) as { last_fetched_at: string | Date } | undefined;
 
       if (!row) {
         return false;
@@ -243,7 +243,7 @@ export class F1ApiService {
   ): Promise<any> {
     // Check if we have fresh cached data and don't need to refresh
     if (!forceRefresh && await this.isCacheFresh(resourceType, seasonYear || undefined, roundNumber || undefined, resourceId || undefined)) {
-      const cached = this.getCachedData(resourceType, seasonYear || undefined, roundNumber || undefined, resourceId || undefined);
+      const cached = await this.getCachedData(resourceType, seasonYear || undefined, roundNumber || undefined, resourceId || undefined);
       if (cached) {
         logger.log(`  Using cached ${resourceType} data`);
         return cached;
@@ -271,7 +271,7 @@ export class F1ApiService {
       logger.error(`Error fetching ${resourceType}:`, error.message);
 
       // If fetch fails, try to return stale cached data if available
-      const cached = this.getCachedData(resourceType, seasonYear || undefined, roundNumber || undefined, resourceId || undefined);
+      const cached = await this.getCachedData(resourceType, seasonYear || undefined, roundNumber || undefined, resourceId || undefined);
       if (cached) {
         logger.log(`  Returning stale cached ${resourceType} data due to API error`);
         return cached;
