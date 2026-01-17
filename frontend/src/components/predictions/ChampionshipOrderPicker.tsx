@@ -110,12 +110,8 @@ export const ChampionshipOrderPicker = ({ items, onChange, title }: Championship
   const [orderedItems, setOrderedItems] = useState<Item[]>(items);
 
   const sensors = useSensors(
-    useSensor(TouchSensor, {
-      distance: 8
-    }),
-    useSensor(PointerSensor, {
-      distance: 8
-    }),
+    useSensor(TouchSensor),
+    useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates
     })
