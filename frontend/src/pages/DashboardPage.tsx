@@ -24,6 +24,8 @@ export const DashboardPage = () => {
   const [votingOnPrediction, setVotingOnPrediction] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [isSeasonExpanded, setIsSeasonExpanded] = useState(false);
+  const [isRaceExpanded, setIsRaceExpanded] = useState(false);
 
   // Helper to get driver name from API ID
   const getDriverName = (apiId: string | null): string => {
@@ -224,37 +226,78 @@ export const DashboardPage = () => {
           <div className="lg:col-span-2 space-y-6">
             {/* Season Predictions Countdown - only show if deadline hasn't passed or no prediction submitted */}
             {season && !seasonDeadlinePassed && (
-              <div className="bg-gradient-to-r from-purple-900/40 to-black rounded-lg p-6 border border-paddock-lightgray">
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <div className="text-purple-400 text-sm font-bold uppercase tracking-wide mb-2">
-                      Season {season.year}
+              <div className="bg-gradient-to-r from-purple-900/40 to-black rounded-lg border border-paddock-lightgray overflow-hidden">
+                <div
+                  className="p-4 md:p-6 cursor-pointer"
+                  onClick={(e) => {
+                    // Only toggle if not clicking on a button/link
+                    if ((e.target as HTMLElement).closest('a')) return;
+                    if (mySeasonPrediction) {
+                      setIsSeasonExpanded(!isSeasonExpanded);
+                    }
+                  }}
+                >
+                  <div className="flex items-start gap-3 mb-3">
+                    {/* Tick icon when prediction is submitted */}
+                    {mySeasonPrediction && (
+                      <div className="flex-shrink-0 mt-1">
+                        <div className="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center">
+                          <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                          </svg>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex-1 min-w-0">
+                      <div className="text-purple-400 text-xs md:text-sm font-bold uppercase tracking-wide mb-1">
+                        Season {season.year}
+                      </div>
+                      <h2 className="text-xl md:text-3xl font-bold text-white mb-1">
+                        SEASON PREDICTIONS
+                      </h2>
+                      <p className="text-gray-400 text-sm">Championship Predictions Close</p>
                     </div>
-                    <h2 className="text-3xl font-bold text-white mb-2">
-                      SEASON PREDICTIONS
-                    </h2>
-                    <p className="text-gray-400">Championship Predictions Close</p>
+
+                    {/* Collapse/Expand indicator */}
+                    {mySeasonPrediction && (
+                      <div className="flex-shrink-0 mt-1">
+                        <svg
+                          className={`w-6 h-6 text-gray-400 transition-transform ${isSeasonExpanded ? 'rotate-90' : ''}`}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </div>
+                    )}
                   </div>
-                  <div className="flex gap-2">
+
+                  {/* Buttons */}
+                  <div className="flex flex-col sm:flex-row gap-2 mb-3">
                     <Link
                       to="/compare-tips?mode=season"
-                      className="bg-purple-800 hover:bg-purple-900 text-white px-6 py-3 rounded font-bold uppercase text-sm tracking-wide transition border border-purple-600"
+                      className="bg-purple-800 hover:bg-purple-900 text-white px-4 py-2.5 rounded font-bold uppercase text-xs tracking-wide transition border border-purple-600 text-center"
                     >
                       Compare
                     </Link>
                     <Link
                       to="/season-predictions"
-                      className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded font-bold uppercase text-sm tracking-wide transition"
+                      className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2.5 rounded font-bold uppercase text-xs tracking-wide transition text-center"
                     >
                       {mySeasonPrediction ? 'Edit Predictions' : 'Submit Predictions'}
                     </Link>
                   </div>
-                </div>
 
-                <CountdownTimer
-                  targetDate={season.prediction_deadline}
-                  label=""
-                />
+                  {/* Countdown Timer - hidden when collapsed */}
+                  {(!mySeasonPrediction || isSeasonExpanded) && (
+                    <CountdownTimer
+                      targetDate={season.prediction_deadline}
+                      label=""
+                    />
+                  )}
+                </div>
               </div>
             )}
 
@@ -267,27 +310,65 @@ export const DashboardPage = () => {
 
               {/* Current Round - Show user tips if submitted */}
               {nextRace && (
-                <div className="bg-gradient-to-r from-red-900/40 to-black rounded-lg p-4 border border-paddock-lightgray mb-4">
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <div className="text-paddock-coral text-xs font-bold uppercase tracking-wide mb-1">
-                        Round {nextRace.round}
+                <div className="bg-gradient-to-r from-red-900/40 to-black rounded-lg border border-paddock-lightgray mb-4 overflow-hidden">
+                  <div
+                    className="p-3 md:p-4 cursor-pointer"
+                    onClick={(e) => {
+                      // Only toggle if not clicking on a button/link
+                      if ((e.target as HTMLElement).closest('a')) return;
+                      if (myRacePrediction) {
+                        setIsRaceExpanded(!isRaceExpanded);
+                      }
+                    }}
+                  >
+                    <div className="flex items-start gap-3 mb-2">
+                      {/* Tick icon when prediction is submitted */}
+                      {myRacePrediction && (
+                        <div className="flex-shrink-0 mt-1">
+                          <div className="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center">
+                            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                            </svg>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="flex-1 min-w-0">
+                        <div className="text-paddock-coral text-xs font-bold uppercase tracking-wide mb-1">
+                          Round {nextRace.round}
+                        </div>
+                        <h3 className="text-lg md:text-xl font-bold text-white mb-1">
+                          {nextRace.raceName.toUpperCase()}
+                        </h3>
+                        <p className="text-gray-400 text-xs md:text-sm">{getRaceLocation(nextRace)}</p>
                       </div>
-                      <h3 className="text-xl font-bold text-white mb-1">
-                        {nextRace.raceName.toUpperCase()}
-                      </h3>
-                      <p className="text-gray-400 text-sm">{getRaceLocation(nextRace)}</p>
+
+                      {/* Collapse/Expand indicator */}
+                      {myRacePrediction && (
+                        <div className="flex-shrink-0 mt-1">
+                          <svg
+                            className={`w-6 h-6 text-gray-400 transition-transform ${isRaceExpanded ? 'rotate-90' : ''}`}
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </div>
+                      )}
                     </div>
-                    <div className="flex items-center gap-2">
+
+                    {/* Buttons */}
+                    <div className="flex flex-wrap gap-2 mb-2">
                       <Link
                         to="/compare-tips?mode=race"
-                        className="bg-paddock-darkred hover:bg-red-900 text-white px-4 py-2 rounded font-bold uppercase text-xs tracking-wide transition border border-paddock-red"
+                        className="bg-paddock-darkred hover:bg-red-900 text-white px-3 py-2 rounded font-bold uppercase text-xs tracking-wide transition border border-paddock-red"
                       >
                         Compare
                       </Link>
                       <Link
                         to={`/race/${getRaceId(nextRace)}`}
-                        className="bg-paddock-red hover:bg-red-600 text-white px-4 py-2 rounded font-bold uppercase text-xs tracking-wide transition"
+                        className="bg-paddock-red hover:bg-red-600 text-white px-3 py-2 rounded font-bold uppercase text-xs tracking-wide transition"
                       >
                         {myRacePrediction ? 'Edit Tips' : 'Submit Tips'}
                       </Link>
@@ -304,47 +385,50 @@ export const DashboardPage = () => {
                           )}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded font-bold uppercase text-xs tracking-wide transition"
+                          className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded font-bold uppercase text-xs tracking-wide transition"
                         >
                           Share
                         </a>
                       )}
                     </div>
-                  </div>
 
-                  {myRacePrediction ? (
-                    <div>
-                      <div className="grid grid-cols-3 gap-2 mb-2">
-                        <div className="bg-paddock-gray rounded p-2 border border-paddock-lightgray">
-                          <div className="text-paddock-coral text-xs font-bold uppercase mb-1">P1</div>
-                          <div className="text-white font-bold text-sm">
-                            {getDriverName(myRacePrediction.podium_first_driver_api_id)}
+                    {/* Predictions and countdown - hidden when collapsed */}
+                    {(!myRacePrediction || isRaceExpanded) && (
+                      myRacePrediction ? (
+                        <div>
+                          <div className="grid grid-cols-3 gap-2 mb-2">
+                            <div className="bg-paddock-gray rounded p-2 border border-paddock-lightgray">
+                              <div className="text-paddock-coral text-xs font-bold uppercase mb-1">P1</div>
+                              <div className="text-white font-bold text-sm">
+                                {getDriverName(myRacePrediction.podium_first_driver_api_id)}
+                              </div>
+                            </div>
+                            <div className="bg-paddock-gray rounded p-2 border border-paddock-lightgray">
+                              <div className="text-paddock-coral text-xs font-bold uppercase mb-1">P2</div>
+                              <div className="text-white font-bold text-sm">
+                                {getDriverName(myRacePrediction.podium_second_driver_api_id)}
+                              </div>
+                            </div>
+                            <div className="bg-paddock-gray rounded p-2 border border-paddock-lightgray">
+                              <div className="text-paddock-coral text-xs font-bold uppercase mb-1">P3</div>
+                              <div className="text-white font-bold text-sm">
+                                {getDriverName(myRacePrediction.podium_third_driver_api_id)}
+                              </div>
+                            </div>
                           </div>
+                          {getFP1Start(nextRace) && (
+                            <div className="text-xs">
+                              <CountdownTimer targetDate={getFP1Start(nextRace)!} label="" />
+                            </div>
+                          )}
                         </div>
-                        <div className="bg-paddock-gray rounded p-2 border border-paddock-lightgray">
-                          <div className="text-paddock-coral text-xs font-bold uppercase mb-1">P2</div>
-                          <div className="text-white font-bold text-sm">
-                            {getDriverName(myRacePrediction.podium_second_driver_api_id)}
-                          </div>
-                        </div>
-                        <div className="bg-paddock-gray rounded p-2 border border-paddock-lightgray">
-                          <div className="text-paddock-coral text-xs font-bold uppercase mb-1">P3</div>
-                          <div className="text-white font-bold text-sm">
-                            {getDriverName(myRacePrediction.podium_third_driver_api_id)}
-                          </div>
-                        </div>
-                      </div>
-                      {getFP1Start(nextRace) && (
-                        <div className="text-xs">
+                      ) : (
+                        getFP1Start(nextRace) && (
                           <CountdownTimer targetDate={getFP1Start(nextRace)!} label="" />
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    getFP1Start(nextRace) && (
-                      <CountdownTimer targetDate={getFP1Start(nextRace)!} label="" />
-                    )
-                  )}
+                        )
+                      )
+                    )}
+                  </div>
                 </div>
               )}
 
