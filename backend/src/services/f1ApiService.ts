@@ -311,6 +311,8 @@ export class F1ApiService {
       const dataJson = JSON.stringify(data);
       const now = new Date().toISOString();
 
+      logger.log(`  📝 Storing cache: ${resourceType}, year=${seasonYear}, round=${roundNumber}, timestamp=${now}`);
+
       // Use UPSERT (INSERT ... ON CONFLICT) for PostgreSQL
       const stmt = db.prepare(`
         INSERT INTO f1_api_cache
@@ -320,9 +322,9 @@ export class F1ApiService {
         DO UPDATE SET data_json = $5, last_fetched_at = $6
       `);
 
-      await stmt.run(resourceType, seasonYear, roundNumber, resourceId, dataJson, now);
+      const result = await stmt.run(resourceType, seasonYear, roundNumber, resourceId, dataJson, now);
 
-      logger.log(`  ✓ Cached ${resourceType} data`);
+      logger.log(`  ✓ Cached ${resourceType} data (rows affected: ${result?.rowCount})`);
     } catch (error) {
       logger.error('Error caching data:', error);
       // Don't throw - caching failure shouldn't break the API fetch
