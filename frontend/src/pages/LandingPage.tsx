@@ -57,14 +57,7 @@ export const LandingPage = () => {
         <div className="container mx-auto px-4 sm:px-6">
           <div className="flex justify-between items-center py-4">
             <Link to="/" className="flex items-center gap-2 sm:gap-3 hover:opacity-80 transition">
-              <div className="w-7 h-7 sm:w-8 sm:h-8 bg-paddock-red flex items-center justify-center">
-                <svg className="w-4 h-4 sm:w-5 sm:h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
-                  <rect x="3" y="3" width="8" height="8" />
-                  <rect x="13" y="3" width="8" height="8" />
-                  <rect x="3" y="13" width="8" height="8" />
-                  <rect x="13" y="13" width="8" height="8" />
-                </svg>
-              </div>
+              <span className="text-2xl sm:text-3xl">🏁</span>
               <span className="text-lg sm:text-xl font-bold tracking-wider">
                 <span className="text-white">PADDOCK</span>
                 <span className="text-paddock-red">PULSE</span>
@@ -100,8 +93,8 @@ export const LandingPage = () => {
       </nav>
 
       {/* Hero Section */}
-      <section className="container mx-auto px-4 sm:px-6 py-12 sm:py-20">
-        <div className="text-center max-w-4xl mx-auto mb-12">
+      <section className="container mx-auto px-4 sm:px-6 py-4 sm:py-6">
+        <div className="text-center max-w-4xl mx-auto mb-6">
           <p className="text-xl sm:text-2xl text-gray-300 mb-4">
             The F1 predictions league for fans who think they know racing.
           </p>
@@ -112,57 +105,63 @@ export const LandingPage = () => {
         </div>
 
         {/* Countdown Sections */}
-        <div className="grid md:grid-cols-2 gap-6 mb-12">
+        <div className="grid md:grid-cols-2 gap-6 mb-6">
           {/* Season Predictions Card */}
           {season && (
-            <div className="bg-gradient-to-br from-purple-900/40 to-purple-700/20 rounded-lg p-8 border border-purple-500/30">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                <span className="text-gray-300 text-sm uppercase tracking-wider">Season {season.year}</span>
-              </div>
-              <h2 className="text-3xl font-bold text-white mb-2">SEASON PREDICTIONS</h2>
-              <p className="text-gray-300 mb-6">Championship Predictions Close</p>
+            <div className="bg-gradient-to-r from-purple-900/40 to-black rounded-lg border border-paddock-lightgray overflow-hidden">
+              <div className="p-6">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                      <span className="text-purple-400 text-xs font-bold uppercase tracking-wider">Season {season.year}</span>
+                    </div>
+                    <h2 className="text-2xl md:text-3xl font-bold text-white">SEASON PREDICTIONS</h2>
+                    <p className="text-gray-400 text-sm mt-1">Championship Predictions Close</p>
+                  </div>
+                  <Link
+                    to={user ? "/season-predictions" : "/register"}
+                    className="bg-paddock-red hover:bg-red-600 text-white px-4 py-2 rounded font-bold uppercase text-xs tracking-wide transition whitespace-nowrap ml-4 flex-shrink-0"
+                  >
+                    Get Started
+                  </Link>
+                </div>
 
-              <CountdownTimer
-                targetDate={season.prediction_deadline}
-                label=""
-              />
-
-              <div className="mt-6">
-                <Link
-                  to={user ? "/season-predictions" : "/register"}
-                  className="block w-full bg-paddock-red hover:bg-red-600 text-white px-6 py-3 rounded font-bold uppercase text-sm tracking-wide transition text-center"
-                >
-                  Get Started
-                </Link>
+                <CountdownTimer
+                  targetDate={season.prediction_deadline}
+                  label=""
+                />
               </div>
             </div>
           )}
 
           {/* Next Race Card */}
           {nextRace && (
-            <div className="bg-gradient-to-br from-red-900/40 to-red-700/20 rounded-lg p-8 border border-red-500/30">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                <span className="text-gray-300 text-sm uppercase tracking-wider">Round {nextRace.round}</span>
-              </div>
-              <h2 className="text-3xl font-bold text-white mb-2">{nextRace.raceName.toUpperCase()}</h2>
-              <p className="text-gray-300 mb-6">{nextRace.Circuit.Location.locality}, {nextRace.Circuit.Location.country}</p>
+            <div className="bg-gradient-to-r from-red-900/40 to-black rounded-lg border border-paddock-lightgray overflow-hidden">
+              <div className="p-6">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                      <span className="text-paddock-coral text-xs font-bold uppercase tracking-wider">Round {nextRace.round}</span>
+                    </div>
+                    <h2 className="text-2xl md:text-3xl font-bold text-white">{nextRace.raceName.toUpperCase()}</h2>
+                    <p className="text-gray-400 text-sm mt-1">{nextRace.Circuit.Location.locality}, {nextRace.Circuit.Location.country}</p>
+                  </div>
+                  <Link
+                    to={user ? `/race/${nextRace.season}-${nextRace.round}` : "/register"}
+                    className="bg-paddock-red hover:bg-red-600 text-white px-4 py-2 rounded font-bold uppercase text-xs tracking-wide transition whitespace-nowrap ml-4 flex-shrink-0"
+                  >
+                    Get Started
+                  </Link>
+                </div>
 
-              {getRaceCountdownDate(nextRace) && (
-                <CountdownTimer
-                  targetDate={getRaceCountdownDate(nextRace)!}
-                  label=""
-                />
-              )}
-
-              <div className="mt-6">
-                <Link
-                  to={user ? `/race/${nextRace.season}-${nextRace.round}` : "/register"}
-                  className="block w-full bg-paddock-red hover:bg-red-600 text-white px-6 py-3 rounded font-bold uppercase text-sm tracking-wide transition text-center"
-                >
-                  Get Started
-                </Link>
+                {getRaceCountdownDate(nextRace) && (
+                  <CountdownTimer
+                    targetDate={getRaceCountdownDate(nextRace)!}
+                    label=""
+                  />
+                )}
               </div>
             </div>
           )}
@@ -170,7 +169,7 @@ export const LandingPage = () => {
       </section>
 
       {/* Features Section */}
-      <section className="bg-paddock-darkgray py-16">
+      <section className="bg-paddock-darkgray py-8">
         <div className="container mx-auto px-4 sm:px-6">
           <p className="text-center text-gray-400 mb-12 max-w-2xl mx-auto">
             Put your F1 knowledge to the test across two main prediction categories
@@ -326,14 +325,7 @@ export const LandingPage = () => {
           <div className="flex flex-col md:flex-row justify-between items-center gap-6">
             <div className="flex flex-col items-center md:items-start">
               <div className="flex items-center gap-2 mb-2">
-                <div className="w-6 h-6 bg-paddock-red flex items-center justify-center">
-                  <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 24 24">
-                    <rect x="3" y="3" width="8" height="8" />
-                    <rect x="13" y="3" width="8" height="8" />
-                    <rect x="3" y="13" width="8" height="8" />
-                    <rect x="13" y="13" width="8" height="8" />
-                  </svg>
-                </div>
+                <span className="text-xl">🏁</span>
                 <span className="text-lg font-bold tracking-wider">
                   <span className="text-white">PADDOCK</span>
                   <span className="text-paddock-red">PULSE</span>
