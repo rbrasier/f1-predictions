@@ -5,6 +5,7 @@ import { LeagueProvider } from './contexts/LeagueContext';
 import { ToastContainer } from './components/common/ToastContainer';
 import { LoginForm } from './components/auth/LoginForm';
 import { RegisterForm } from './components/auth/RegisterForm';
+import { LandingPage } from './pages/LandingPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { SeasonPredictionsPage } from './pages/SeasonPredictionsPage';
 import { RaceDetailsPage } from './pages/RaceDetailsPage';
@@ -61,6 +62,7 @@ const AppRoutes = () => {
 
   return (
     <Routes>
+      <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={user ? <Navigate to="/dashboard" /> : <LoginForm />} />
       <Route path="/register" element={user ? <Navigate to="/dashboard" /> : <RegisterForm />} />
       <Route
@@ -127,8 +129,7 @@ const AppRoutes = () => {
           </AdminRoute>
         }
       />
-      <Route path="/" element={<Navigate to="/dashboard" />} />
-      <Route path="*" element={<Navigate to="/dashboard" />} />
+      <Route path="*" element={user ? <Navigate to="/dashboard" /> : <Navigate to="/" />} />
     </Routes>
   );
 };

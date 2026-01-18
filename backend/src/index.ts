@@ -7,6 +7,7 @@ import { logger } from './utils/logger';
 
 // Routes
 import authRoutes from './routes/auth';
+import publicRoutes from './routes/public';
 import referenceRoutes from './routes/reference';
 import racesRoutes from './routes/races';
 import seasonPredictionsRoutes from './routes/seasonPredictions';
@@ -62,6 +63,7 @@ app.get('/health', (req, res) => {
 
 // API Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/public', publicRoutes);
 app.use('/api', referenceRoutes);
 app.use('/api/races', racesRoutes);
 app.use('/api/seasons', seasonPredictionsRoutes);

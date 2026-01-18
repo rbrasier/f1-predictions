@@ -37,11 +37,7 @@ export const Navbar = () => {
         <div className="flex justify-between items-center py-4">
           {/* Logo */}
           <Link to="/dashboard" className="flex items-center gap-2 sm:gap-3 hover:opacity-80 transition z-50">
-            <div className="w-7 h-7 sm:w-8 sm:h-8 bg-paddock-red flex items-center justify-center">
-              <svg className="w-4 h-4 sm:w-5 sm:h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M3 3h14l-1 14H4L3 3z" />
-              </svg>
-            </div>
+            <span className="text-2xl sm:text-3xl">🏁</span>
             <span className="text-lg sm:text-xl font-bold tracking-wider">
               <span className="text-white">PADDOCK</span>
               <span className="text-paddock-red">PULSE</span>
