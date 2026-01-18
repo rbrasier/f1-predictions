@@ -28,6 +28,14 @@ const api = axios.create({
   }
 });
 
+// Public API instance (no auth required)
+const publicApi = axios.create({
+  baseURL: API_BASE_URL,
+  headers: {
+    'Content-Type': 'application/json'
+  }
+});
+
 // Add token to requests
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
@@ -372,6 +380,18 @@ export const leaveLeague = async (leagueId: number): Promise<any> => {
 
 export const getLeagueByInviteCode = async (invite_code: string): Promise<League & { member_count: number }> => {
   const { data } = await api.get(`/leagues/invite/${invite_code}`);
+  return data;
+};
+
+// Public endpoints (no authentication required)
+export const getActiveSeasonPublic = async (): Promise<Season> => {
+  const { data } = await publicApi.get('/public/seasons/active');
+  return data;
+};
+
+export const getUpcomingRacesPublic = async (limit?: number): Promise<Race[]> => {
+  const params = limit ? { limit: limit.toString() } : {};
+  const { data } = await publicApi.get('/public/races/upcoming', { params });
   return data;
 };
 

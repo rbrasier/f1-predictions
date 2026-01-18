@@ -2,22 +2,9 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useEffect, useState } from 'react';
 import { CountdownTimer } from '../components/dashboard/CountdownTimer';
-import { getActiveSeason, getUpcomingRaces } from '../services/api';
+import { getActiveSeasonPublic, getUpcomingRacesPublic } from '../services/api';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
-
-interface Season {
-  id: number;
-  year: number;
-  championship_predictions_close: string;
-}
-
-interface Race {
-  id: number;
-  name: string;
-  location: string;
-  race_date: string;
-  predictions_close: string;
-}
+import type { Season, Race } from '../types';
 
 export const LandingPage = () => {
   const { user } = useAuth();
@@ -25,12 +12,21 @@ export const LandingPage = () => {
   const [nextRace, setNextRace] = useState<Race | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Helper to get the FP1 start time for countdown
+  const getRaceCountdownDate = (race: Race): string | null => {
+    if (race.FirstPractice) {
+      return `${race.FirstPractice.date}T${race.FirstPractice.time}`;
+    }
+    // Fallback to race date
+    return race.date;
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       try {
         const [seasonData, racesData] = await Promise.all([
-          getActiveSeason(),
-          getUpcomingRaces(1)
+          getActiveSeasonPublic(),
+          getUpcomingRacesPublic(1)
         ]);
         setSeason(seasonData);
         if (racesData.length > 0) {
@@ -106,13 +102,8 @@ export const LandingPage = () => {
       {/* Hero Section */}
       <section className="container mx-auto px-4 sm:px-6 py-12 sm:py-20">
         <div className="text-center max-w-4xl mx-auto mb-12">
-          <h1 className="text-4xl sm:text-6xl font-bold mb-6">
-            <span className="text-white">Predict. </span>
-            <span className="text-paddock-red">Compete. </span>
-            <span className="text-white">Win.</span>
-          </h1>
           <p className="text-xl sm:text-2xl text-gray-300 mb-4">
-            The ultimate F1 predictions league for fans who think they know racing
+            The F1 predictions league for fans who think they know racing.
           </p>
           <p className="text-lg text-gray-400">
             Make your predictions for race results, championship standings, and crazy season events.
@@ -133,7 +124,7 @@ export const LandingPage = () => {
               <p className="text-gray-300 mb-6">Championship Predictions Close</p>
 
               <CountdownTimer
-                targetDate={season.championship_predictions_close}
+                targetDate={season.prediction_deadline}
                 label=""
               />
 
@@ -153,19 +144,21 @@ export const LandingPage = () => {
             <div className="bg-gradient-to-br from-red-900/40 to-red-700/20 rounded-lg p-8 border border-red-500/30">
               <div className="flex items-center gap-2 mb-4">
                 <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                <span className="text-gray-300 text-sm uppercase tracking-wider">Round 1</span>
+                <span className="text-gray-300 text-sm uppercase tracking-wider">Round {nextRace.round}</span>
               </div>
-              <h2 className="text-3xl font-bold text-white mb-2">{nextRace.name.toUpperCase()}</h2>
-              <p className="text-gray-300 mb-6">{nextRace.location}</p>
+              <h2 className="text-3xl font-bold text-white mb-2">{nextRace.raceName.toUpperCase()}</h2>
+              <p className="text-gray-300 mb-6">{nextRace.Circuit.Location.locality}, {nextRace.Circuit.Location.country}</p>
 
-              <CountdownTimer
-                targetDate={nextRace.predictions_close}
-                label=""
-              />
+              {getRaceCountdownDate(nextRace) && (
+                <CountdownTimer
+                  targetDate={getRaceCountdownDate(nextRace)!}
+                  label=""
+                />
+              )}
 
               <div className="mt-6">
                 <Link
-                  to={user ? `/race/${nextRace.id}` : "/register"}
+                  to={user ? `/race/${nextRace.season}-${nextRace.round}` : "/register"}
                   className="block w-full bg-paddock-red hover:bg-red-600 text-white px-6 py-3 rounded font-bold uppercase text-sm tracking-wide transition text-center"
                 >
                   Get Started
@@ -179,9 +172,6 @@ export const LandingPage = () => {
       {/* Features Section */}
       <section className="bg-paddock-darkgray py-16">
         <div className="container mx-auto px-4 sm:px-6">
-          <h2 className="text-3xl sm:text-4xl font-bold text-center text-white mb-4">
-            What You'll Be <span className="text-paddock-red">Predicting</span>
-          </h2>
           <p className="text-center text-gray-400 mb-12 max-w-2xl mx-auto">
             Put your F1 knowledge to the test across two main prediction categories
           </p>
@@ -207,7 +197,7 @@ export const LandingPage = () => {
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-paddock-red mt-1">•</span>
-                  <span>Team principal sackings during the season</span>
+                  <span>Driver or team principal sackings during the season</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-paddock-red mt-1">•</span>
@@ -238,21 +228,17 @@ export const LandingPage = () => {
                   <span className="text-paddock-red mt-1">•</span>
                   <span>Podium finishers (1st, 2nd, 3rd place)</span>
                 </li>
-                <li className="flex items-start gap-2">
+               <li className="flex items-start gap-2">
                   <span className="text-paddock-red mt-1">•</span>
-                  <span>Fastest lap driver</span>
+                  <span>Midfield Hero</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-paddock-red mt-1">•</span>
-                  <span>First driver to retire (DNF)</span>
+                  <span>Sprint winner and pole</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-paddock-red mt-1">•</span>
-                  <span>Safety car appearance predictions</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-paddock-red mt-1">•</span>
-                  <span>And more race-specific events</span>
+                  <span>Crazy predictions (unexpected events you think will happen)</span>
                 </li>
               </ul>
             </div>
