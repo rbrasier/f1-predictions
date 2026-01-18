@@ -186,7 +186,7 @@ export const SeasonPredictionsPage = () => {
       // If it uses the same customDriverNames state, it would need careful handling.
       // For now, sending grid2028 as is.
 
-      await submitSeasonPrediction(season.year, {
+      const submittedData = {
         drivers_championship_order: driversOrder,
         constructors_championship_order: constructorsOrder,
         mid_season_sackings: sackings,
@@ -195,9 +195,28 @@ export const SeasonPredictionsPage = () => {
         first_career_race_winner: firstCareerRaceWinner,
         grid_2027: finalGrid2027, // Use the mapped grid
         grid_2028: grid2028
-      });
+      };
 
-      showToast('Season predictions saved successfully!', 'success');
+      await submitSeasonPrediction(season.year, submittedData);
+
+      // Generate WhatsApp share URL
+      const shareUrl = `https://wa.me/?text=${encodeURIComponent(generateSeasonShareMessage(submittedData))}`;
+
+      showToast(
+        <div>
+          Season predictions saved successfully!{' '}
+          <a
+            href={shareUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline font-bold hover:text-green-100"
+          >
+            Share on WhatsApp
+          </a>
+        </div>,
+        'success',
+        6000
+      );
       setTimeout(() => navigate('/dashboard'), 1000);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to submit prediction');
@@ -239,6 +258,104 @@ export const SeasonPredictionsPage = () => {
       ...prev,
       [index]: name
     }));
+  };
+
+  // Helper to get driver name from API ID
+  const getDriverName = (apiId: string | null): string => {
+    if (!apiId) return 'Not Set';
+    const driver = drivers.find(d => d.driverId === apiId);
+    return driver ? `${driver.givenName} ${driver.familyName}` : apiId; // Return apiId for custom drivers
+  };
+
+  // Helper to get team name from API ID
+  const getTeamName = (apiId: string | null): string => {
+    if (!apiId) return 'Unknown Team';
+    const team = teams.find(t => t.constructorId === apiId);
+    if (team) return team.name;
+    // Special cases for new teams
+    if (apiId === 'cadillac') return 'Cadillac F1 Team';
+    if (apiId === 'audi') return 'Audi (Kick Sauber)';
+    // Fallback: capitalize the ID
+    return apiId.charAt(0).toUpperCase() + apiId.slice(1);
+  };
+
+  // Helper to generate WhatsApp share message for season predictions
+  const generateSeasonShareMessage = (submittedData: any): string => {
+    if (!season) return '';
+
+    let message = `My F1 Season ${season.year} Predictions:\n\n`;
+
+    // Top 5 drivers
+    message += `🏆 DRIVERS CHAMPIONSHIP (Top 5):\n`;
+    submittedData.drivers_championship_order.slice(0, 5).forEach((driverId: string, index: number) => {
+      message += `${index + 1}. ${getDriverName(driverId)}\n`;
+    });
+
+    // Top 5 constructors
+    message += `\n🏁 CONSTRUCTORS CHAMPIONSHIP (Top 5):\n`;
+    submittedData.constructors_championship_order.slice(0, 5).forEach((teamId: string, index: number) => {
+      message += `${index + 1}. ${getTeamName(teamId)}\n`;
+    });
+
+    // Mid-season sackings
+    message += `\n❌ MID-SEASON SACKINGS:\n`;
+    if (submittedData.mid_season_sackings.length === 0) {
+      message += `None\n`;
+    } else {
+      submittedData.mid_season_sackings.forEach((id: string) => {
+        // Check if it's a driver or team principal
+        const driver = drivers.find(d => d.driverId === id);
+        const principal = principals.find(p => p.constructor_id === id);
+        if (driver) {
+          message += `• ${getDriverName(id)}\n`;
+        } else if (principal) {
+          message += `• ${principal.name} (${getTeamName(id)})\n`;
+        }
+      });
+    }
+
+    // Crazy prediction
+    if (submittedData.crazy_prediction) {
+      message += `\n🎲 CRAZY PREDICTION:\n"${submittedData.crazy_prediction}"\n`;
+    }
+
+    // Lineup changes for 2027
+    message += `\n🔄 2027 LINEUP CHANGES:\n`;
+    let changesFound = false;
+
+    // Create a map of current driver teams
+    const currentDriverTeams = new Map<string, string>();
+    standings.forEach(standing => {
+      const driverId = standing.Driver.driverId;
+      const teamId = standing.Constructors[0]?.constructorId;
+      if (teamId) {
+        currentDriverTeams.set(driverId, teamId);
+      }
+    });
+
+    // Check for changes in 2027 grid
+    submittedData.grid_2027.forEach((pairing: any) => {
+      const driverId = pairing.driver_api_id;
+      const predictedTeam = pairing.constructor_api_id;
+
+      if (driverId && predictedTeam && driverId !== 'custom') {
+        const currentTeam = currentDriverTeams.get(driverId);
+        // Only show if driver exists in current standings and team is different
+        if (currentTeam && currentTeam !== predictedTeam) {
+          const driverName = getDriverName(driverId);
+          const currentTeamName = getTeamName(currentTeam);
+          const predictedTeamName = getTeamName(predictedTeam);
+          message += `• ${driverName}: ${currentTeamName} → ${predictedTeamName}\n`;
+          changesFound = true;
+        }
+      }
+    });
+
+    if (!changesFound) {
+      message += `No driver moves predicted\n`;
+    }
+
+    return message;
   };
 
   const applyCurrentDrivers = (teamIndex: number, constructorId: string) => {
