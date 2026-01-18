@@ -188,7 +188,7 @@ export const LandingPage = () => {
               <ul className="space-y-2 text-gray-400">
                 <li className="flex items-start gap-2">
                   <span className="text-paddock-red mt-1">•</span>
-                  <span>Drivers' Championship final order (1st through 20th)</span>
+                  <span>Drivers' Championship final order (1st through 22nd)</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-paddock-red mt-1">•</span>
