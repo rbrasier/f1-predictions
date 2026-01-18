@@ -3,8 +3,8 @@ import { Link } from 'react-router-dom';
 import { Layout } from '../components/common/Layout';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { CountdownTimer } from '../components/dashboard/CountdownTimer';
-import { getActiveSeason, getNextRace, getUpcomingRaces, getAllUsers, getLeaderboard, getPendingValidations, getDrivers, getMyRacePrediction, getMySeasonPrediction, getAllRacePredictions, getValidationsForPrediction, getLastRoundResults, validateCrazyPrediction } from '../services/api';
-import { Season, Race, User, RacePrediction, LeaderboardEntry, Driver, SeasonPrediction } from '../types';
+import { getActiveSeason, getNextRace, getUpcomingRaces, getAllUsers, getLeaderboard, getPendingValidations, getDrivers, getTeams, getTeamPrincipals, getMyRacePrediction, getMySeasonPrediction, getAllRacePredictions, getValidationsForPrediction, getLastRoundResults, validateCrazyPrediction, getDriverStandings } from '../services/api';
+import { Season, Race, User, RacePrediction, LeaderboardEntry, Driver, SeasonPrediction, Team, TeamPrincipal, DriverStanding } from '../types';
 import { useAuth } from '../hooks/useAuth';
 import { useLeague } from '../contexts/LeagueContext';
 
@@ -16,6 +16,9 @@ export const DashboardPage = () => {
   const [upcomingRaces, setUpcomingRaces] = useState<Race[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [teamPrincipals, setTeamPrincipals] = useState<TeamPrincipal[]>([]);
+  const [driverStandings, setDriverStandings] = useState<DriverStanding[]>([]);
   const [myRacePrediction, setMyRacePrediction] = useState<RacePrediction | null>(null);
   const [mySeasonPrediction, setMySeasonPrediction] = useState<SeasonPrediction | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
@@ -32,6 +35,102 @@ export const DashboardPage = () => {
     if (!apiId) return 'Not Set';
     const driver = drivers.find(d => d.driverId === apiId);
     return driver ? `${driver.givenName} ${driver.familyName}` : 'Unknown Driver';
+  };
+
+  // Helper to get team name from API ID
+  const getTeamName = (apiId: string | null): string => {
+    if (!apiId) return 'Unknown Team';
+    const team = teams.find(t => t.constructorId === apiId);
+    if (team) return team.name;
+    // Special cases for new teams
+    if (apiId === 'cadillac') return 'Cadillac F1 Team';
+    if (apiId === 'audi') return 'Audi (Kick Sauber)';
+    // Fallback: capitalize the ID
+    return apiId.charAt(0).toUpperCase() + apiId.slice(1);
+  };
+
+  // Helper to generate WhatsApp share message for season predictions
+  const generateSeasonShareMessage = (): string => {
+    if (!mySeasonPrediction || !season) return '';
+
+    const driversOrder = JSON.parse(mySeasonPrediction.drivers_championship_order);
+    const constructorsOrder = JSON.parse(mySeasonPrediction.constructors_championship_order);
+    const sackings = mySeasonPrediction.mid_season_sackings ? JSON.parse(mySeasonPrediction.mid_season_sackings) : [];
+    const grid2027 = JSON.parse(mySeasonPrediction.grid_2027);
+
+    let message = `My F1 Season ${season.year} Predictions:\n\n`;
+
+    // Top 5 drivers
+    message += `🏆 DRIVERS CHAMPIONSHIP (Top 5):\n`;
+    driversOrder.slice(0, 5).forEach((driverId: string, index: number) => {
+      message += `${index + 1}. ${getDriverName(driverId)}\n`;
+    });
+
+    // Top 5 constructors
+    message += `\n🏁 CONSTRUCTORS CHAMPIONSHIP (Top 5):\n`;
+    constructorsOrder.slice(0, 5).forEach((teamId: string, index: number) => {
+      message += `${index + 1}. ${getTeamName(teamId)}\n`;
+    });
+
+    // Mid-season sackings
+    message += `\n❌ MID-SEASON SACKINGS:\n`;
+    if (sackings.length === 0) {
+      message += `None\n`;
+    } else {
+      sackings.forEach((id: string) => {
+        // Check if it's a driver or team principal
+        const driver = drivers.find(d => d.driverId === id);
+        const principal = teamPrincipals.find(p => p.constructor_id === id);
+        if (driver) {
+          message += `• ${getDriverName(id)}\n`;
+        } else if (principal) {
+          message += `• ${principal.name} (${getTeamName(id)})\n`;
+        }
+      });
+    }
+
+    // Crazy prediction
+    if (mySeasonPrediction.crazy_prediction) {
+      message += `\n🎲 CRAZY PREDICTION:\n"${mySeasonPrediction.crazy_prediction}"\n`;
+    }
+
+    // Lineup changes for 2027
+    message += `\n🔄 2027 LINEUP CHANGES:\n`;
+    let changesFound = false;
+
+    // Create a map of current driver teams
+    const currentDriverTeams = new Map<string, string>();
+    driverStandings.forEach(standing => {
+      const driverId = standing.Driver.driverId;
+      const teamId = standing.Constructors[0]?.constructorId;
+      if (teamId) {
+        currentDriverTeams.set(driverId, teamId);
+      }
+    });
+
+    // Check for changes in 2027 grid
+    grid2027.forEach((pairing: any) => {
+      const driverId = pairing.driver_api_id;
+      const predictedTeam = pairing.constructor_api_id;
+
+      if (driverId && predictedTeam) {
+        const currentTeam = currentDriverTeams.get(driverId);
+        // Only show if driver exists in current standings and team is different
+        if (currentTeam && currentTeam !== predictedTeam) {
+          const driverName = getDriverName(driverId);
+          const currentTeamName = getTeamName(currentTeam);
+          const predictedTeamName = getTeamName(predictedTeam);
+          message += `• ${driverName}: ${currentTeamName} → ${predictedTeamName}\n`;
+          changesFound = true;
+        }
+      }
+    });
+
+    if (!changesFound) {
+      message += `No driver moves predicted\n`;
+    }
+
+    return message;
   };
 
   // Helper to get race ID from F1Race
@@ -99,13 +198,15 @@ export const DashboardPage = () => {
 
     const fetchData = async () => {
       try {
-        const [seasonData, raceData, upcomingRacesData, allUsers, leaderboardData, driversData] = await Promise.all([
+        const [seasonData, raceData, upcomingRacesData, allUsers, leaderboardData, driversData, teamsData, principalsData] = await Promise.all([
           getActiveSeason().catch(() => null),
           getNextRace().catch(() => null),
           getUpcomingRaces(5),
           getAllUsers(),
           getLeaderboard(undefined, 5, defaultLeague?.id).catch(() => []),
-          getDrivers().catch(() => [])
+          getDrivers().catch(() => []),
+          getTeams().catch(() => []),
+          getTeamPrincipals().catch(() => [])
         ]);
 
         setSeason(seasonData);
@@ -114,6 +215,18 @@ export const DashboardPage = () => {
         setUsers(allUsers);
         setLeaderboard(leaderboardData);
         setDrivers(driversData);
+        setTeams(teamsData);
+        setTeamPrincipals(principalsData);
+
+        // Fetch driver standings if we have a season
+        if (seasonData) {
+          try {
+            const standings = await getDriverStandings(seasonData.year);
+            setDriverStandings(standings);
+          } catch (err) {
+            console.log('Failed to fetch driver standings');
+          }
+        }
 
         // Fetch race predictions if there's a next race
         if (raceData) {
@@ -275,19 +388,29 @@ export const DashboardPage = () => {
                   </div>
 
                   {/* Buttons */}
-                  <div className="flex flex-col sm:flex-row gap-2 mb-3">
+                  <div className="flex flex-wrap gap-2 mb-3">
                     <Link
                       to="/compare-tips?mode=season"
-                      className="bg-purple-800 hover:bg-purple-900 text-white px-4 py-2.5 rounded font-bold uppercase text-xs tracking-wide transition border border-purple-600 text-center"
+                      className="bg-purple-800 hover:bg-purple-900 text-white px-3 py-2 rounded font-bold uppercase text-xs tracking-wide transition border border-purple-600"
                     >
                       Compare
                     </Link>
                     <Link
                       to="/season-predictions"
-                      className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2.5 rounded font-bold uppercase text-xs tracking-wide transition text-center"
+                      className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded font-bold uppercase text-xs tracking-wide transition"
                     >
                       {mySeasonPrediction ? 'Edit Predictions' : 'Submit Predictions'}
                     </Link>
+                    {mySeasonPrediction && (
+                      <a
+                        href={`https://wa.me/?text=${encodeURIComponent(generateSeasonShareMessage())}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded font-bold uppercase text-xs tracking-wide transition"
+                      >
+                        Share
+                      </a>
+                    )}
                   </div>
 
                   {/* Countdown Timer - hidden when collapsed */}
