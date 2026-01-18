@@ -198,3 +198,59 @@ export const getAllSeasonPredictions = async (req: AuthRequest, res: Response) =
     res.status(500).json({ error: 'Internal server error' });
   }
 };
+
+export const getSeasonResults = async (req: AuthRequest, res: Response) => {
+  try {
+    const { seasonYear } = req.params;
+    const year = parseInt(seasonYear);
+    const leagueId = req.query.leagueId ? parseInt(req.query.leagueId as string) : undefined;
+
+    if (isNaN(year)) {
+      return res.status(400).json({ error: 'Invalid season year' });
+    }
+
+    // Check if season results have been entered
+    const seasonResults = await db.prepare(`
+      SELECT * FROM season_results
+      WHERE season_year = $1
+    `).get(year) as any;
+
+    if (!seasonResults) {
+      return res.status(404).json({ error: 'Season results not entered yet' });
+    }
+
+    // Get all predictions for this season with user info
+    let predictionsQuery = `
+      SELECT
+        sp.*,
+        u.display_name,
+        u.id as user_id
+      FROM season_predictions sp
+      JOIN users u ON sp.user_id = u.id
+      ${leagueId ? 'INNER JOIN user_leagues ul ON u.id = ul.user_id' : ''}
+      WHERE sp.season_year = $1 ${leagueId ? 'AND ul.league_id = $2' : ''}
+      ORDER BY sp.points_earned DESC, u.display_name
+    `;
+
+    const predictionsParams = leagueId ? [year, leagueId] : [year];
+    const predictions = await db.prepare(predictionsQuery).all(...predictionsParams) as any[];
+
+    // Get all crazy prediction validations for this season
+    const validations = await db.prepare(`
+      SELECT cpv.*
+      FROM crazy_prediction_validations cpv
+      JOIN season_predictions sp ON cpv.prediction_id = sp.id
+      WHERE cpv.prediction_type = 'season' AND sp.season_year = $1
+    `).all(year) as any[];
+
+    res.json({
+      season_year: year,
+      results: seasonResults,
+      predictions,
+      crazy_validations: validations
+    });
+  } catch (error) {
+    logger.error('Get season results error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};

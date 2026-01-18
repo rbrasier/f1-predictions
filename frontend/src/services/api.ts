@@ -160,6 +160,12 @@ export const getLastRoundResults = async (seasonYear: number, leagueId?: number)
   return data;
 };
 
+export const getLastSeasonResults = async (seasonYear: number, leagueId?: number): Promise<any> => {
+  const params = leagueId ? { leagueId } : {};
+  const { data } = await api.get(`/seasons/season-results/${seasonYear}`, { params });
+  return data;
+};
+
 // Crazy Predictions
 export const validateCrazyPrediction = async (
   prediction_type: 'season' | 'race',
