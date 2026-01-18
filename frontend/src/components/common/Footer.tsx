@@ -11,8 +11,11 @@ export const Footer = () => {
                     <div className="flex flex-col items-center md:items-start">
                         <div className="flex items-center gap-2 mb-2">
                             <div className="w-6 h-6 bg-paddock-red flex items-center justify-center">
-                                <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                    <path d="M3 3h14l-1 14H4L3 3z" />
+                                <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 24 24">
+                                    <rect x="3" y="3" width="8" height="8" />
+                                    <rect x="13" y="3" width="8" height="8" />
+                                    <rect x="3" y="13" width="8" height="8" />
+                                    <rect x="13" y="13" width="8" height="8" />
                                 </svg>
                             </div>
                             <span className="text-lg font-bold tracking-wider">
