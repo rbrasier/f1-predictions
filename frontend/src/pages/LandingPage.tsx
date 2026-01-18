@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useEffect, useState } from 'react';
 import { CountdownTimer } from '../components/dashboard/CountdownTimer';
+import { FeatureCarousel } from '../components/landing/FeatureCarousel';
 import { getActiveSeasonPublic, getUpcomingRacesPublic } from '../services/api';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import type { Season, Race } from '../types';
@@ -103,9 +104,27 @@ export const LandingPage = () => {
             Compete with friends and climb the leaderboard.
           </p>
         </div>
+      </section>
 
+      {/* How It Works Section */}
+      <section className="bg-paddock-darkgray py-12 sm:py-16">
+        <div className="container mx-auto px-4 sm:px-6">
+          <div className="text-center mb-8">
+            <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
+              How It Works
+            </h2>
+            <p className="text-gray-400 max-w-2xl mx-auto">
+              Making predictions is easy. Here's how you can compete with your friends.
+            </p>
+          </div>
+          <FeatureCarousel />
+        </div>
+      </section>
+
+      {/* Countdown Section */}
+      <section className="container mx-auto px-4 sm:px-6 py-6">
         {/* Countdown Sections */}
-        <div className="grid md:grid-cols-2 gap-6 mb-6">
+        <div className="grid md:grid-cols-2 gap-6 mb-6 max-w-5xl mx-auto">
           {/* Season Predictions Card */}
           {season && (
             <div className="bg-gradient-to-r from-purple-900/40 to-black rounded-lg border border-paddock-lightgray overflow-hidden">

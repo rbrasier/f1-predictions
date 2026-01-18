@@ -219,6 +219,20 @@ export interface LeagueUser {
   joined_at: string;
 }
 
+// Carousel types
+export interface CarouselSlide {
+  id: number;
+  component: React.ReactNode;
+  title: string;
+  description: string;
+}
+
+export interface CarouselConfig {
+  autoPlayInterval: number;
+  pauseOnInteraction: boolean;
+  transitionDuration: number;
+}
+
 // Convenience aliases for API types
 export type Driver = F1Driver;
 export type Team = F1Constructor;
