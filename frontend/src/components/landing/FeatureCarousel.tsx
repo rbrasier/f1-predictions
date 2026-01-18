@@ -30,12 +30,12 @@ export const FeatureCarousel = () => {
       aria-label="How it works carousel"
       aria-live="polite"
     >
-      {/* Slide Container */}
-      <div className="relative h-[500px] sm:h-[550px] md:h-[600px]">
+      {/* Slide Container - Fixed height to prevent layout shifts */}
+      <div className="relative h-[500px] sm:h-[550px] md:h-[600px] overflow-hidden">
         {slides.map((slide, index) => (
           <div
             key={index}
-            className={`absolute inset-0 transition-all duration-500 ease-in-out ${
+            className={`absolute inset-0 overflow-y-auto transition-all duration-500 ease-in-out ${
               index === currentSlide
                 ? 'opacity-100 translate-x-0'
                 : index < currentSlide

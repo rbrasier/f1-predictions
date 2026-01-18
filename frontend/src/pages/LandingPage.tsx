@@ -106,21 +106,6 @@ export const LandingPage = () => {
         </div>
       </section>
 
-      {/* How It Works Section */}
-      <section className="bg-paddock-darkgray py-12 sm:py-16">
-        <div className="container mx-auto px-4 sm:px-6">
-          <div className="text-center mb-8">
-            <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
-              How It Works
-            </h2>
-            <p className="text-gray-400 max-w-2xl mx-auto">
-              Making predictions is easy. Here's how you can compete with your friends.
-            </p>
-          </div>
-          <FeatureCarousel />
-        </div>
-      </section>
-
       {/* Countdown Section */}
       <section className="container mx-auto px-4 sm:px-6 py-6">
         {/* Countdown Sections */}
@@ -184,6 +169,21 @@ export const LandingPage = () => {
               </div>
             </div>
           )}
+        </div>
+      </section>
+
+      {/* How It Works Section */}
+      <section className="bg-paddock-darkgray py-12 sm:py-16">
+        <div className="container mx-auto px-4 sm:px-6">
+          <div className="text-center mb-8">
+            <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
+              How It Works
+            </h2>
+            <p className="text-gray-400 max-w-2xl mx-auto">
+              Making predictions is easy. Here's how you can compete with your friends.
+            </p>
+          </div>
+          <FeatureCarousel />
         </div>
       </section>
 
