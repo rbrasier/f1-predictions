@@ -467,7 +467,7 @@ export const DashboardPage = () => {
                       to="/season-predictions"
                       className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded font-bold uppercase text-xs tracking-wide transition"
                     >
-                      {mySeasonPrediction ? 'Edit Predictions' : 'Submit Predictions'}
+                      {mySeasonPrediction ? 'Edit Tips' : 'Submit Predictions'}
                     </Link>
                     {mySeasonPrediction && (
                       <a
