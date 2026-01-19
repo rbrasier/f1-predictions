@@ -2,6 +2,8 @@ import { useState, FormEvent, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
+const ENABLE_GOOGLE_OAUTH = import.meta.env.VITE_ENABLE_GOOGLE_OAUTH === 'true';
+
 export const LoginForm = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -73,7 +75,7 @@ export const LoginForm = () => {
           </div>
         )}
 
-        {!showLegacyLogin ? (
+        {ENABLE_GOOGLE_OAUTH && !showLegacyLogin ? (
           <div className="space-y-4">
             <a
               href={`${import.meta.env.VITE_API_URL || 'http://localhost:4001/api'}/auth/google`}
@@ -143,13 +145,15 @@ export const LoginForm = () => {
             {loading ? 'Signing in...' : 'Sign In'}
           </button>
 
-          <button
-            type="button"
-            onClick={() => setShowLegacyLogin(false)}
-            className="w-full text-gray-600 underline hover:text-gray-800 text-sm"
-          >
-            ← Back to Google login
-          </button>
+          {ENABLE_GOOGLE_OAUTH && (
+            <button
+              type="button"
+              onClick={() => setShowLegacyLogin(false)}
+              className="w-full text-gray-600 underline hover:text-gray-800 text-sm"
+            >
+              ← Back to Google login
+            </button>
+          )}
         </form>
         )}
 

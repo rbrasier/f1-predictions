@@ -3,6 +3,7 @@ export interface User {
   username: string;
   password_hash: string | null;
   display_name: string;
+  email?: string | null;
   is_admin: boolean;
   created_at: string;
   google_id?: string | null;
@@ -104,6 +105,7 @@ export interface CrazyPredictionOutcome {
 // Request/Response types
 export interface RegisterRequest {
   username: string;
+  email: string;
   password: string;
   display_name: string;
 }

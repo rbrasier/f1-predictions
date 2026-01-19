@@ -1,6 +1,7 @@
 export interface User {
   id: number;
   username: string;
+  email?: string | null;
   display_name: string;
   is_admin: boolean;
   google_id?: string | null;

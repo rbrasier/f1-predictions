@@ -16,6 +16,10 @@ export const registerValidation = [
     .isLength({ min: 3, max: 30 })
     .matches(/^[a-zA-Z0-9_]+$/)
     .withMessage('Username must be 3-30 characters and contain only letters, numbers, and underscores'),
+  body('email')
+    .trim()
+    .isEmail()
+    .withMessage('Valid email is required'),
   body('password')
     .isLength({ min: 6 })
     .withMessage('Password must be at least 6 characters long'),
@@ -37,7 +41,7 @@ export const register = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { username, password, display_name, invite_code } = req.body as RegisterRequest & { invite_code?: string };
+    const { username, email, password, display_name, invite_code } = req.body as RegisterRequest & { invite_code?: string };
 
     // Check if username already exists
     const existingUser = await db.prepare('SELECT id FROM users WHERE username = $1').get(username);
@@ -45,15 +49,21 @@ export const register = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'Username already exists' });
     }
 
+    // Check if email already exists
+    const existingEmail = await db.prepare('SELECT id FROM users WHERE email = $1').get(email);
+    if (existingEmail) {
+      return res.status(400).json({ error: 'Email already exists' });
+    }
+
     // Hash password
     const password_hash = await bcrypt.hash(password, 10);
 
     // Insert user
     const result = await db.prepare(`
-      INSERT INTO users (username, password_hash, display_name, is_admin)
-      VALUES ($1, $2, $3, false)
+      INSERT INTO users (username, email, password_hash, display_name, is_admin)
+      VALUES ($1, $2, $3, $4, false)
       RETURNING id
-    `).run(username, password_hash, display_name);
+    `).run(username, email, password_hash, display_name);
 
     const userId = Number(result.rows[0].id);
 

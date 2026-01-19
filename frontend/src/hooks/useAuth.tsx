@@ -8,7 +8,7 @@ interface AuthContextType {
   loading: boolean;
   isAuthenticated: boolean;
   login: (username: string, password: string, inviteCode?: string) => Promise<void>;
-  register: (username: string, password: string, displayName: string, inviteCode?: string) => Promise<void>;
+  register: (username: string, email: string, password: string, displayName: string, inviteCode?: string) => Promise<void>;
   logout: () => void;
   loginWithToken: (token: string) => Promise<void>;
   snoozeOAuthMigration: () => Promise<void>;
@@ -49,8 +49,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUser(response.user);
   };
 
-  const register = async (username: string, password: string, displayName: string, inviteCode?: string) => {
-    const response = await api.register(username, password, displayName, inviteCode);
+  const register = async (username: string, email: string, password: string, displayName: string, inviteCode?: string) => {
+    const response = await api.register(username, email, password, displayName, inviteCode);
     localStorage.setItem('token', response.token);
     setToken(response.token);
     setUser(response.user);

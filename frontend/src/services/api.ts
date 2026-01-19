@@ -46,8 +46,8 @@ api.interceptors.request.use((config) => {
 });
 
 // Auth
-export const register = async (username: string, password: string, display_name: string, invite_code?: string): Promise<AuthResponse> => {
-  const { data } = await api.post('/auth/register', { username, password, display_name, invite_code });
+export const register = async (username: string, email: string, password: string, display_name: string, invite_code?: string): Promise<AuthResponse> => {
+  const { data} = await api.post('/auth/register', { username, email, password, display_name, invite_code });
   return data;
 };
 
