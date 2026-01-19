@@ -24,7 +24,7 @@ export const LeaderboardSlide = () => {
   ];
 
   return (
-    <div className="flex flex-col items-center justify-center h-full px-4 sm:px-6">
+    <div className="flex flex-col items-center justify-start h-full px-4 sm:px-6 pt-8">
       {/* Title */}
       <h3 className="text-2xl sm:text-3xl font-bold text-white mb-2 text-center">
         Battle for P1

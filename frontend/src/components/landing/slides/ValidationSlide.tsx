@@ -1,6 +1,6 @@
 export const ValidationSlide = () => {
   return (
-    <div className="flex flex-col items-center justify-center h-full px-4 sm:px-6">
+    <div className="flex flex-col items-center justify-start h-full px-4 sm:px-6 pt-8">
       {/* Title */}
       <h3 className="text-2xl sm:text-3xl font-bold text-white mb-2 text-center">
         Validate Your Mates' Predictions
@@ -28,7 +28,7 @@ export const ValidationSlide = () => {
 
           {/* Prediction Text */}
           <p className="text-white text-sm sm:text-base">
-            "Stroll will be the only team principal to get out and push his car in the pit lane"
+            All pit stops in the race under 2.8 seconds
           </p>
         </div>
 

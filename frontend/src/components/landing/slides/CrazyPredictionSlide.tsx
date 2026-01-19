@@ -1,6 +1,6 @@
 export const CrazyPredictionSlide = () => {
   return (
-    <div className="flex flex-col items-center justify-center h-full px-4 sm:px-6">
+    <div className="flex flex-col items-center justify-start h-full px-4 sm:px-6 pt-8">
       {/* Title */}
       <h3 className="text-2xl sm:text-3xl font-bold text-white mb-2 text-center">
         Enter Your Crazy Prediction
@@ -26,7 +26,7 @@ export const CrazyPredictionSlide = () => {
         {/* Input Field */}
         <div>
           <textarea
-            value="Bearman will score his first podium this weekend"
+            value="Hadjar will beat Max in his first outing in the Red Bull"
             readOnly
             rows={4}
             className="w-full px-4 py-3 bg-paddock-darkgray border-2 border-purple-500 rounded-lg text-white resize-none text-sm sm:text-base"
@@ -37,9 +37,9 @@ export const CrazyPredictionSlide = () => {
         <div className="bg-paddock-darkgray border border-paddock-lightgray rounded-lg p-3 space-y-2">
           <p className="text-xs font-bold text-gray-400 uppercase">Other Examples:</p>
           <ul className="space-y-1 text-xs text-gray-400">
-            <li>• "Ricciardo will pass 3 cars on the first lap"</li>
-            <li>• "Safety car will come out before lap 10"</li>
-            <li>• "Qualifying will be wet"</li>
+            <li>• "Ocon will pass 3 cars on the first lap"</li>
+            <li>• "More than one red flag before lap 20"</li>
+            <li>• "All pit stops in the race under 2.8 seconds"</li>
           </ul>
         </div>
 
