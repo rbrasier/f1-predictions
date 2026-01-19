@@ -7,6 +7,7 @@ export interface User {
   google_id?: string | null;
   google_email?: string | null;
   oauth_snooze_until?: string | null;
+  email_reminder_snooze_until?: string | null;
 }
 
 export interface AuthResponse {
