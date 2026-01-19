@@ -9,7 +9,6 @@ interface DisplayNameModalProps {
 const DisplayNameModal: React.FC<DisplayNameModalProps> = ({
   isOpen,
   onSubmit,
-  currentDisplayName
 }) => {
   const [displayName, setDisplayName] = useState('');
   const [error, setError] = useState('');

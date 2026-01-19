@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import OAuthTransitionModal from './OAuthTransitionModal';
-import { CredentialResponse } from '@react-oauth/google';
 
 interface OAuthTransitionWrapperProps {
   children: React.ReactNode;
@@ -34,7 +33,7 @@ export const OAuthTransitionWrapper: React.FC<OAuthTransitionWrapperProps> = ({ 
     setShowModal(false);
   };
 
-  const handleGoogleSuccess = (credentialResponse: CredentialResponse) => {
+  const handleGoogleSuccess = () => {
     // Redirect to Google OAuth flow
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4001/api';
     window.location.href = `${apiUrl}/auth/google`;
