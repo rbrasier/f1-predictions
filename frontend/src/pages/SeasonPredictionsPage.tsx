@@ -583,18 +583,20 @@ export const SeasonPredictionsPage = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {drivers.map(driver => (
-                <label key={driver.driverId} className="flex items-center space-x-2 cursor-pointer p-2 hover:bg-gray-50 rounded">
-                  <input
-                    type="checkbox"
-                    checked={firstCareerRaceWinner.includes(driver.driverId)}
-                    onChange={() => toggleFirstWinner(driver.driverId)}
-                    disabled={firstCareerRaceWinner.includes('no_new_winners')}
-                    className="w-4 h-4 disabled:opacity-50"
-                  />
-                  <span className="text-gray-900">{driver.givenName} {driver.familyName}</span>
-                </label>
-              ))}
+              {drivers
+                .filter(driver => !season?.race_winners?.includes(driver.driverId))
+                .map(driver => (
+                  <label key={driver.driverId} className="flex items-center space-x-2 cursor-pointer p-2 hover:bg-gray-50 rounded">
+                    <input
+                      type="checkbox"
+                      checked={firstCareerRaceWinner.includes(driver.driverId)}
+                      onChange={() => toggleFirstWinner(driver.driverId)}
+                      disabled={firstCareerRaceWinner.includes('no_new_winners')}
+                      className="w-4 h-4 disabled:opacity-50"
+                    />
+                    <span className="text-gray-900">{driver.givenName} {driver.familyName}</span>
+                  </label>
+                ))}
             </div>
           </div>
 

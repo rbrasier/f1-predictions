@@ -189,6 +189,7 @@ export interface Season {
   year: number;
   prediction_deadline: string;
   is_active: boolean;
+  race_winners?: string[];
 }
 
 // League types

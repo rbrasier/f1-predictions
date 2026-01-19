@@ -83,7 +83,8 @@ export const getSeasons = (req: AuthRequest, res: Response) => {
       return {
         year: parseInt(year),
         prediction_deadline: grid.prediction_deadline,
-        is_active: grid.is_active
+        is_active: grid.is_active,
+        race_winners: grid.race_winners || []
       };
     }).sort((a, b) => b.year - a.year);
 
@@ -106,7 +107,8 @@ export const getActiveSeason = (req: AuthRequest, res: Response) => {
         return res.json({
           year: parseInt(year),
           prediction_deadline: grid.prediction_deadline,
-          is_active: true
+          is_active: true,
+          race_winners: grid.race_winners || []
         });
       }
     }

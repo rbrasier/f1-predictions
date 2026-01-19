@@ -55,6 +55,20 @@
         "constructorId": "cadillac"
       }
     ],
+    "race_winners": [
+      "hamilton",
+      "max_verstappen",
+      "alonso",
+      "norris",
+      "piastri",
+      "leclerc",
+      "russell",
+      "sainz",
+      "perez",
+      "gasly",
+      "ocon",
+      "bottas"
+    ],
     "driver_lineup_fallback": [
       {
         "driverId": "norris",
