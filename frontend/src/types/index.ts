@@ -189,6 +189,7 @@ export interface Season {
   year: number;
   prediction_deadline: string;
   is_active: boolean;
+  race_winners?: string[];
 }
 
 // League types
@@ -217,6 +218,20 @@ export interface LeagueUser {
   username: string;
   display_name: string;
   joined_at: string;
+}
+
+// Carousel types
+export interface CarouselSlide {
+  id: number;
+  component: React.ReactNode;
+  title: string;
+  description: string;
+}
+
+export interface CarouselConfig {
+  autoPlayInterval: number;
+  pauseOnInteraction: boolean;
+  transitionDuration: number;
 }
 
 // Convenience aliases for API types

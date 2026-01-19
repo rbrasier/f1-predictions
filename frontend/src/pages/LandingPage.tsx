@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useEffect, useState } from 'react';
 import { CountdownTimer } from '../components/dashboard/CountdownTimer';
+import { FeatureCarousel } from '../components/landing/FeatureCarousel';
 import { getActiveSeasonPublic, getUpcomingRacesPublic } from '../services/api';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import type { Season, Race } from '../types';
@@ -103,9 +104,12 @@ export const LandingPage = () => {
             Compete with friends and climb the leaderboard.
           </p>
         </div>
+      </section>
 
+      {/* Countdown Section */}
+      <section className="container mx-auto px-4 sm:px-6 py-6">
         {/* Countdown Sections */}
-        <div className="grid md:grid-cols-2 gap-6 mb-6">
+        <div className="grid md:grid-cols-2 gap-6 mb-6 max-w-5xl mx-auto">
           {/* Season Predictions Card */}
           {season && (
             <div className="bg-gradient-to-r from-purple-900/40 to-black rounded-lg border border-paddock-lightgray overflow-hidden">
@@ -168,6 +172,14 @@ export const LandingPage = () => {
         </div>
       </section>
 
+      {/* How It Works Section */}
+      <section className="bg-paddock-darkgray py-12 sm:py-16">
+        <div className="container mx-auto px-4 sm:px-6">
+          
+          <FeatureCarousel />
+        </div>
+      </section>
+
       {/* Features Section */}
       <section className="bg-paddock-darkgray py-8">
         <div className="container mx-auto px-4 sm:px-6">
@@ -188,7 +200,7 @@ export const LandingPage = () => {
               <ul className="space-y-2 text-gray-400">
                 <li className="flex items-start gap-2">
                   <span className="text-paddock-red mt-1">•</span>
-                  <span>Drivers' Championship final order (1st through 20th)</span>
+                  <span>Drivers' Championship final order (1st through 22nd)</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-paddock-red mt-1">•</span>
