@@ -343,3 +343,42 @@ export const snoozeOAuthMigration = async (req: AuthRequest, res: Response) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 };
+
+// Update display name for OAuth users
+export const updateDisplayName = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const { display_name } = req.body;
+
+    if (!display_name || display_name.trim().length === 0) {
+      return res.status(400).json({ error: 'Display name is required' });
+    }
+
+    if (display_name.length > 50) {
+      return res.status(400).json({ error: 'Display name must be 50 characters or less' });
+    }
+
+    await db.prepare(`
+      UPDATE users
+      SET display_name = $1
+      WHERE id = $2
+    `).run(display_name.trim(), req.user.id);
+
+    const updatedUser = await db.prepare(`
+      SELECT id, username, display_name, is_admin, google_id, google_email, oauth_snooze_until
+      FROM users
+      WHERE id = $1
+    `).get(req.user.id);
+
+    res.json({
+      message: 'Display name updated successfully',
+      user: updatedUser
+    });
+  } catch (error) {
+    logger.error('Update display name error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};

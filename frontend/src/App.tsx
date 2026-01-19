@@ -19,6 +19,7 @@ import { FirstTimeLeagueSetup } from './components/leagues/FirstTimeLeagueSetup'
 import { OAuthCallbackPage } from './pages/OAuthCallbackPage';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { OAuthTransitionWrapper } from './components/auth/OAuthTransitionWrapper';
+import { DisplayNameWrapper } from './components/auth/DisplayNameWrapper';
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
@@ -148,11 +149,13 @@ function App() {
           <LeagueProvider>
             <BrowserRouter>
               <ToastContainer />
-              <OAuthTransitionWrapper>
-                <FirstTimeLeagueSetup>
-                  <AppRoutes />
-                </FirstTimeLeagueSetup>
-              </OAuthTransitionWrapper>
+              <DisplayNameWrapper>
+                <OAuthTransitionWrapper>
+                  <FirstTimeLeagueSetup>
+                    <AppRoutes />
+                  </FirstTimeLeagueSetup>
+                </OAuthTransitionWrapper>
+              </DisplayNameWrapper>
             </BrowserRouter>
           </LeagueProvider>
         </ToastProvider>

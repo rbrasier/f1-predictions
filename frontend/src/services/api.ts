@@ -76,6 +76,11 @@ export const snoozeOAuthMigration = async (): Promise<{ message: string; snooze_
   return data;
 };
 
+export const updateDisplayName = async (displayName: string): Promise<{ message: string; user: User }> => {
+  const { data } = await api.post('/auth/update-display-name', { display_name: displayName });
+  return data;
+};
+
 // Reference Data
 export const getDrivers = async (year?: number): Promise<Driver[]> => {
   const params = year ? { year } : {};

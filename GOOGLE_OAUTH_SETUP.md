@@ -100,23 +100,152 @@ npm run migrate
 4. Click "Sign in with Google"
 5. Complete the Google OAuth flow
 
+## Step 8: Verify the Setup
+
+After setting up Google OAuth, verify everything is working correctly:
+
+### 1. Test New User Registration
+
+1. **Navigate to Register Page**:
+   - Go to `http://localhost:4000/register`
+   - You should see only the "Sign up with Google" button (no legacy registration form)
+
+2. **Complete OAuth Flow**:
+   - Click "Sign up with Google"
+   - You should be redirected to Google's OAuth consent screen
+   - Grant permissions to the app
+   - You should be redirected back to your app
+
+3. **Set Display Name**:
+   - After successful OAuth, you should see a modal asking for your display name
+   - Enter a display name (this is required for new OAuth users)
+   - Click "Continue"
+
+4. **Verify Account Creation**:
+   - You should be redirected to the dashboard
+   - Check that your display name appears correctly
+   - Verify you can access protected routes
+
+### 2. Test Invite Code Flow
+
+1. **Create an Invite Link**:
+   - Create a league and get its invite code
+   - Create an invite URL: `http://localhost:4000/register?invite=YOUR_CODE`
+
+2. **Register with Invite Code**:
+   - Open the invite URL in an incognito/private window
+   - You should see a green banner showing the league you're joining
+   - Complete Google OAuth
+   - Set your display name
+   - Verify you're automatically added to the league
+
+### 3. Test Existing User Login
+
+1. **Legacy Login (for existing users)**:
+   - Go to `http://localhost:4000/login`
+   - Click "Use legacy login (username & password)"
+   - Enter your username and password
+   - Verify you can log in successfully
+
+2. **OAuth Transition Modal**:
+   - After logging in with legacy credentials, you should see a modal prompting you to link Google account (if not already linked)
+   - Test the "Remind Me Later" button (sets 2-day snooze)
+   - Test the "Dismiss" button (closes modal without snoozing)
+   - Test linking your Google account
+
+### 4. Verify Backend Integration
+
+Check your backend logs to ensure:
+
+```bash
+# Start backend with logs
+cd backend
+npm run dev
+```
+
+Look for:
+- ✅ "Created all database tables" (migration ran successfully)
+- ✅ Google OAuth requests hitting `/api/auth/google`
+- ✅ Successful redirects to `/api/auth/google/callback`
+- ✅ User creation with temporary display names (ending in `_temp`)
+- ✅ Display name updates after user sets it
+
+### 5. Database Verification
+
+Connect to your database and verify the schema:
+
+```sql
+-- Check users table has OAuth columns
+SELECT column_name, data_type
+FROM information_schema.columns
+WHERE table_name = 'users'
+AND column_name IN ('google_id', 'google_email', 'oauth_snooze_until');
+
+-- Check a newly created OAuth user
+SELECT id, username, display_name, google_id, google_email, password_hash
+FROM users
+WHERE google_id IS NOT NULL
+LIMIT 1;
+
+-- Verify password_hash is NULL for OAuth-only users
+```
+
+### 6. Test Edge Cases
+
+1. **Duplicate Email**: Try to register with Google using an email that already exists (should show account linking prompt)
+2. **Network Failure**: Disconnect network during OAuth flow (should show appropriate error)
+3. **Cancel OAuth**: Click "Cancel" on Google's consent screen (should redirect with error)
+4. **Invalid Invite Code**: Try `http://localhost:4000/register?invite=INVALID` (should still allow registration but show code)
+
+### 7. Check Google Cloud Console
+
+1. Navigate to Google Cloud Console > APIs & Services > Credentials
+2. Click on your OAuth 2.0 Client ID
+3. Verify:
+   - Authorized JavaScript origins include your local and production URLs
+   - Authorized redirect URIs include your callback URLs
+   - No typos in URLs (common cause of issues)
+
+### Verification Checklist
+
+- [ ] New users can register with Google OAuth only
+- [ ] Display name modal appears for new OAuth users
+- [ ] Invite codes work with OAuth registration
+- [ ] Existing users can login with username/password
+- [ ] OAuth transition modal appears for legacy users
+- [ ] Snooze functionality works (2-day interval)
+- [ ] Users can link Google account to existing account
+- [ ] Backend logs show successful OAuth flows
+- [ ] Database has correct OAuth columns
+- [ ] Google Cloud Console URLs are configured correctly
+
 ## Features
 
 ### For New Users
-- New users can sign up directly with Google OAuth
-- No password required
-- Account is automatically created with Google email
+- **OAuth-Only Registration**: New users can only sign up via Google OAuth (no username/password option on register page)
+- **Display Name Selection**: After first OAuth login, users are prompted to choose their display name
+- **Automatic Account Creation**: Account is created automatically with Google email as username
+- **Invite Code Support**: Invite codes work seamlessly with OAuth registration
+- **No Password Required**: OAuth users don't need to remember passwords
 
 ### For Existing Users
-- Existing users will see a modal prompting them to link their Google account
-- Users can snooze the notification for 2 days
-- Users can continue using legacy login (username & password) as a fallback
-- Once linked, users can use either method to log in
+- **Legacy Login Available**: Existing users can continue using username/password via "Use legacy login" link
+- **OAuth Migration Prompt**: Legacy users see a modal prompting them to link Google account
+- **Flexible Snoozing**: Users can snooze the migration notification for 2-day intervals
+- **Dual Authentication**: Once linked, users can log in with either Google or username/password
+- **Gradual Migration**: No forced migration - users choose when to transition
+
+### Authentication Flow
+1. **Register Page**: OAuth-only (Google button only)
+2. **Login Page**: OAuth primary, with toggle to legacy login for existing users
+3. **Display Name**: Required step after first OAuth login
+4. **League Selection**: Shown after display name is set (if no league via invite)
+5. **Dashboard**: Full access after completing setup
 
 ### Legacy Login
-- The traditional username/password login is still available
-- Click "Use legacy login" on the login page to access it
-- Invite code functionality is preserved for both OAuth and legacy login
+- Available on login page via "Use legacy login (username & password)" link
+- Preserved for backward compatibility with existing users
+- Invite code functionality works with both OAuth and legacy methods
 
 ## Production Deployment
 

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { register, login, getMe, getAllUsers, grantAdminAccess, registerValidation, loginValidation, googleCallback, snoozeOAuthMigration, linkGoogleAccount } from '../controllers/authController';
+import { register, login, getMe, getAllUsers, grantAdminAccess, registerValidation, loginValidation, googleCallback, snoozeOAuthMigration, linkGoogleAccount, updateDisplayName } from '../controllers/authController';
 import { authenticate, requireAdmin } from '../middleware/auth';
 import passport from '../config/passport';
 
@@ -13,10 +13,17 @@ router.get('/users', authenticate, getAllUsers);
 router.post('/users/:userId/grant-admin', authenticate, requireAdmin, grantAdminAccess);
 
 // OAuth routes
-router.get('/google', passport.authenticate('google', {
-  scope: ['profile', 'email'],
-  session: false
-}));
+router.get('/google', (req, res, next) => {
+  // Pass invite code through OAuth state if present
+  const inviteCode = req.query.invite as string;
+  const state = inviteCode ? inviteCode : undefined;
+
+  passport.authenticate('google', {
+    scope: ['profile', 'email'],
+    session: false,
+    state
+  })(req, res, next);
+});
 
 router.get('/google/callback',
   passport.authenticate('google', {
@@ -28,5 +35,6 @@ router.get('/google/callback',
 
 router.post('/oauth/snooze', authenticate, snoozeOAuthMigration);
 router.post('/oauth/link', authenticate, linkGoogleAccount);
+router.post('/update-display-name', authenticate, updateDisplayName);
 
 export default router;

@@ -60,12 +60,36 @@ passport.use(
         // Generate username from email or use google id
         const username = googleEmail?.split('@')[0] || `google_${googleId.substring(0, 10)}`;
 
+        // Use temporary display name that will be updated later
+        const tempDisplayName = `${googleEmail?.split('@')[0] || 'User'}_temp`;
+
         const newUser = await db.query(
           `INSERT INTO users (username, display_name, google_id, google_email, password_hash, is_admin)
            VALUES ($1, $2, $3, $4, NULL, FALSE)
            RETURNING *`,
-          [username, displayName, googleId, googleEmail]
+          [username, tempDisplayName, googleId, googleEmail]
         );
+
+        // Handle invite code if present in session/state
+        const inviteCode = req.session?.inviteCode || req.query?.state;
+        if (inviteCode && typeof inviteCode === 'string') {
+          try {
+            const league = await db.query(
+              'SELECT id FROM leagues WHERE invite_code = $1',
+              [inviteCode.toUpperCase()]
+            );
+
+            if (league.rows.length > 0) {
+              await db.query(
+                'INSERT INTO user_leagues (user_id, league_id, is_default) VALUES ($1, $2, true) ON CONFLICT DO NOTHING',
+                [newUser.rows[0].id, league.rows[0].id]
+              );
+            }
+          } catch (error) {
+            console.error('Error joining league during OAuth:', error);
+            // Don't fail OAuth if league join fails
+          }
+        }
 
         return done(null, newUser.rows[0]);
       } catch (error) {
