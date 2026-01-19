@@ -1,6 +1,8 @@
 import { useState, FormEvent, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import ForgotPasswordModal from './ForgotPasswordModal';
+import ResetPasswordForm from './ResetPasswordForm';
 
 const ENABLE_GOOGLE_OAUTH = import.meta.env.VITE_ENABLE_GOOGLE_OAUTH === 'true';
 
@@ -11,6 +13,8 @@ export const LoginForm = () => {
   const [loading, setLoading] = useState(false);
   const [inviteCode, setInviteCode] = useState<string | undefined>(undefined);
   const [showLegacyLogin, setShowLegacyLogin] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [showResetForm, setShowResetForm] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -37,27 +41,44 @@ export const LoginForm = () => {
     }
   };
 
+  const handleResetSuccess = () => {
+    setShowResetForm(false);
+    setError('');
+    alert('Password has been reset successfully! You can now log in with your new password.');
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-f1-dark to-f1-gray flex items-center justify-center">
       {/* Container for both hero and form */}
       <div className="w-full max-w-md px-4">
-        {/* Hero Section Box */}
-        <div className="p-8 mb-4">
-          <h1 className="text-2xl font-bold mb-4 italic tracking-tight leading-tight">
-            <span className="text-white">LIGHTS OUT</span>
+        {!showResetForm && (
+          <>
+            {/* Hero Section Box */}
+            <div className="p-8 mb-4">
+              <h1 className="text-2xl font-bold mb-4 italic tracking-tight leading-tight">
+                <span className="text-white">LIGHTS OUT</span>
 
-            <span className="text-white"> &</span>{' '}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-paddock-red to-paddock-coral">
-              AWAY WE GO
-            </span>
-          </h1>
-          <p className="text-gray-400 text-base">
-            The ultimate tipping battleground for you and your mates. Predict the podium, best of the rest, and crazy outcomes to claim the Championship Trophy.
-          </p>
-        </div>
+                <span className="text-white"> &</span>{' '}
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-paddock-red to-paddock-coral">
+                  AWAY WE GO
+                </span>
+              </h1>
+              <p className="text-gray-400 text-base">
+                The ultimate tipping battleground for you and your mates. Predict the podium, best of the rest, and crazy outcomes to claim the Championship Trophy.
+              </p>
+            </div>
+          </>
+        )}
 
-        {/* Form Box */}
-        <div className="bg-white p-8 rounded-lg shadow-xl">
+        {/* Reset Password Form */}
+        {showResetForm ? (
+          <ResetPasswordForm
+            onSuccess={handleResetSuccess}
+            onCancel={() => setShowResetForm(false)}
+          />
+        ) : (
+          /* Login Form Box */
+          <div className="bg-white p-8 rounded-lg shadow-xl">
           <h2 className="text-3xl font-bold text-center mb-2 text-f1-red flex items-center justify-center gap-2">
             🏁 Paddock Pulse
           </h2>
@@ -124,9 +145,18 @@ export const LoginForm = () => {
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-              Password
-            </label>
+            <div className="flex justify-between items-center mb-1">
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                Password
+              </label>
+              <button
+                type="button"
+                onClick={() => setShowForgotPassword(true)}
+                className="text-xs text-f1-red hover:underline"
+              >
+                Forgot Password?
+              </button>
+            </div>
             <input
               type="password"
               id="password"
@@ -163,7 +193,24 @@ export const LoginForm = () => {
               Register here
             </a>
           </p>
+
+          <p className="mt-2 text-center text-sm text-gray-600">
+            Have a reset code?{' '}
+            <button
+              type="button"
+              onClick={() => setShowResetForm(true)}
+              className="text-f1-red hover:underline"
+            >
+              Reset password here
+            </button>
+          </p>
         </div>
+        )}
+
+        <ForgotPasswordModal
+          isOpen={showForgotPassword}
+          onClose={() => setShowForgotPassword(false)}
+        />
       </div>
     </div>
   );

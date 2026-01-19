@@ -9,6 +9,9 @@ export interface User {
   google_id?: string | null;
   google_email?: string | null;
   oauth_snooze_until?: string | null;
+  email_reminder_snooze_until?: string | null;
+  password_reset_token?: string | null;
+  password_reset_expires?: string | null;
 }
 
 export interface TeamPrincipal {
@@ -121,9 +124,11 @@ export interface AuthResponse {
     username: string;
     display_name: string;
     is_admin: boolean;
+    email?: string | null;
     google_id?: string | null;
     google_email?: string | null;
     oauth_snooze_until?: string | null;
+    email_reminder_snooze_until?: string | null;
   };
   token: string;
 }

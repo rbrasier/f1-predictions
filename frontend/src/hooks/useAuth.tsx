@@ -13,6 +13,9 @@ interface AuthContextType {
   loginWithToken: (token: string) => Promise<void>;
   snoozeOAuthMigration: () => Promise<void>;
   shouldShowOAuthModal: () => boolean;
+  saveEmail: (email: string) => Promise<void>;
+  snoozeEmailReminder: () => Promise<void>;
+  shouldShowEmailModal: () => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -90,6 +93,49 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return now >= snoozeUntil; // Show if snooze period has expired
   };
 
+  const saveEmail = async (email: string) => {
+    await api.saveEmail(email);
+    // Refresh user data to get updated email
+    const userData = await api.getMe();
+    setUser(userData);
+  };
+
+  const snoozeEmailReminder = async () => {
+    await api.snoozeEmailReminder();
+    // Refresh user data to get updated snooze_until
+    const userData = await api.getMe();
+    setUser(userData);
+  };
+
+  const shouldShowEmailModal = (): boolean => {
+    // Check if Google OAuth is enabled
+    const ENABLE_GOOGLE_OAUTH = import.meta.env.VITE_ENABLE_GOOGLE_OAUTH === 'true';
+
+    // Only show modal when OAuth is OFF
+    if (ENABLE_GOOGLE_OAUTH) {
+      return false;
+    }
+
+    if (!user) {
+      return false; // User not logged in
+    }
+
+    // If user already has email, don't show modal
+    if (user.email) {
+      return false;
+    }
+
+    // If user has snoozed, check if snooze period has expired
+    if (user.email_reminder_snooze_until) {
+      const snoozeUntil = new Date(user.email_reminder_snooze_until);
+      const now = new Date();
+      return now >= snoozeUntil; // Show if snooze period has expired
+    }
+
+    // User doesn't have email and hasn't snoozed, show modal
+    return true;
+  };
+
   const isAuthenticated = !!user && !!token;
 
   return (
@@ -103,7 +149,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       logout,
       loginWithToken,
       snoozeOAuthMigration,
-      shouldShowOAuthModal
+      shouldShowOAuthModal,
+      saveEmail,
+      snoozeEmailReminder,
+      shouldShowEmailModal
     }}>
       {children}
     </AuthContext.Provider>

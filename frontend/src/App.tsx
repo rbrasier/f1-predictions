@@ -20,6 +20,7 @@ import { OAuthCallbackPage } from './pages/OAuthCallbackPage';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { OAuthTransitionWrapper } from './components/auth/OAuthTransitionWrapper';
 import { DisplayNameWrapper } from './components/auth/DisplayNameWrapper';
+import EmailRequirementWrapper from './components/auth/EmailRequirementWrapper';
 
 const ENABLE_GOOGLE_OAUTH = import.meta.env.VITE_ENABLE_GOOGLE_OAUTH === 'true';
 
@@ -159,9 +160,11 @@ function App() {
                 </OAuthTransitionWrapper>
               </DisplayNameWrapper>
             ) : (
-              <FirstTimeLeagueSetup>
-                <AppRoutes />
-              </FirstTimeLeagueSetup>
+              <EmailRequirementWrapper>
+                <FirstTimeLeagueSetup>
+                  <AppRoutes />
+                </FirstTimeLeagueSetup>
+              </EmailRequirementWrapper>
             )}
           </BrowserRouter>
         </LeagueProvider>

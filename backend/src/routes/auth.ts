@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { register, login, getMe, getAllUsers, grantAdminAccess, registerValidation, loginValidation, googleCallback, snoozeOAuthMigration, linkGoogleAccount, updateDisplayName } from '../controllers/authController';
+import { register, login, getMe, getAllUsers, grantAdminAccess, registerValidation, loginValidation, googleCallback, snoozeOAuthMigration, linkGoogleAccount, updateDisplayName, saveEmail, snoozeEmailReminder, requestPasswordReset, resetPassword } from '../controllers/authController';
 import { authenticate, requireAdmin } from '../middleware/auth';
 import passport from '../config/passport';
 
@@ -36,5 +36,13 @@ router.get('/google/callback',
 router.post('/oauth/snooze', authenticate, snoozeOAuthMigration);
 router.post('/oauth/link', authenticate, linkGoogleAccount);
 router.post('/update-display-name', authenticate, updateDisplayName);
+
+// Email management routes
+router.post('/save-email', authenticate, saveEmail);
+router.post('/email-reminder/snooze', authenticate, snoozeEmailReminder);
+
+// Password reset routes (public)
+router.post('/forgot-password', requestPasswordReset);
+router.post('/reset-password', resetPassword);
 
 export default router;

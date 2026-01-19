@@ -81,6 +81,16 @@ export const updateDisplayName = async (displayName: string): Promise<{ message:
   return data;
 };
 
+export const saveEmail = async (email: string): Promise<{ message: string; user: User }> => {
+  const { data } = await api.post('/auth/save-email', { email });
+  return data;
+};
+
+export const snoozeEmailReminder = async (): Promise<{ message: string; email_reminder_snooze_until: string }> => {
+  const { data } = await api.post('/auth/email-reminder/snooze');
+  return data;
+};
+
 // Reference Data
 export const getDrivers = async (year?: number): Promise<Driver[]> => {
   const params = year ? { year } : {};
