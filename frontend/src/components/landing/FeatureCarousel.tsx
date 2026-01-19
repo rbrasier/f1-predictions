@@ -35,7 +35,7 @@ export const FeatureCarousel = () => {
         {slides.map((slide, index) => (
           <div
             key={index}
-            className={`absolute inset-0 overflow-y-auto transition-all duration-500 ease-in-out ${
+            className={`absolute inset-0 overflow-hidden transition-all duration-500 ease-in-out scale-90 sm:scale-100 origin-top ${
               index === currentSlide
                 ? 'opacity-100 translate-x-0'
                 : index < currentSlide

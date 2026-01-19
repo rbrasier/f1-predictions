@@ -6,6 +6,8 @@ import db from '../db/database';
 import { AuthRequest } from '../middleware/auth';
 import { User, RegisterRequest, LoginRequest, AuthResponse } from '../types';
 import { logger } from '../utils/logger';
+import { emailService } from '../services/emailService';
+import crypto from 'crypto';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'default-secret';
 const JWT_EXPIRES_IN = '365d'; // 1 year
@@ -16,6 +18,10 @@ export const registerValidation = [
     .isLength({ min: 3, max: 30 })
     .matches(/^[a-zA-Z0-9_]+$/)
     .withMessage('Username must be 3-30 characters and contain only letters, numbers, and underscores'),
+  body('email')
+    .trim()
+    .isEmail()
+    .withMessage('Valid email is required'),
   body('password')
     .isLength({ min: 6 })
     .withMessage('Password must be at least 6 characters long'),
@@ -37,7 +43,7 @@ export const register = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { username, password, display_name, invite_code } = req.body as RegisterRequest & { invite_code?: string };
+    const { username, email, password, display_name, invite_code } = req.body as RegisterRequest & { invite_code?: string };
 
     // Check if username already exists
     const existingUser = await db.prepare('SELECT id FROM users WHERE username = $1').get(username);
@@ -45,15 +51,21 @@ export const register = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'Username already exists' });
     }
 
+    // Check if email already exists
+    const existingEmail = await db.prepare('SELECT id FROM users WHERE email = $1').get(email);
+    if (existingEmail) {
+      return res.status(400).json({ error: 'Email already exists' });
+    }
+
     // Hash password
     const password_hash = await bcrypt.hash(password, 10);
 
     // Insert user
     const result = await db.prepare(`
-      INSERT INTO users (username, password_hash, display_name, is_admin)
-      VALUES ($1, $2, $3, false)
+      INSERT INTO users (username, email, password_hash, display_name, is_admin)
+      VALUES ($1, $2, $3, $4, false)
       RETURNING id
-    `).run(username, password_hash, display_name);
+    `).run(username, email, password_hash, display_name);
 
     const userId = Number(result.rows[0].id);
 
@@ -89,6 +101,7 @@ export const register = async (req: AuthRequest, res: Response) => {
         id: userId,
         username,
         display_name,
+        email,
         is_admin: false
       },
       token
@@ -112,13 +125,18 @@ export const login = async (req: AuthRequest, res: Response) => {
 
     // Find user
     const user = await db.prepare(`
-      SELECT id, username, password_hash, display_name, is_admin
+      SELECT id, username, password_hash, display_name, is_admin, email, email_reminder_snooze_until
       FROM users
       WHERE username = $1
     `).get(username) as User | undefined;
 
     if (!user) {
       return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    // OAuth users don't have a password, they must use OAuth to login
+    if (!user.password_hash) {
+      return res.status(401).json({ error: 'Please use Google OAuth to login' });
     }
 
     // Verify password
@@ -172,7 +190,9 @@ export const login = async (req: AuthRequest, res: Response) => {
         id: user.id,
         username: user.username,
         display_name: user.display_name,
-        is_admin: Boolean(user.is_admin)
+        is_admin: Boolean(user.is_admin),
+        email: user.email,
+        email_reminder_snooze_until: user.email_reminder_snooze_until
       },
       token
     };
@@ -191,10 +211,10 @@ export const getMe = async (req: AuthRequest, res: Response) => {
     }
 
     const user = await db.prepare(`
-      SELECT id, username, display_name, is_admin
+      SELECT id, username, display_name, email, is_admin, google_id, google_email, oauth_snooze_until, email_reminder_snooze_until
       FROM users
       WHERE id = $1
-    `).get(req.user.id) as Omit<User, 'password_hash' | 'created_at'> | undefined;
+    `).get(req.user.id) as User | undefined;
 
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
@@ -204,7 +224,12 @@ export const getMe = async (req: AuthRequest, res: Response) => {
       id: user.id,
       username: user.username,
       display_name: user.display_name,
-      is_admin: Boolean(user.is_admin)
+      email: user.email,
+      is_admin: Boolean(user.is_admin),
+      google_id: user.google_id,
+      google_email: user.google_email,
+      oauth_snooze_until: user.oauth_snooze_until,
+      email_reminder_snooze_until: user.email_reminder_snooze_until
     });
   } catch (error) {
     logger.error('Get me error:', error);
@@ -252,6 +277,325 @@ export const grantAdminAccess = async (req: AuthRequest, res: Response) => {
     res.json({ message: 'Admin access granted successfully', user: { ...user, is_admin: true } });
   } catch (error) {
     logger.error('Grant admin error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// OAuth callback handler
+export const googleCallback = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      // OAuth failed or account needs linking
+      const errorMessage = (req as any).authInfo?.message;
+
+      if (errorMessage === 'account_exists') {
+        // Redirect to frontend with error info
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:4000';
+        return res.redirect(`${frontendUrl}/login?oauth_error=account_exists&email=${encodeURIComponent((req as any).authInfo.email)}`);
+      }
+
+      return res.status(401).json({ error: 'Authentication failed' });
+    }
+
+    const user = req.user as User;
+
+    // Generate JWT token
+    const token = jwt.sign(
+      { id: user.id, username: user.username, is_admin: user.is_admin },
+      JWT_SECRET,
+      { expiresIn: JWT_EXPIRES_IN }
+    );
+
+    // Redirect to frontend with token
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:4000';
+    res.redirect(`${frontendUrl}/auth/callback?token=${token}`);
+  } catch (error) {
+    logger.error('Google callback error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// Link Google account to existing user
+export const linkGoogleAccount = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const { googleToken } = req.body;
+
+    if (!googleToken) {
+      return res.status(400).json({ error: 'Google token is required' });
+    }
+
+    // Verify Google token and get user info
+    // This would require using Google's token verification API
+    // For simplicity, we'll use the OAuth flow initiated from frontend
+
+    res.json({ message: 'Please use the OAuth flow to link your Google account' });
+  } catch (error) {
+    logger.error('Link Google account error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// Snooze OAuth migration modal
+export const snoozeOAuthMigration = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    // Set snooze_until to 2 days from now
+    const snoozeUntil = new Date();
+    snoozeUntil.setDate(snoozeUntil.getDate() + 2);
+
+    await db.prepare(`
+      UPDATE users
+      SET oauth_snooze_until = $1
+      WHERE id = $2
+    `).run(snoozeUntil.toISOString(), req.user.id);
+
+    res.json({
+      message: 'OAuth migration reminder snoozed',
+      snooze_until: snoozeUntil.toISOString()
+    });
+  } catch (error) {
+    logger.error('Snooze OAuth migration error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// Update display name for OAuth users
+export const updateDisplayName = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const { display_name } = req.body;
+
+    if (!display_name || display_name.trim().length === 0) {
+      return res.status(400).json({ error: 'Display name is required' });
+    }
+
+    if (display_name.length > 50) {
+      return res.status(400).json({ error: 'Display name must be 50 characters or less' });
+    }
+
+    await db.prepare(`
+      UPDATE users
+      SET display_name = $1
+      WHERE id = $2
+    `).run(display_name.trim(), req.user.id);
+
+    const updatedUser = await db.prepare(`
+      SELECT id, username, display_name, is_admin, google_id, google_email, oauth_snooze_until
+      FROM users
+      WHERE id = $1
+    `).get(req.user.id);
+
+    res.json({
+      message: 'Display name updated successfully',
+      user: updatedUser
+    });
+  } catch (error) {
+    logger.error('Update display name error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// Save email for user
+export const saveEmail = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const { email } = req.body;
+
+    if (!email || !email.trim()) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ error: 'Invalid email format' });
+    }
+
+    // Check if email already exists for another user
+    const existingEmail = await db.prepare(`
+      SELECT id FROM users WHERE email = $1 AND id != $2
+    `).get(email.trim(), req.user.id);
+
+    if (existingEmail) {
+      return res.status(400).json({ error: 'Email already exists' });
+    }
+
+    // Update user's email and clear snooze
+    await db.prepare(`
+      UPDATE users
+      SET email = $1, email_reminder_snooze_until = NULL
+      WHERE id = $2
+    `).run(email.trim(), req.user.id);
+
+    const updatedUser = await db.prepare(`
+      SELECT id, username, display_name, email, is_admin, google_id, google_email, oauth_snooze_until, email_reminder_snooze_until
+      FROM users
+      WHERE id = $1
+    `).get(req.user.id);
+
+    res.json({
+      message: 'Email saved successfully',
+      user: updatedUser
+    });
+  } catch (error) {
+    logger.error('Save email error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// Snooze email reminder modal
+export const snoozeEmailReminder = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    // Set snooze_until to 7 days from now
+    const snoozeUntil = new Date();
+    snoozeUntil.setDate(snoozeUntil.getDate() + 7);
+
+    await db.prepare(`
+      UPDATE users
+      SET email_reminder_snooze_until = $1
+      WHERE id = $2
+    `).run(snoozeUntil.toISOString(), req.user.id);
+
+    res.json({
+      message: 'Email reminder snoozed for 7 days',
+      email_reminder_snooze_until: snoozeUntil.toISOString()
+    });
+  } catch (error) {
+    logger.error('Snooze email reminder error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// Request password reset
+export const requestPasswordReset = async (req: AuthRequest, res: Response) => {
+  try {
+    const { email } = req.body;
+
+    if (!email || !email.trim()) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    // Find user by email
+    const user = await db.prepare(`
+      SELECT id, username, email, google_id
+      FROM users
+      WHERE email = $1
+    `).get(email.trim()) as User | undefined;
+
+    // Always return success even if user doesn't exist (security best practice)
+    if (!user) {
+      return res.json({ message: 'If an account exists with this email, a password reset code has been sent.' });
+    }
+
+    // Check if user is OAuth-only (no password)
+    if (user.google_id && !user.password_hash) {
+      return res.json({ message: 'If an account exists with this email, a password reset code has been sent.' });
+    }
+
+    // Generate a 6-digit reset code
+    const resetCode = crypto.randomInt(100000, 999999).toString();
+
+    // Set expiry to 1 hour from now
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + 1);
+
+    // Hash the reset code before storing
+    const hashedResetCode = await bcrypt.hash(resetCode, 10);
+
+    // Store reset token in database
+    await db.prepare(`
+      UPDATE users
+      SET password_reset_token = $1, password_reset_expires = $2
+      WHERE id = $3
+    `).run(hashedResetCode, expiresAt.toISOString(), user.id);
+
+    // Send email with reset code
+    const emailSent = await emailService.sendPasswordResetEmail(user.email!, resetCode);
+
+    if (!emailSent) {
+      logger.warn(`Password reset email not sent (Mailgun disabled) for user ${user.username}`);
+    }
+
+    res.json({ message: 'If an account exists with this email, a password reset code has been sent.' });
+  } catch (error) {
+    logger.error('Request password reset error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// Reset password with token
+export const resetPassword = async (req: AuthRequest, res: Response) => {
+  try {
+    const { email, resetCode, newPassword } = req.body;
+
+    if (!email || !resetCode || !newPassword) {
+      return res.status(400).json({ error: 'Email, reset code, and new password are required' });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters long' });
+    }
+
+    // Find user by email
+    const user = await db.prepare(`
+      SELECT id, username, email, password_reset_token, password_reset_expires
+      FROM users
+      WHERE email = $1
+    `).get(email.trim()) as User | undefined;
+
+    if (!user || !user.password_reset_token || !user.password_reset_expires) {
+      return res.status(400).json({ error: 'Invalid or expired reset code' });
+    }
+
+    // Check if token has expired
+    const expiresAt = new Date(user.password_reset_expires);
+    if (expiresAt < new Date()) {
+      // Clear expired token
+      await db.prepare(`
+        UPDATE users
+        SET password_reset_token = NULL, password_reset_expires = NULL
+        WHERE id = $1
+      `).run(user.id);
+
+      return res.status(400).json({ error: 'Reset code has expired. Please request a new one.' });
+    }
+
+    // Verify reset code
+    const isValidCode = await bcrypt.compare(resetCode, user.password_reset_token);
+    if (!isValidCode) {
+      return res.status(400).json({ error: 'Invalid reset code' });
+    }
+
+    // Hash new password
+    const newPasswordHash = await bcrypt.hash(newPassword, 10);
+
+    // Update password and clear reset token
+    await db.prepare(`
+      UPDATE users
+      SET password_hash = $1, password_reset_token = NULL, password_reset_expires = NULL
+      WHERE id = $2
+    `).run(newPasswordHash, user.id);
+
+    res.json({ message: 'Password has been reset successfully. You can now log in with your new password.' });
+  } catch (error) {
+    logger.error('Reset password error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
