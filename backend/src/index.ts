@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import { initializeDatabase } from './db/database';
 import { scheduler } from './scheduler';
 import { logger } from './utils/logger';
+import passport from './config/passport';
 
 // Routes
 import authRoutes from './routes/auth';
@@ -55,6 +56,7 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(passport.initialize());
 
 // Health check
 app.get('/health', (req, res) => {

@@ -46,8 +46,8 @@ api.interceptors.request.use((config) => {
 });
 
 // Auth
-export const register = async (username: string, password: string, display_name: string, invite_code?: string): Promise<AuthResponse> => {
-  const { data } = await api.post('/auth/register', { username, password, display_name, invite_code });
+export const register = async (username: string, email: string, password: string, display_name: string, invite_code?: string): Promise<AuthResponse> => {
+  const { data} = await api.post('/auth/register', { username, email, password, display_name, invite_code });
   return data;
 };
 
@@ -68,6 +68,16 @@ export const getAllUsers = async (): Promise<User[]> => {
 
 export const grantAdminAccess = async (userId: number): Promise<any> => {
   const { data } = await api.post(`/auth/users/${userId}/grant-admin`);
+  return data;
+};
+
+export const snoozeOAuthMigration = async (): Promise<{ message: string; snooze_until: string }> => {
+  const { data } = await api.post('/auth/oauth/snooze');
+  return data;
+};
+
+export const updateDisplayName = async (displayName: string): Promise<{ message: string; user: User }> => {
+  const { data } = await api.post('/auth/update-display-name', { display_name: displayName });
   return data;
 };
 

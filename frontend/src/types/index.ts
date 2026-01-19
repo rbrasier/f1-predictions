@@ -1,8 +1,12 @@
 export interface User {
   id: number;
   username: string;
+  email?: string | null;
   display_name: string;
   is_admin: boolean;
+  google_id?: string | null;
+  google_email?: string | null;
+  oauth_snooze_until?: string | null;
 }
 
 export interface AuthResponse {

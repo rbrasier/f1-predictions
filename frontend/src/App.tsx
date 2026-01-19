@@ -16,6 +16,12 @@ import SettingsPage from './pages/SettingsPage';
 import { LoadingSpinner } from './components/common/LoadingSpinner';
 import { CompareTipsPage } from './pages/CompareTipsPage';
 import { FirstTimeLeagueSetup } from './components/leagues/FirstTimeLeagueSetup';
+import { OAuthCallbackPage } from './pages/OAuthCallbackPage';
+import { GoogleOAuthProvider } from '@react-oauth/google';
+import { OAuthTransitionWrapper } from './components/auth/OAuthTransitionWrapper';
+import { DisplayNameWrapper } from './components/auth/DisplayNameWrapper';
+
+const ENABLE_GOOGLE_OAUTH = import.meta.env.VITE_ENABLE_GOOGLE_OAUTH === 'true';
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
@@ -65,6 +71,7 @@ const AppRoutes = () => {
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={user ? <Navigate to="/dashboard" /> : <LoginForm />} />
       <Route path="/register" element={user ? <Navigate to="/dashboard" /> : <RegisterForm />} />
+      {ENABLE_GOOGLE_OAUTH && <Route path="/auth/callback" element={<OAuthCallbackPage />} />}
       <Route
         path="/dashboard"
         element={
@@ -135,19 +142,39 @@ const AppRoutes = () => {
 };
 
 function App() {
-  return (
+  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
+
+  const appContent = (
     <AuthProvider>
       <ToastProvider>
         <LeagueProvider>
           <BrowserRouter>
             <ToastContainer />
-            <FirstTimeLeagueSetup>
-              <AppRoutes />
-            </FirstTimeLeagueSetup>
+            {ENABLE_GOOGLE_OAUTH ? (
+              <DisplayNameWrapper>
+                <OAuthTransitionWrapper>
+                  <FirstTimeLeagueSetup>
+                    <AppRoutes />
+                  </FirstTimeLeagueSetup>
+                </OAuthTransitionWrapper>
+              </DisplayNameWrapper>
+            ) : (
+              <FirstTimeLeagueSetup>
+                <AppRoutes />
+              </FirstTimeLeagueSetup>
+            )}
           </BrowserRouter>
         </LeagueProvider>
       </ToastProvider>
     </AuthProvider>
+  );
+
+  return ENABLE_GOOGLE_OAUTH ? (
+    <GoogleOAuthProvider clientId={googleClientId}>
+      {appContent}
+    </GoogleOAuthProvider>
+  ) : (
+    appContent
   );
 }
 

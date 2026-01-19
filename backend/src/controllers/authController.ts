@@ -16,6 +16,10 @@ export const registerValidation = [
     .isLength({ min: 3, max: 30 })
     .matches(/^[a-zA-Z0-9_]+$/)
     .withMessage('Username must be 3-30 characters and contain only letters, numbers, and underscores'),
+  body('email')
+    .trim()
+    .isEmail()
+    .withMessage('Valid email is required'),
   body('password')
     .isLength({ min: 6 })
     .withMessage('Password must be at least 6 characters long'),
@@ -37,7 +41,7 @@ export const register = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { username, password, display_name, invite_code } = req.body as RegisterRequest & { invite_code?: string };
+    const { username, email, password, display_name, invite_code } = req.body as RegisterRequest & { invite_code?: string };
 
     // Check if username already exists
     const existingUser = await db.prepare('SELECT id FROM users WHERE username = $1').get(username);
@@ -45,15 +49,21 @@ export const register = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'Username already exists' });
     }
 
+    // Check if email already exists
+    const existingEmail = await db.prepare('SELECT id FROM users WHERE email = $1').get(email);
+    if (existingEmail) {
+      return res.status(400).json({ error: 'Email already exists' });
+    }
+
     // Hash password
     const password_hash = await bcrypt.hash(password, 10);
 
     // Insert user
     const result = await db.prepare(`
-      INSERT INTO users (username, password_hash, display_name, is_admin)
-      VALUES ($1, $2, $3, false)
+      INSERT INTO users (username, email, password_hash, display_name, is_admin)
+      VALUES ($1, $2, $3, $4, false)
       RETURNING id
-    `).run(username, password_hash, display_name);
+    `).run(username, email, password_hash, display_name);
 
     const userId = Number(result.rows[0].id);
 
@@ -119,6 +129,11 @@ export const login = async (req: AuthRequest, res: Response) => {
 
     if (!user) {
       return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    // OAuth users don't have a password, they must use OAuth to login
+    if (!user.password_hash) {
+      return res.status(401).json({ error: 'Please use Google OAuth to login' });
     }
 
     // Verify password
@@ -191,10 +206,10 @@ export const getMe = async (req: AuthRequest, res: Response) => {
     }
 
     const user = await db.prepare(`
-      SELECT id, username, display_name, is_admin
+      SELECT id, username, display_name, is_admin, google_id, google_email, oauth_snooze_until
       FROM users
       WHERE id = $1
-    `).get(req.user.id) as Omit<User, 'password_hash' | 'created_at'> | undefined;
+    `).get(req.user.id) as User | undefined;
 
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
@@ -204,7 +219,10 @@ export const getMe = async (req: AuthRequest, res: Response) => {
       id: user.id,
       username: user.username,
       display_name: user.display_name,
-      is_admin: Boolean(user.is_admin)
+      is_admin: Boolean(user.is_admin),
+      google_id: user.google_id,
+      google_email: user.google_email,
+      oauth_snooze_until: user.oauth_snooze_until
     });
   } catch (error) {
     logger.error('Get me error:', error);
@@ -252,6 +270,130 @@ export const grantAdminAccess = async (req: AuthRequest, res: Response) => {
     res.json({ message: 'Admin access granted successfully', user: { ...user, is_admin: true } });
   } catch (error) {
     logger.error('Grant admin error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// OAuth callback handler
+export const googleCallback = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      // OAuth failed or account needs linking
+      const errorMessage = (req as any).authInfo?.message;
+
+      if (errorMessage === 'account_exists') {
+        // Redirect to frontend with error info
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:4000';
+        return res.redirect(`${frontendUrl}/login?oauth_error=account_exists&email=${encodeURIComponent((req as any).authInfo.email)}`);
+      }
+
+      return res.status(401).json({ error: 'Authentication failed' });
+    }
+
+    const user = req.user as User;
+
+    // Generate JWT token
+    const token = jwt.sign(
+      { id: user.id, username: user.username, is_admin: user.is_admin },
+      JWT_SECRET,
+      { expiresIn: JWT_EXPIRES_IN }
+    );
+
+    // Redirect to frontend with token
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:4000';
+    res.redirect(`${frontendUrl}/auth/callback?token=${token}`);
+  } catch (error) {
+    logger.error('Google callback error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// Link Google account to existing user
+export const linkGoogleAccount = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const { googleToken } = req.body;
+
+    if (!googleToken) {
+      return res.status(400).json({ error: 'Google token is required' });
+    }
+
+    // Verify Google token and get user info
+    // This would require using Google's token verification API
+    // For simplicity, we'll use the OAuth flow initiated from frontend
+
+    res.json({ message: 'Please use the OAuth flow to link your Google account' });
+  } catch (error) {
+    logger.error('Link Google account error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// Snooze OAuth migration modal
+export const snoozeOAuthMigration = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    // Set snooze_until to 2 days from now
+    const snoozeUntil = new Date();
+    snoozeUntil.setDate(snoozeUntil.getDate() + 2);
+
+    await db.prepare(`
+      UPDATE users
+      SET oauth_snooze_until = $1
+      WHERE id = $2
+    `).run(snoozeUntil.toISOString(), req.user.id);
+
+    res.json({
+      message: 'OAuth migration reminder snoozed',
+      snooze_until: snoozeUntil.toISOString()
+    });
+  } catch (error) {
+    logger.error('Snooze OAuth migration error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// Update display name for OAuth users
+export const updateDisplayName = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const { display_name } = req.body;
+
+    if (!display_name || display_name.trim().length === 0) {
+      return res.status(400).json({ error: 'Display name is required' });
+    }
+
+    if (display_name.length > 50) {
+      return res.status(400).json({ error: 'Display name must be 50 characters or less' });
+    }
+
+    await db.prepare(`
+      UPDATE users
+      SET display_name = $1
+      WHERE id = $2
+    `).run(display_name.trim(), req.user.id);
+
+    const updatedUser = await db.prepare(`
+      SELECT id, username, display_name, is_admin, google_id, google_email, oauth_snooze_until
+      FROM users
+      WHERE id = $1
+    `).get(req.user.id);
+
+    res.json({
+      message: 'Display name updated successfully',
+      user: updatedUser
+    });
+  } catch (error) {
+    logger.error('Update display name error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
