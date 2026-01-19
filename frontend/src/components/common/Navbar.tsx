@@ -4,6 +4,7 @@ import { useLeague } from '../../contexts/LeagueContext';
 import { useState, useEffect } from 'react';
 import { getPendingValidations } from '../../services/api';
 import InviteModal from '../leagues/InviteModal';
+import FeedbackModal from '../feedback/FeedbackModal';
 
 export const Navbar = () => {
   const { user, logout } = useAuth();
@@ -11,6 +12,7 @@ export const Navbar = () => {
   const [pendingCount, setPendingCount] = useState(0);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
+  const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchPending = async () => {
@@ -148,6 +150,27 @@ export const Navbar = () => {
                     >
                       Settings
                     </Link>
+                    <Link
+                      to="/changelog"
+                      className="text-white hover:text-paddock-red transition uppercase text-lg font-medium tracking-wide py-2"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      Changelog
+                    </Link>
+                    <button
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        setFeedbackModalOpen(true);
+                      }}
+                      className="w-full text-left bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-4 py-3 rounded-lg font-bold uppercase text-sm tracking-wide transition shadow-lg border-2 border-blue-400"
+                    >
+                      <div className="flex items-center gap-2">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+                        </svg>
+                        <span>Feedback</span>
+                      </div>
+                    </button>
                     {user.is_admin && (
                       <Link
                         to="/admin"
@@ -179,6 +202,7 @@ export const Navbar = () => {
         </div>
       </div>
       <InviteModal isOpen={inviteModalOpen} onClose={() => setInviteModalOpen(false)} />
+      <FeedbackModal isOpen={feedbackModalOpen} onClose={() => setFeedbackModalOpen(false)} />
     </nav>
   );
 };

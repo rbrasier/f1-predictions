@@ -16,7 +16,10 @@ import type {
   PendingValidation,
   CrazyPredictionValidation,
   League,
-  LeagueUser
+  LeagueUser,
+  Feedback,
+  FeedbackRequest,
+  UpdateFeedbackRequest
 } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4001/api';
@@ -412,6 +415,37 @@ export const getActiveSeasonPublic = async (): Promise<Season> => {
 export const getUpcomingRacesPublic = async (limit?: number): Promise<Race[]> => {
   const params = limit ? { limit: limit.toString() } : {};
   const { data } = await publicApi.get('/public/races/upcoming', { params });
+  return data;
+};
+
+// Feedback
+export const submitFeedback = async (feedback: FeedbackRequest): Promise<Feedback> => {
+  const { data } = await api.post('/feedback', feedback);
+  return data;
+};
+
+export const getFeatures = async (): Promise<Feedback[]> => {
+  const { data } = await api.get('/feedback/features');
+  return data;
+};
+
+export const voteOnFeature = async (feedbackId: number, voteType: 'upvote' | 'downvote'): Promise<{ message: string; vote: string | null }> => {
+  const { data } = await api.post(`/feedback/${feedbackId}/vote`, { vote_type: voteType });
+  return data;
+};
+
+export const getChangelog = async (): Promise<Feedback[]> => {
+  const { data } = await api.get('/feedback/changelog');
+  return data;
+};
+
+export const getAllFeedback = async (params?: { type?: string; status?: string }): Promise<Feedback[]> => {
+  const { data } = await api.get('/feedback/admin/all', { params });
+  return data;
+};
+
+export const updateFeedback = async (feedbackId: number, updates: UpdateFeedbackRequest): Promise<Feedback> => {
+  const { data } = await api.patch(`/feedback/admin/${feedbackId}`, updates);
   return data;
 };
 

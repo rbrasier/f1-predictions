@@ -239,6 +239,35 @@ export interface CarouselConfig {
   transitionDuration: number;
 }
 
+// Feedback types
+export interface Feedback {
+  id: number;
+  type: 'bug' | 'feature';
+  title: string;
+  description: string;
+  user_id: number;
+  status: 'pending' | 'in_progress' | 'implemented' | 'fixed' | 'rejected';
+  upvotes_count: number;
+  downvotes_count: number;
+  implementation_note: string | null;
+  implementation_date: string | null;
+  created_at: string;
+  display_name?: string;
+  user_vote?: 'upvote' | 'downvote' | null;
+}
+
+export interface FeedbackRequest {
+  type: 'bug' | 'feature';
+  title: string;
+  description: string;
+}
+
+export interface UpdateFeedbackRequest {
+  status?: 'pending' | 'in_progress' | 'implemented' | 'fixed' | 'rejected';
+  implementation_note?: string;
+  implementation_date?: string;
+}
+
 // Convenience aliases for API types
 export type Driver = F1Driver;
 export type Team = F1Constructor;
