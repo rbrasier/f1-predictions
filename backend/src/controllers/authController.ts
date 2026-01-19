@@ -101,6 +101,7 @@ export const register = async (req: AuthRequest, res: Response) => {
         id: userId,
         username,
         display_name,
+        email,
         is_admin: false
       },
       token
@@ -124,7 +125,7 @@ export const login = async (req: AuthRequest, res: Response) => {
 
     // Find user
     const user = await db.prepare(`
-      SELECT id, username, password_hash, display_name, is_admin
+      SELECT id, username, password_hash, display_name, is_admin, email, email_reminder_snooze_until
       FROM users
       WHERE username = $1
     `).get(username) as User | undefined;
@@ -189,7 +190,9 @@ export const login = async (req: AuthRequest, res: Response) => {
         id: user.id,
         username: user.username,
         display_name: user.display_name,
-        is_admin: Boolean(user.is_admin)
+        is_admin: Boolean(user.is_admin),
+        email: user.email,
+        email_reminder_snooze_until: user.email_reminder_snooze_until
       },
       token
     };
