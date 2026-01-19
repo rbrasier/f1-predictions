@@ -100,124 +100,193 @@ npm run migrate
 4. Click "Sign in with Google"
 5. Complete the Google OAuth flow
 
-## Step 8: Verify the Setup
+## Step 8: Submit Your App for Google Verification
 
-After setting up Google OAuth, verify everything is working correctly:
+### Why Verification is Needed
 
-### 1. Test New User Registration
+When users first sign in with Google OAuth to an unverified app, they'll see a warning screen saying "This app isn't verified". To remove this warning and provide a seamless user experience, you need to submit your app for Google's verification process.
 
-1. **Navigate to Register Page**:
-   - Go to `http://localhost:4000/register`
-   - You should see only the "Sign up with Google" button (no legacy registration form)
+**During development**: You can add test users in the OAuth consent screen to bypass the warning.
 
-2. **Complete OAuth Flow**:
-   - Click "Sign up with Google"
-   - You should be redirected to Google's OAuth consent screen
-   - Grant permissions to the app
-   - You should be redirected back to your app
+**For production**: You must complete the verification process.
 
-3. **Set Display Name**:
-   - After successful OAuth, you should see a modal asking for your display name
-   - Enter a display name (this is required for new OAuth users)
-   - Click "Continue"
+### Verification Requirements
 
-4. **Verify Account Creation**:
-   - You should be redirected to the dashboard
-   - Check that your display name appears correctly
-   - Verify you can access protected routes
+Before submitting for verification, ensure your app meets these requirements:
 
-### 2. Test Invite Code Flow
+1. **Privacy Policy**: Must be publicly accessible
+2. **Terms of Service**: Must be publicly accessible
+3. **App Homepage**: Must be publicly accessible
+4. **Valid Domain**: Must use a verified domain (not localhost)
+5. **Branding**: App logo and branding information
+6. **Scope Justification**: Clear explanation of why you need each OAuth scope
 
-1. **Create an Invite Link**:
-   - Create a league and get its invite code
-   - Create an invite URL: `http://localhost:4000/register?invite=YOUR_CODE`
+### Prepare Required Documents
 
-2. **Register with Invite Code**:
-   - Open the invite URL in an incognito/private window
-   - You should see a green banner showing the league you're joining
-   - Complete Google OAuth
-   - Set your display name
-   - Verify you're automatically added to the league
+1. **Create a Privacy Policy**:
+   - Must explain what user data you collect (email, profile)
+   - How the data is used (authentication, user identification)
+   - How it's stored (your database)
+   - User rights (data deletion, access)
+   - Host it on your domain (e.g., `https://yourapp.com/privacy`)
 
-### 3. Test Existing User Login
+2. **Create Terms of Service**:
+   - User agreements for using your app
+   - Host it on your domain (e.g., `https://yourapp.com/terms`)
 
-1. **Legacy Login (for existing users)**:
-   - Go to `http://localhost:4000/login`
-   - Click "Use legacy login (username & password)"
-   - Enter your username and password
-   - Verify you can log in successfully
+3. **Prepare App Logo**:
+   - 120x120 pixels minimum
+   - Must represent your app
+   - No Google branding
 
-2. **OAuth Transition Modal**:
-   - After logging in with legacy credentials, you should see a modal prompting you to link Google account (if not already linked)
-   - Test the "Remind Me Later" button (sets 2-day snooze)
-   - Test the "Dismiss" button (closes modal without snoozing)
-   - Test linking your Google account
+4. **Create YouTube Video** (required for verification):
+   - Show your OAuth consent screen
+   - Demonstrate how your app uses the requested scopes
+   - Show the complete user flow from login to using the scopes
+   - Can be unlisted (doesn't need to be public)
+   - Typically 2-3 minutes long
 
-### 4. Verify Backend Integration
+### Verification Process
 
-Check your backend logs to ensure:
+#### 1. Complete OAuth Consent Screen
 
-```bash
-# Start backend with logs
-cd backend
-npm run dev
-```
+Navigate to **Google Cloud Console > APIs & Services > OAuth consent screen**
 
-Look for:
-- ✅ "Created all database tables" (migration ran successfully)
-- ✅ Google OAuth requests hitting `/api/auth/google`
-- ✅ Successful redirects to `/api/auth/google/callback`
-- ✅ User creation with temporary display names (ending in `_temp`)
-- ✅ Display name updates after user sets it
+**App Information**:
+- App name: F1 Predictions (or your app name)
+- User support email: Your support email
+- App logo: Upload your 120x120px logo
+- App domain:
+  - Homepage: `https://yourapp.com`
+  - Privacy policy: `https://yourapp.com/privacy`
+  - Terms of service: `https://yourapp.com/terms`
+- Authorized domains: Add your production domain(s)
 
-### 5. Database Verification
+**Scopes**:
+- Click "Add or Remove Scopes"
+- Add these scopes:
+  - `../auth/userinfo.email` - See your primary Google Account email address
+  - `../auth/userinfo.profile` - See your personal info, including any personal info you've made publicly available
+  - `openid` - Associate you with your personal info on Google
+- Save the scopes
 
-Connect to your database and verify the schema:
+**Test Users** (optional for development):
+- Add test user email addresses
+- These users can access your app without seeing the unverified warning
 
-```sql
--- Check users table has OAuth columns
-SELECT column_name, data_type
-FROM information_schema.columns
-WHERE table_name = 'users'
-AND column_name IN ('google_id', 'google_email', 'oauth_snooze_until');
+#### 2. Submit for Verification
 
--- Check a newly created OAuth user
-SELECT id, username, display_name, google_id, google_email, password_hash
-FROM users
-WHERE google_id IS NOT NULL
-LIMIT 1;
+1. **Start Verification**:
+   - On the OAuth consent screen page, look for "Publish App" or "Submit for Verification" button
+   - Click to start the verification process
 
--- Verify password_hash is NULL for OAuth-only users
-```
+2. **Fill Out the Verification Form**:
 
-### 6. Test Edge Cases
+   **Contact Information**:
+   - Official app name
+   - Developer/company contact email
+   - Developer/company phone number
 
-1. **Duplicate Email**: Try to register with Google using an email that already exists (should show account linking prompt)
-2. **Network Failure**: Disconnect network during OAuth flow (should show appropriate error)
-3. **Cancel OAuth**: Click "Cancel" on Google's consent screen (should redirect with error)
-4. **Invalid Invite Code**: Try `http://localhost:4000/register?invite=INVALID` (should still allow registration but show code)
+   **App Details**:
+   - App description (what your app does)
+   - Target audience
+   - Category (Social & Communication or Entertainment)
 
-### 7. Check Google Cloud Console
+   **Scope Justification**:
+   - For each scope, explain why it's needed:
+     - `userinfo.email`: "Required to create user accounts and identify users uniquely"
+     - `userinfo.profile`: "Required to display user's name and provide personalized experience"
+     - `openid`: "Required for authentication and user identity verification"
 
-1. Navigate to Google Cloud Console > APIs & Services > Credentials
-2. Click on your OAuth 2.0 Client ID
-3. Verify:
-   - Authorized JavaScript origins include your local and production URLs
-   - Authorized redirect URIs include your callback URLs
-   - No typos in URLs (common cause of issues)
+   **Demo Video**:
+   - Upload or link to your YouTube video
+   - Video should show:
+     1. Your OAuth consent screen
+     2. User clicking "Allow"
+     3. App receiving and using the user data (email for registration/login)
+     4. Normal app usage showing the user is authenticated
 
-### Verification Checklist
+   **Additional Documentation**:
+   - Link to your privacy policy
+   - Link to your terms of service
+   - Any additional security/compliance documentation
 
-- [ ] New users can register with Google OAuth only
-- [ ] Display name modal appears for new OAuth users
-- [ ] Invite codes work with OAuth registration
-- [ ] Existing users can login with username/password
-- [ ] OAuth transition modal appears for legacy users
-- [ ] Snooze functionality works (2-day interval)
-- [ ] Users can link Google account to existing account
-- [ ] Backend logs show successful OAuth flows
-- [ ] Database has correct OAuth columns
-- [ ] Google Cloud Console URLs are configured correctly
+3. **Submit Application**:
+   - Review all information
+   - Click "Submit for Verification"
+   - You'll receive a confirmation email
+
+#### 3. Verification Timeline
+
+- **Initial Response**: 3-5 business days
+- **Review Process**: 4-6 weeks (can vary)
+- **Additional Questions**: Google may request clarifications or additional information
+
+#### 4. Common Reasons for Rejection
+
+- **Insufficient scope justification**: Be very specific about why you need each scope
+- **Missing or inadequate privacy policy**: Must be comprehensive and hosted on your domain
+- **Poor demo video**: Must clearly show all OAuth flows and data usage
+- **Domain verification issues**: Ensure all domains are verified in Google Search Console
+- **Vague app description**: Be specific about what your app does
+
+### During the Review Period
+
+While waiting for verification:
+
+1. **Add Test Users**: Add your users' emails as test users so they can use the app without warnings
+2. **Use Development Mode**: Keep your app in development/testing mode
+3. **Monitor Email**: Watch for requests from Google for additional information
+4. **Be Responsive**: Reply quickly to any Google requests (within 3 days)
+
+### After Verification
+
+Once approved:
+
+1. You'll receive a confirmation email
+2. The "unverified app" warning will be removed for all users
+3. Your app will show as "Verified by Google"
+4. Users will see your app name and logo on the consent screen
+5. Higher user trust and conversion rates
+
+### If Verification is Denied
+
+1. **Read the Feedback**: Google will explain why it was denied
+2. **Make Corrections**: Fix the issues mentioned
+3. **Resubmit**: You can resubmit after making changes
+4. **Appeal**: If you believe the denial was in error, you can appeal the decision
+
+### Alternative: Sensitive Scopes
+
+If you only need basic profile and email (which we do), the verification is straightforward. However, if you needed sensitive scopes (like Gmail or Drive access), the verification process is more stringent and may require:
+
+- Annual security assessment
+- Security questionnaire
+- Proof of security compliance
+- Additional documentation
+
+For F1 Predictions, we only use basic scopes, so this doesn't apply.
+
+### Development vs Production
+
+**Development (Unverified)**:
+- Users see "This app isn't verified" warning
+- Can add up to 100 test users
+- Good for testing and private use
+- No verification required
+
+**Production (Verified)**:
+- No warning for users
+- Unlimited users
+- Professional appearance
+- Required for public apps
+
+### Useful Resources
+
+- [Google OAuth Verification Guide](https://support.google.com/cloud/answer/9110914)
+- [OAuth Consent Screen Configuration](https://support.google.com/cloud/answer/10311615)
+- [OAuth App Verification FAQ](https://support.google.com/cloud/answer/9110914)
+- [Privacy Policy Requirements](https://support.google.com/cloud/answer/9110914#privacy-policy)
 
 ## Features
 
