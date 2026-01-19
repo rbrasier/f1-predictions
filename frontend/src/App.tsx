@@ -16,6 +16,9 @@ import SettingsPage from './pages/SettingsPage';
 import { LoadingSpinner } from './components/common/LoadingSpinner';
 import { CompareTipsPage } from './pages/CompareTipsPage';
 import { FirstTimeLeagueSetup } from './components/leagues/FirstTimeLeagueSetup';
+import { OAuthCallbackPage } from './pages/OAuthCallbackPage';
+import { GoogleOAuthProvider } from '@react-oauth/google';
+import { OAuthTransitionWrapper } from './components/auth/OAuthTransitionWrapper';
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
@@ -65,6 +68,7 @@ const AppRoutes = () => {
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={user ? <Navigate to="/dashboard" /> : <LoginForm />} />
       <Route path="/register" element={user ? <Navigate to="/dashboard" /> : <RegisterForm />} />
+      <Route path="/auth/callback" element={<OAuthCallbackPage />} />
       <Route
         path="/dashboard"
         element={
@@ -135,19 +139,25 @@ const AppRoutes = () => {
 };
 
 function App() {
+  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
+
   return (
-    <AuthProvider>
-      <ToastProvider>
-        <LeagueProvider>
-          <BrowserRouter>
-            <ToastContainer />
-            <FirstTimeLeagueSetup>
-              <AppRoutes />
-            </FirstTimeLeagueSetup>
-          </BrowserRouter>
-        </LeagueProvider>
-      </ToastProvider>
-    </AuthProvider>
+    <GoogleOAuthProvider clientId={googleClientId}>
+      <AuthProvider>
+        <ToastProvider>
+          <LeagueProvider>
+            <BrowserRouter>
+              <ToastContainer />
+              <OAuthTransitionWrapper>
+                <FirstTimeLeagueSetup>
+                  <AppRoutes />
+                </FirstTimeLeagueSetup>
+              </OAuthTransitionWrapper>
+            </BrowserRouter>
+          </LeagueProvider>
+        </ToastProvider>
+      </AuthProvider>
+    </GoogleOAuthProvider>
   );
 }
 

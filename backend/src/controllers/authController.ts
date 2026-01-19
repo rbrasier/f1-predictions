@@ -191,10 +191,10 @@ export const getMe = async (req: AuthRequest, res: Response) => {
     }
 
     const user = await db.prepare(`
-      SELECT id, username, display_name, is_admin
+      SELECT id, username, display_name, is_admin, google_id, google_email, oauth_snooze_until
       FROM users
       WHERE id = $1
-    `).get(req.user.id) as Omit<User, 'password_hash' | 'created_at'> | undefined;
+    `).get(req.user.id) as User | undefined;
 
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
@@ -204,7 +204,10 @@ export const getMe = async (req: AuthRequest, res: Response) => {
       id: user.id,
       username: user.username,
       display_name: user.display_name,
-      is_admin: Boolean(user.is_admin)
+      is_admin: Boolean(user.is_admin),
+      google_id: user.google_id,
+      google_email: user.google_email,
+      oauth_snooze_until: user.oauth_snooze_until
     });
   } catch (error) {
     logger.error('Get me error:', error);
@@ -252,6 +255,91 @@ export const grantAdminAccess = async (req: AuthRequest, res: Response) => {
     res.json({ message: 'Admin access granted successfully', user: { ...user, is_admin: true } });
   } catch (error) {
     logger.error('Grant admin error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// OAuth callback handler
+export const googleCallback = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      // OAuth failed or account needs linking
+      const errorMessage = (req as any).authInfo?.message;
+
+      if (errorMessage === 'account_exists') {
+        // Redirect to frontend with error info
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:4000';
+        return res.redirect(`${frontendUrl}/login?oauth_error=account_exists&email=${encodeURIComponent((req as any).authInfo.email)}`);
+      }
+
+      return res.status(401).json({ error: 'Authentication failed' });
+    }
+
+    const user = req.user as User;
+
+    // Generate JWT token
+    const token = jwt.sign(
+      { id: user.id, username: user.username, is_admin: user.is_admin },
+      JWT_SECRET,
+      { expiresIn: JWT_EXPIRES_IN }
+    );
+
+    // Redirect to frontend with token
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:4000';
+    res.redirect(`${frontendUrl}/auth/callback?token=${token}`);
+  } catch (error) {
+    logger.error('Google callback error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// Link Google account to existing user
+export const linkGoogleAccount = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const { googleToken } = req.body;
+
+    if (!googleToken) {
+      return res.status(400).json({ error: 'Google token is required' });
+    }
+
+    // Verify Google token and get user info
+    // This would require using Google's token verification API
+    // For simplicity, we'll use the OAuth flow initiated from frontend
+
+    res.json({ message: 'Please use the OAuth flow to link your Google account' });
+  } catch (error) {
+    logger.error('Link Google account error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// Snooze OAuth migration modal
+export const snoozeOAuthMigration = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    // Set snooze_until to 2 days from now
+    const snoozeUntil = new Date();
+    snoozeUntil.setDate(snoozeUntil.getDate() + 2);
+
+    await db.prepare(`
+      UPDATE users
+      SET oauth_snooze_until = $1
+      WHERE id = $2
+    `).run(snoozeUntil.toISOString(), req.user.id);
+
+    res.json({
+      message: 'OAuth migration reminder snoozed',
+      snooze_until: snoozeUntil.toISOString()
+    });
+  } catch (error) {
+    logger.error('Snooze OAuth migration error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };

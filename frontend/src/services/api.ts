@@ -71,6 +71,11 @@ export const grantAdminAccess = async (userId: number): Promise<any> => {
   return data;
 };
 
+export const snoozeOAuthMigration = async (): Promise<{ message: string; snooze_until: string }> => {
+  const { data } = await api.post('/auth/oauth/snooze');
+  return data;
+};
+
 // Reference Data
 export const getDrivers = async (year?: number): Promise<Driver[]> => {
   const params = year ? { year } : {};
