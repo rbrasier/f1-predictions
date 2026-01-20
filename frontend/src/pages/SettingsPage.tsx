@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Layout } from '../components/common/Layout';
 import { useLeague } from '../contexts/LeagueContext';
 import { useToast } from '../contexts/ToastContext';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import * as api from '../services/api';
 import CreateLeagueModal from '../components/leagues/CreateLeagueModal';
 import JoinLeagueModal from '../components/leagues/JoinLeagueModal';
@@ -10,7 +10,7 @@ import JoinLeagueModal from '../components/leagues/JoinLeagueModal';
 const SettingsPage: React.FC = () => {
   const { leagues, defaultLeague, loading, setDefaultLeague, joinWorldLeague, leaveLeague } = useLeague();
   const { showToast } = useToast();
-  const { user, setUser } = useAuth();
+  const { user } = useAuth();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [processingLeagueId, setProcessingLeagueId] = useState<number | null>(null);
@@ -50,9 +50,10 @@ const SettingsPage: React.FC = () => {
 
     setIsSavingProfile(true);
     try {
-      const response = await api.updateDisplayName(displayName);
-      setUser(response.data.user);
+      await api.updateDisplayName(displayName);
       showToast('Profile updated successfully', 'success');
+      // Reload page to reflect changes
+      window.location.reload();
     } catch (error: any) {
       showToast(error.response?.data?.error || 'Failed to update profile', 'error');
     } finally {

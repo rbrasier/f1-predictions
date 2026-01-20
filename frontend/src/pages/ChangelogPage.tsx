@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Layout } from '../components/common/Layout';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
-import api from '../services/api';
+import { getChangelog } from '../services/api';
 import { Feedback } from '../types';
 
 export const ChangelogPage = () => {
@@ -15,7 +15,7 @@ export const ChangelogPage = () => {
 
   const fetchChangelog = async () => {
     try {
-      const data = await api.getChangelog();
+      const data = await getChangelog();
       setChangelog(data);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to load changelog');

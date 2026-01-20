@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useToast } from '../../contexts/ToastContext';
-import api from '../../services/api';
+import { getFeatures, voteOnFeature } from '../../services/api';
 import { Feedback } from '../../types';
 import FeatureRequestForm from './FeatureRequestForm';
 
@@ -17,7 +17,7 @@ const FeatureRequestList: React.FC<FeatureRequestListProps> = ({ onClose, onBack
 
   const loadFeatures = async () => {
     try {
-      const data = await api.getFeatures();
+      const data = await getFeatures();
       setFeatures(data);
     } catch (error: any) {
       showToast(error.response?.data?.error || 'Failed to load features', 'error');
@@ -32,7 +32,7 @@ const FeatureRequestList: React.FC<FeatureRequestListProps> = ({ onClose, onBack
 
   const handleVote = async (featureId: number, voteType: 'upvote' | 'downvote') => {
     try {
-      await api.voteOnFeature(featureId, voteType);
+      await voteOnFeature(featureId, voteType);
       // Reload features to get updated counts
       await loadFeatures();
     } catch (error: any) {

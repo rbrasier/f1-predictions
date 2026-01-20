@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import api from '../../services/api';
+import { getAllFeedback, updateFeedback } from '../../services/api';
 import { Feedback } from '../../types';
 
 interface AdminFeedbackTabProps {
@@ -14,7 +14,7 @@ const AdminFeedbackTab: React.FC<AdminFeedbackTabProps> = ({ onError, onSuccess 
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<{
-    status: string;
+    status: 'pending' | 'in_progress' | 'implemented' | 'fixed' | 'rejected';
     implementation_note: string;
     implementation_date: string;
   }>({
@@ -34,7 +34,7 @@ const AdminFeedbackTab: React.FC<AdminFeedbackTabProps> = ({ onError, onSuccess 
       if (filterType !== 'all') params.type = filterType;
       if (filterStatus !== 'all') params.status = filterStatus;
 
-      const data = await api.getAllFeedback(params);
+      const data = await getAllFeedback(params);
       setFeedback(data);
     } catch (error: any) {
       onError(error.response?.data?.error || 'Failed to load feedback');
@@ -63,7 +63,7 @@ const AdminFeedbackTab: React.FC<AdminFeedbackTabProps> = ({ onError, onSuccess 
 
   const handleSave = async (id: number) => {
     try {
-      await api.updateFeedback(id, editForm);
+      await updateFeedback(id, editForm);
       onSuccess('Feedback updated successfully');
       setEditingId(null);
       loadFeedback();
@@ -157,7 +157,7 @@ const AdminFeedbackTab: React.FC<AdminFeedbackTabProps> = ({ onError, onSuccess 
                         <label className="block text-sm font-medium mb-1">Status</label>
                         <select
                           value={editForm.status}
-                          onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
+                          onChange={(e) => setEditForm({ ...editForm, status: e.target.value as 'pending' | 'in_progress' | 'implemented' | 'fixed' | 'rejected' })}
                           className="w-full px-3 py-2 border rounded"
                         >
                           <option value="pending">Pending</option>
