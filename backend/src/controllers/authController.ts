@@ -599,3 +599,75 @@ export const resetPassword = async (req: AuthRequest, res: Response) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 };
+
+// Update email preferences
+export const updateEmailPreferences = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const { race_reminder_emails, race_results_emails } = req.body;
+
+    // Build update query dynamically based on provided fields
+    const updates: string[] = [];
+    const values: any[] = [];
+    let paramIndex = 1;
+
+    if (typeof race_reminder_emails === 'boolean') {
+      updates.push(`race_reminder_emails = $${paramIndex++}`);
+      values.push(race_reminder_emails);
+    }
+
+    if (typeof race_results_emails === 'boolean') {
+      updates.push(`race_results_emails = $${paramIndex++}`);
+      values.push(race_results_emails);
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ error: 'No valid email preferences provided' });
+    }
+
+    values.push(req.user.id);
+
+    await db.query(`
+      UPDATE users
+      SET ${updates.join(', ')}
+      WHERE id = $${paramIndex}
+    `, values);
+
+    const updatedUser = await db.prepare(`
+      SELECT id, username, display_name, email, is_admin, race_reminder_emails, race_results_emails
+      FROM users
+      WHERE id = $1
+    `).get(req.user.id);
+
+    res.json({
+      message: 'Email preferences updated successfully',
+      user: updatedUser
+    });
+  } catch (error) {
+    logger.error('Update email preferences error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// Get email preferences
+export const getEmailPreferences = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const user = await db.prepare(`
+      SELECT race_reminder_emails, race_results_emails
+      FROM users
+      WHERE id = $1
+    `).get(req.user.id);
+
+    res.json(user);
+  } catch (error) {
+    logger.error('Get email preferences error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};

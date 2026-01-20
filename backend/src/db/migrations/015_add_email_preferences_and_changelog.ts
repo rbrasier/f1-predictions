@@ -1,0 +1,69 @@
+import type { Database } from '../database';
+
+export async function up(db: Database): Promise<void> {
+  // Add email preferences to users table
+  await db.query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS race_reminder_emails BOOLEAN DEFAULT true,
+    ADD COLUMN IF NOT EXISTS race_results_emails BOOLEAN DEFAULT true;
+  `);
+
+  // Create changelog table for feature updates
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS changelog (
+      id SERIAL PRIMARY KEY,
+      version TEXT NOT NULL,
+      title TEXT NOT NULL,
+      description TEXT NOT NULL,
+      release_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      is_published BOOLEAN DEFAULT true,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
+  // Create crazy prediction votes table
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS crazy_prediction_votes (
+      id SERIAL PRIMARY KEY,
+      prediction_id INTEGER NOT NULL REFERENCES race_predictions(id) ON DELETE CASCADE,
+      voter_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      is_legit BOOLEAN NOT NULL,
+      voted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(prediction_id, voter_user_id)
+    );
+  `);
+
+  // Create index for faster vote queries
+  await db.query(`
+    CREATE INDEX IF NOT EXISTS idx_crazy_prediction_votes_prediction
+    ON crazy_prediction_votes(prediction_id);
+  `);
+
+  // Create table to track which users confirmed which crazy predictions came true
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS crazy_prediction_confirmations (
+      id SERIAL PRIMARY KEY,
+      prediction_id INTEGER NOT NULL REFERENCES race_predictions(id) ON DELETE CASCADE,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      came_true BOOLEAN NOT NULL,
+      confirmed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(prediction_id, user_id)
+    );
+  `);
+
+  console.log('Migration 015: Added email preferences, changelog, and crazy prediction voting tables');
+}
+
+export async function down(db: Database): Promise<void> {
+  await db.query(`DROP TABLE IF EXISTS crazy_prediction_confirmations;`);
+  await db.query(`DROP INDEX IF EXISTS idx_crazy_prediction_votes_prediction;`);
+  await db.query(`DROP TABLE IF EXISTS crazy_prediction_votes;`);
+  await db.query(`DROP TABLE IF EXISTS changelog;`);
+  await db.query(`
+    ALTER TABLE users
+    DROP COLUMN IF EXISTS race_reminder_emails,
+    DROP COLUMN IF EXISTS race_results_emails;
+  `);
+
+  console.log('Migration 015: Rolled back email preferences and changelog tables');
+}

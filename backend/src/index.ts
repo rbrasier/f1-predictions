@@ -18,6 +18,7 @@ import adminRoutes from './routes/admin';
 import leaderboardRoutes from './routes/leaderboard';
 import leaguesRoutes from './routes/leagues';
 import feedbackRoutes from './routes/feedback';
+import changelogRoutes from './routes/changelog';
 
 // Load environment variables
 dotenv.config();
@@ -76,6 +77,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/leaderboard', leaderboardRoutes);
 app.use('/api/leagues', leaguesRoutes);
 app.use('/api/feedback', feedbackRoutes);
+app.use('/api/changelog', changelogRoutes);
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

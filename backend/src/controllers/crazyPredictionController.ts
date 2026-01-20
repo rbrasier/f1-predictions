@@ -157,3 +157,128 @@ export const getValidationsForPrediction = async (req: AuthRequest, res: Respons
     res.status(500).json({ error: 'Internal server error' });
   }
 };
+
+/**
+ * Vote on whether a crazy prediction is legit (for email feature)
+ */
+export const voteOnCrazyPrediction = async (req: AuthRequest, res: Response) => {
+  try {
+    const { predictionId } = req.params;
+    const { is_legit } = req.body;
+    const userId = req.user!.id;
+
+    if (typeof is_legit !== 'boolean') {
+      return res.status(400).json({ error: 'is_legit must be a boolean' });
+    }
+
+    // Check if prediction exists
+    const prediction = await db.prepare(
+      'SELECT id, user_id FROM race_predictions WHERE id = $1'
+    ).get(parseInt(predictionId));
+
+    if (!prediction) {
+      return res.status(404).json({ error: 'Prediction not found' });
+    }
+
+    // Users cannot vote on their own predictions
+    if (prediction.user_id === userId) {
+      return res.status(400).json({ error: 'Cannot vote on your own prediction' });
+    }
+
+    // Insert or update vote
+    await db.query(`
+      INSERT INTO crazy_prediction_votes (prediction_id, voter_user_id, is_legit)
+      VALUES ($1, $2, $3)
+      ON CONFLICT (prediction_id, voter_user_id)
+      DO UPDATE SET is_legit = $3, voted_at = CURRENT_TIMESTAMP
+    `, [parseInt(predictionId), userId, is_legit]);
+
+    res.json({ success: true, message: 'Vote recorded' });
+  } catch (error) {
+    logger.error('Vote on crazy prediction error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+/**
+ * Get votes for a crazy prediction
+ */
+export const getCrazyPredictionVotes = async (req: AuthRequest, res: Response) => {
+  try {
+    const { predictionId } = req.params;
+
+    const votes = await db.query(`
+      SELECT
+        COUNT(*) FILTER (WHERE is_legit = true) as legit_votes,
+        COUNT(*) FILTER (WHERE is_legit = false) as not_legit_votes,
+        COUNT(*) as total_votes
+      FROM crazy_prediction_votes
+      WHERE prediction_id = $1
+    `, [parseInt(predictionId)]);
+
+    res.json(votes.rows[0]);
+  } catch (error) {
+    logger.error('Get crazy prediction votes error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+/**
+ * Confirm whether a crazy prediction came true (after race results)
+ */
+export const confirmCrazyPredictionOutcome = async (req: AuthRequest, res: Response) => {
+  try {
+    const { predictionId } = req.params;
+    const { came_true } = req.body;
+    const userId = req.user!.id;
+
+    if (typeof came_true !== 'boolean') {
+      return res.status(400).json({ error: 'came_true must be a boolean' });
+    }
+
+    // Check if prediction exists
+    const prediction = await db.prepare(
+      'SELECT id FROM race_predictions WHERE id = $1'
+    ).get(parseInt(predictionId));
+
+    if (!prediction) {
+      return res.status(404).json({ error: 'Prediction not found' });
+    }
+
+    // Insert or update confirmation
+    await db.query(`
+      INSERT INTO crazy_prediction_confirmations (prediction_id, user_id, came_true)
+      VALUES ($1, $2, $3)
+      ON CONFLICT (prediction_id, user_id)
+      DO UPDATE SET came_true = $3, confirmed_at = CURRENT_TIMESTAMP
+    `, [parseInt(predictionId), userId, came_true]);
+
+    res.json({ success: true, message: 'Confirmation recorded' });
+  } catch (error) {
+    logger.error('Confirm crazy prediction outcome error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+/**
+ * Get confirmations for a crazy prediction
+ */
+export const getCrazyPredictionConfirmations = async (req: AuthRequest, res: Response) => {
+  try {
+    const { predictionId } = req.params;
+
+    const confirmations = await db.query(`
+      SELECT
+        COUNT(*) FILTER (WHERE came_true = true) as came_true_count,
+        COUNT(*) FILTER (WHERE came_true = false) as did_not_come_true_count,
+        COUNT(*) as total_confirmations
+      FROM crazy_prediction_confirmations
+      WHERE prediction_id = $1
+    `, [parseInt(predictionId)]);
+
+    res.json(confirmations.rows[0]);
+  } catch (error) {
+    logger.error('Get crazy prediction confirmations error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
