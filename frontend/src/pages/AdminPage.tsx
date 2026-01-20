@@ -23,12 +23,15 @@ import {
   grantAdminAccess,
   getBackups,
   downloadBackup,
-  triggerBackup
+  triggerBackup,
+  getPreRaceEmailPreview,
+  getPostRaceEmailPreview,
+  getMe
 } from '../services/api';
 import { Race, Driver, Team, Season } from '../types';
 
 export const AdminPage = () => {
-  const [activeTab, setActiveTab] = useState<'admin' | 'races' | 'season' | 'f1data' | 'backups' | 'feedback'>('admin');
+  const [activeTab, setActiveTab] = useState<'admin' | 'races' | 'season' | 'f1data' | 'emails' | 'backups' | 'feedback'>('admin');
   const [backups, setBackups] = useState<any[]>([]);
   const [races, setRaces] = useState<Race[]>([]);
   const [selectedRace, setSelectedRace] = useState<Race | null>(null);
@@ -53,18 +56,27 @@ export const AdminPage = () => {
   // Season Results Form State
   const [audiVsCadillacWinner, setAudiVsCadillacWinner] = useState<'audi' | 'cadillac'>('audi');
 
+  // Email Preview State
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [selectedEmailRound, setSelectedEmailRound] = useState<number>(1);
+  const [selectedEmailUser, setSelectedEmailUser] = useState<number | null>(null);
+  const [preRaceEmailHtml, setPreRaceEmailHtml] = useState<string>('');
+  const [postRaceEmailHtml, setPostRaceEmailHtml] = useState<string>('');
+  const [emailsLoading, setEmailsLoading] = useState(false);
+
   useEffect(() => {
     fetchData();
   }, []);
 
   const fetchData = async () => {
     try {
-      const [racesData, driversData, teamsData, seasonData, usersData] = await Promise.all([
+      const [racesData, driversData, teamsData, seasonData, usersData, currentUserData] = await Promise.all([
         getRaces(),
         getDrivers(),
         getTeams(),
         getActiveSeason(),
-        getAllUsers()
+        getAllUsers(),
+        getMe()
       ]);
 
       setRaces(racesData);
@@ -72,7 +84,18 @@ export const AdminPage = () => {
       setTeams(teamsData);
       setSeason(seasonData);
       setUsers(usersData);
+      setCurrentUser(currentUserData);
       setSelectedSeasonYear(seasonData.year);
+      setSelectedEmailUser(currentUserData.id);
+
+      // Set default email round to current round or first round
+      const now = new Date();
+      const currentRound = racesData.find((r: Race) => new Date(r.date) > now);
+      if (currentRound) {
+        setSelectedEmailRound(parseInt(currentRound.round));
+      } else if (racesData.length > 0) {
+        setSelectedEmailRound(parseInt(racesData[0].round));
+      }
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to load data');
     } finally {
@@ -262,6 +285,29 @@ export const AdminPage = () => {
     }
   };
 
+  // Email Previews
+  const loadEmailPreviews = async () => {
+    if (!selectedEmailUser || !selectedEmailRound) return;
+
+    setEmailsLoading(true);
+    setError('');
+
+    try {
+      const [preRaceHtml, postRaceHtml] = await Promise.all([
+        getPreRaceEmailPreview(selectedSeasonYear, selectedEmailRound, selectedEmailUser),
+        getPostRaceEmailPreview(selectedSeasonYear, selectedEmailRound, selectedEmailUser)
+      ]);
+
+      setPreRaceEmailHtml(preRaceHtml);
+      setPostRaceEmailHtml(postRaceHtml);
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to load email previews');
+      console.error('Failed to load email previews:', err);
+    } finally {
+      setEmailsLoading(false);
+    }
+  };
+
   // Backups
   const loadBackups = async () => {
     try {
@@ -436,6 +482,20 @@ export const AdminPage = () => {
               }`}
           >
             F1 Data Management
+          </button>
+          <button
+            onClick={() => {
+              setActiveTab('emails');
+              if (selectedEmailUser && selectedEmailRound) {
+                loadEmailPreviews();
+              }
+            }}
+            className={`px-6 py-3 rounded-lg font-bold ${activeTab === 'emails'
+              ? 'bg-f1-red text-white'
+              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+          >
+            Email Previews
           </button>
           <button
             onClick={() => setActiveTab('feedback')}
@@ -1041,6 +1101,122 @@ export const AdminPage = () => {
                 </p>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Email Previews Tab */}
+        {activeTab === 'emails' && (
+          <div className="space-y-6">
+            <div className="bg-white p-6 rounded-lg shadow text-gray-900">
+              <h3 className="text-xl font-bold mb-4 text-gray-900">Email Previews</h3>
+              <p className="text-gray-600 mb-4">
+                Preview how race emails will look for any user and any round.
+              </p>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div>
+                  <label className="block text-sm font-medium mb-2">Select Season</label>
+                  <select
+                    value={selectedSeasonYear}
+                    onChange={(e) => setSelectedSeasonYear(parseInt(e.target.value))}
+                    className="w-full px-3 py-2 border rounded"
+                  >
+                    {Array.from({ length: 4 }, (_, i) => {
+                      const currentYear = new Date().getFullYear();
+                      return currentYear - i;
+                    }).map(year => (
+                      <option key={year} value={year}>{year}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-2">Select Round</label>
+                  <select
+                    value={selectedEmailRound}
+                    onChange={(e) => setSelectedEmailRound(parseInt(e.target.value))}
+                    className="w-full px-3 py-2 border rounded"
+                  >
+                    {races
+                      .filter(r => parseInt(r.season) === selectedSeasonYear)
+                      .map(race => (
+                        <option key={race.round} value={race.round}>
+                          Round {race.round} - {race.raceName}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-2">Select User</label>
+                  <select
+                    value={selectedEmailUser || ''}
+                    onChange={(e) => setSelectedEmailUser(parseInt(e.target.value))}
+                    className="w-full px-3 py-2 border rounded"
+                  >
+                    {users.map(user => (
+                      <option key={user.id} value={user.id}>
+                        {user.display_name} (@{user.username})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <button
+                onClick={loadEmailPreviews}
+                disabled={emailsLoading || !selectedEmailUser}
+                className="w-full bg-f1-red text-white px-6 py-3 rounded-lg font-bold hover:bg-red-700 disabled:opacity-50"
+              >
+                {emailsLoading ? 'Loading Previews...' : 'Load Email Previews'}
+              </button>
+            </div>
+
+            {(preRaceEmailHtml || postRaceEmailHtml) && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Pre-Race Email Preview */}
+                <div className="bg-white rounded-lg shadow">
+                  <div className="bg-blue-600 text-white px-6 py-3 rounded-t-lg">
+                    <h4 className="text-lg font-bold">Pre-Race Email</h4>
+                  </div>
+                  <div className="p-4 overflow-auto" style={{ maxHeight: '800px' }}>
+                    {emailsLoading ? (
+                      <div className="text-center py-8 text-gray-500">Loading...</div>
+                    ) : preRaceEmailHtml ? (
+                      <iframe
+                        srcDoc={preRaceEmailHtml}
+                        className="w-full border-0"
+                        style={{ minHeight: '600px' }}
+                        title="Pre-Race Email Preview"
+                      />
+                    ) : (
+                      <div className="text-center py-8 text-gray-500">No preview available</div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Post-Race Email Preview */}
+                <div className="bg-white rounded-lg shadow">
+                  <div className="bg-green-600 text-white px-6 py-3 rounded-t-lg">
+                    <h4 className="text-lg font-bold">Post-Race Email</h4>
+                  </div>
+                  <div className="p-4 overflow-auto" style={{ maxHeight: '800px' }}>
+                    {emailsLoading ? (
+                      <div className="text-center py-8 text-gray-500">Loading...</div>
+                    ) : postRaceEmailHtml ? (
+                      <iframe
+                        srcDoc={postRaceEmailHtml}
+                        className="w-full border-0"
+                        style={{ minHeight: '600px' }}
+                        title="Post-Race Email Preview"
+                      />
+                    ) : (
+                      <div className="text-center py-8 text-gray-500">No preview available</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

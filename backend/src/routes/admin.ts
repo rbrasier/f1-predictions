@@ -20,6 +20,8 @@ import {
   sendPostRaceSampleEmails,
   releaseEmails,
   getEmailLog,
+  getPreRaceEmailPreview,
+  getPostRaceEmailPreview,
   getBackups,
   downloadBackup,
   triggerBackup
@@ -61,6 +63,8 @@ router.post('/emails/sample-pre-race/:year/:round', sendPreRaceSampleEmails);
 router.post('/emails/sample-post-race/:year/:round', sendPostRaceSampleEmails);
 router.post('/emails/release', releaseEmails);
 router.get('/emails/log/:year/:round/:type', getEmailLog);
+router.get('/emails/preview/pre-race/:year/:round/:userId', getPreRaceEmailPreview);
+router.get('/emails/preview/post-race/:year/:round/:userId', getPostRaceEmailPreview);
 
 // Backups
 router.get('/backups', getBackups);

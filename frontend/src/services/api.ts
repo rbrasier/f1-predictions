@@ -333,6 +333,17 @@ export const bulkImportSeason = async (year: number): Promise<any> => {
   return data;
 };
 
+// Admin - Email Previews
+export const getPreRaceEmailPreview = async (year: number, round: number, userId: number): Promise<string> => {
+  const { data } = await api.get(`/admin/emails/preview/pre-race/${year}/${round}/${userId}`);
+  return data;
+};
+
+export const getPostRaceEmailPreview = async (year: number, round: number, userId: number): Promise<string> => {
+  const { data } = await api.get(`/admin/emails/preview/post-race/${year}/${round}/${userId}`);
+  return data;
+};
+
 // Backups
 export const getBackups = async (): Promise<any[]> => {
   const { data } = await api.get('/admin/backups');

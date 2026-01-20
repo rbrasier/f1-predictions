@@ -726,6 +726,324 @@ export class RaceEmailService {
   }
 
   /**
+   * Generate pre-race email HTML preview for a specific user without sending
+   */
+  async generatePreRaceEmailPreview(userId: number, raceYear: number, raceRound: number): Promise<string> {
+    try {
+      // Get user details
+      const user = await db.prepare(`
+        SELECT id, username, display_name, email
+        FROM users
+        WHERE id = $1
+      `).get(userId);
+
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      // Get race details
+      const scheduleData = await f1ApiService.fetchSchedule(raceYear);
+      const races = scheduleData?.MRData?.RaceTable?.Races || [];
+      const race = races.find((r: any) => r.round === raceRound.toString());
+
+      if (!race) {
+        throw new Error(`Race not found: ${raceYear} Round ${raceRound}`);
+      }
+
+      // Get user's default league
+      const defaultLeague = await db.prepare(`
+        SELECT l.id, l.name
+        FROM leagues l
+        INNER JOIN user_leagues ul ON l.id = ul.league_id
+        WHERE ul.user_id = $1 AND ul.is_default = true
+        LIMIT 1
+      `).get(userId);
+
+      const leagueId = defaultLeague?.id;
+      const leagueName = defaultLeague?.name || 'World League';
+
+      // Get weather forecast
+      const fridayDate = race.FirstPractice?.date || race.date;
+      const weather = await weatherService.getRaceWeekendForecast(
+        parseFloat(race.Circuit.Location.lat),
+        parseFloat(race.Circuit.Location.long),
+        fridayDate
+      );
+
+      // Get user's prediction
+      const userPrediction = await db.prepare(`
+        SELECT * FROM race_predictions
+        WHERE user_id = $1 AND season_year = $2 AND round_number = $3
+      `).get(userId, raceYear, raceRound);
+
+      // Get driver names for predictions
+      const driversData = await f1ApiService.fetchDrivers(raceYear);
+      const drivers = driversData?.MRData?.DriverTable?.Drivers || [];
+
+      const getDriverName = (driverId: string | null) => {
+        if (!driverId) return null;
+        const driver = drivers.find((d: any) => d.driverId === driverId);
+        return driver ? `${driver.givenName} ${driver.familyName}` : driverId;
+      };
+
+      // Get crazy predictions from league (limit 10)
+      const crazyPredictions = await db.prepare(`
+        SELECT rp.id, rp.crazy_prediction, u.display_name
+        FROM race_predictions rp
+        INNER JOIN users u ON rp.user_id = u.id
+        ${leagueId ? 'INNER JOIN user_leagues ul ON u.id = ul.user_id' : ''}
+        WHERE rp.season_year = $1 AND rp.round_number = $2
+        AND rp.crazy_prediction IS NOT NULL AND rp.crazy_prediction != ''
+        AND rp.user_id != $3
+        ${leagueId ? 'AND ul.league_id = $4' : ''}
+        ORDER BY rp.submitted_at DESC
+        LIMIT 10
+      `).all(...(leagueId ? [raceYear, raceRound, userId, leagueId] : [raceYear, raceRound, userId]));
+
+      // Get league standings (top 3)
+      const leagueStandings = await db.prepare(`
+        SELECT
+          u.id,
+          u.display_name,
+          COALESCE(SUM(rp.points_earned), 0) + COALESCE(SUM(sp.points_earned), 0) as total_points
+        FROM users u
+        ${leagueId ? 'INNER JOIN user_leagues ul ON u.id = ul.user_id' : ''}
+        LEFT JOIN race_predictions rp ON u.id = rp.user_id AND rp.season_year = $1
+        LEFT JOIN season_predictions sp ON u.id = sp.user_id AND sp.season_year = $1
+        ${leagueId ? 'WHERE ul.league_id = $2' : ''}
+        GROUP BY u.id, u.display_name
+        ORDER BY total_points DESC
+      `).all(...(leagueId ? [raceYear, leagueId] : [raceYear]));
+
+      const userStanding = leagueStandings.find((s: any) => s.id === userId);
+      const userPosition = leagueStandings.findIndex((s: any) => s.id === userId) + 1;
+
+      // Get recent implemented features from feedback
+      const recentChanges = await db.prepare(`
+        SELECT
+          title,
+          COALESCE(implementation_note, description) as description,
+          implementation_date as release_date
+        FROM feedback
+        WHERE type = 'feature' AND status = 'implemented' AND implementation_date IS NOT NULL
+        ORDER BY implementation_date DESC
+        LIMIT 3
+      `).all();
+
+      // Calculate time remaining until FP1
+      const fp1DateTime = race.FirstPractice
+        ? `${race.FirstPractice.date} ${race.FirstPractice.time}`
+        : `${race.date} ${race.time || '00:00:00'}`;
+
+      const fp1Date = new Date(fp1DateTime.replace(' ', 'T'));
+      const now = new Date();
+      const timeRemaining = this.formatTimeRemaining(fp1Date.getTime() - now.getTime());
+
+      // Build email data
+      const emailData: PreRaceEmailData = {
+        displayName: user.display_name,
+        raceName: race.raceName,
+        raceDate: new Date(race.date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
+        circuitName: race.Circuit.circuitName,
+        country: race.Circuit.Location.country,
+        fp1DateTime: fp1Date.toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }),
+        fp1TimeRemaining: timeRemaining,
+        raceUrl: `${FRONTEND_URL}/races/${raceYear}-${raceRound}`,
+        weatherFriday: weather.friday,
+        weatherSaturday: weather.saturday,
+        weatherSunday: weather.sunday,
+        userHasSubmittedPrediction: !!userPrediction,
+        userPredictions: userPrediction ? {
+          pole: getDriverName(userPrediction.pole_position_driver_api_id),
+          podium1: getDriverName(userPrediction.podium_first_driver_api_id),
+          podium2: getDriverName(userPrediction.podium_second_driver_api_id),
+          podium3: getDriverName(userPrediction.podium_third_driver_api_id),
+          midfieldHero: getDriverName(userPrediction.midfield_hero_driver_api_id),
+          crazyPrediction: userPrediction.crazy_prediction
+        } : undefined,
+        crazyPredictions: crazyPredictions.map((cp: any) => ({
+          id: cp.id,
+          userName: cp.display_name,
+          prediction: cp.crazy_prediction,
+          voteUrl: `${FRONTEND_URL}/vote/${cp.id}`
+        })),
+        leagueName,
+        topThree: leagueStandings.slice(0, 3).map((s: any, idx: number) => ({
+          position: idx + 1,
+          displayName: s.display_name,
+          points: s.total_points
+        })),
+        userPosition: userPosition > 3 ? userPosition : null,
+        userPoints: userStanding?.total_points || 0,
+        recentChanges: recentChanges.map((c: any) => ({
+          title: c.title,
+          description: c.description,
+          date: c.release_date
+        })),
+        unsubscribeReminderUrl: `${FRONTEND_URL}/settings?unsubscribe=reminders`
+      };
+
+      // Generate and return HTML
+      return generatePreRaceEmailHTML(emailData);
+    } catch (error) {
+      logger.error(`Error generating pre-race email preview for user ${userId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Generate post-race email HTML preview for a specific user without sending
+   */
+  async generatePostRaceEmailPreview(userId: number, raceYear: number, raceRound: number): Promise<string> {
+    try {
+      // Get user details
+      const user = await db.prepare(`
+        SELECT id, username, display_name, email
+        FROM users
+        WHERE id = $1
+      `).get(userId);
+
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      // Get race details
+      const scheduleData = await f1ApiService.fetchSchedule(raceYear);
+      const races = scheduleData?.MRData?.RaceTable?.Races || [];
+      const race = races.find((r: any) => r.round === raceRound.toString());
+
+      if (!race) {
+        throw new Error(`Race not found: ${raceYear} Round ${raceRound}`);
+      }
+
+      // Get user's default league
+      const defaultLeague = await db.prepare(`
+        SELECT l.id, l.name
+        FROM leagues l
+        INNER JOIN user_leagues ul ON l.id = ul.league_id
+        WHERE ul.user_id = $1 AND ul.is_default = true
+        LIMIT 1
+      `).get(userId);
+
+      const leagueId = defaultLeague?.id;
+      const leagueName = defaultLeague?.name || 'World League';
+
+      // Get user's prediction and points
+      const userPrediction = await db.prepare(`
+        SELECT * FROM race_predictions
+        WHERE user_id = $1 AND season_year = $2 AND round_number = $3
+      `).get(userId, raceYear, raceRound);
+
+      // Get race results to check correctness
+      const raceResults = await db.prepare(`
+        SELECT * FROM race_results
+        WHERE season_year = $1 AND round_number = $2
+      `).get(raceYear, raceRound);
+
+      // Get driver names
+      const driversData = await f1ApiService.fetchDrivers(raceYear);
+      const drivers = driversData?.MRData?.DriverTable?.Drivers || [];
+
+      const getDriverName = (driverId: string | null) => {
+        if (!driverId) return null;
+        const driver = drivers.find((d: any) => d.driverId === driverId);
+        return driver ? `${driver.givenName} ${driver.familyName}` : driverId;
+      };
+
+      // Check prediction correctness
+      const userPredictionsFormatted = userPrediction ? {
+        pole: getDriverName(userPrediction.pole_position_driver_api_id),
+        poleCorrect: raceResults && userPrediction.pole_position_driver_api_id === raceResults.pole_position_driver_api_id,
+        podium1: getDriverName(userPrediction.podium_first_driver_api_id),
+        podium1Correct: raceResults && userPrediction.podium_first_driver_api_id === raceResults.podium_first_driver_api_id,
+        podium2: getDriverName(userPrediction.podium_second_driver_api_id),
+        podium2Correct: raceResults && userPrediction.podium_second_driver_api_id === raceResults.podium_second_driver_api_id,
+        podium3: getDriverName(userPrediction.podium_third_driver_api_id),
+        podium3Correct: raceResults && userPrediction.podium_third_driver_api_id === raceResults.podium_third_driver_api_id,
+        midfieldHero: getDriverName(userPrediction.midfield_hero_driver_api_id),
+        midfieldHeroCorrect: raceResults && userPrediction.midfield_hero_driver_api_id === raceResults.midfield_hero_driver_api_id,
+        crazyPrediction: userPrediction.crazy_prediction
+      } : undefined;
+
+      // Get round results (all users' scores for this race)
+      const roundResults = await db.prepare(`
+        SELECT
+          u.id,
+          u.display_name,
+          COALESCE(rp.points_earned, 0) as points
+        FROM users u
+        ${leagueId ? 'INNER JOIN user_leagues ul ON u.id = ul.user_id' : ''}
+        LEFT JOIN race_predictions rp ON u.id = rp.user_id
+          AND rp.season_year = $1 AND rp.round_number = $2
+        ${leagueId ? 'WHERE ul.league_id = $3' : ''}
+        ORDER BY points DESC
+      `).all(...(leagueId ? [raceYear, raceRound, leagueId] : [raceYear, raceRound]));
+
+      const topScorer = roundResults[0] || { display_name: 'N/A', points: 0 };
+
+      // Get crazy predictions to confirm
+      const crazyPredictionsToConfirm = await db.prepare(`
+        SELECT rp.id, rp.crazy_prediction, u.display_name
+        FROM race_predictions rp
+        INNER JOIN users u ON rp.user_id = u.id
+        ${leagueId ? 'INNER JOIN user_leagues ul ON u.id = ul.user_id' : ''}
+        WHERE rp.season_year = $1 AND rp.round_number = $2
+        AND rp.crazy_prediction IS NOT NULL AND rp.crazy_prediction != ''
+        AND rp.user_id != $3
+        ${leagueId ? 'AND ul.league_id = $4' : ''}
+        AND NOT EXISTS (
+          SELECT 1 FROM crazy_prediction_outcomes cpc
+          WHERE cpc.prediction_id = rp.id AND cpc.user_id = $3
+        )
+        LIMIT 10
+      `).all(...(leagueId ? [raceYear, raceRound, userId, leagueId] : [raceYear, raceRound, userId]));
+
+      // Get next race
+      const nextRace = races.find((r: any) => parseInt(r.round) === raceRound + 1);
+      const nextRaceData = nextRace ? {
+        name: nextRace.raceName,
+        date: new Date(nextRace.date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }),
+        daysUntil: Math.ceil((new Date(nextRace.date).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+      } : null;
+
+      // Build email data
+      const emailData: PostRaceEmailData = {
+        displayName: user.display_name,
+        raceName: race.raceName,
+        raceDate: new Date(race.date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
+        circuitName: race.Circuit.circuitName,
+        country: race.Circuit.Location.country,
+        userPoints: userPrediction?.points_earned || 0,
+        userPredictions: userPredictionsFormatted,
+        topScorer: {
+          displayName: topScorer.display_name,
+          points: topScorer.points
+        },
+        leagueName,
+        roundResults: roundResults.map((r: any, idx: number) => ({
+          position: idx + 1,
+          displayName: r.display_name,
+          points: r.points
+        })),
+        crazyPredictionsToConfirm: crazyPredictionsToConfirm.map((cp: any) => ({
+          id: cp.id,
+          userName: cp.display_name,
+          prediction: cp.crazy_prediction,
+          confirmUrl: `${FRONTEND_URL}/confirm/${cp.id}`
+        })),
+        nextRace: nextRaceData,
+        unsubscribeResultsUrl: `${FRONTEND_URL}/settings?unsubscribe=results`
+      };
+
+      // Generate and return HTML
+      return generatePostRaceEmailHTML(emailData);
+    } catch (error) {
+      logger.error(`Error generating post-race email preview for user ${userId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
    * Format milliseconds into a human-readable time remaining string
    */
   private formatTimeRemaining(ms: number): string {

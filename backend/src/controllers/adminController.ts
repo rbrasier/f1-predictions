@@ -1298,6 +1298,56 @@ export const getEmailLog = async (req: AuthRequest, res: Response) => {
   }
 };
 
+/**
+ * Get pre-race email preview HTML for a specific user
+ * GET /api/admin/emails/preview/pre-race/:year/:round/:userId
+ */
+export const getPreRaceEmailPreview = async (req: AuthRequest, res: Response) => {
+  try {
+    const { year, round, userId } = req.params;
+    const seasonYear = parseInt(year);
+    const roundNumber = parseInt(round);
+    const userIdNum = parseInt(userId);
+
+    if (isNaN(seasonYear) || isNaN(roundNumber) || isNaN(userIdNum)) {
+      return res.status(400).json({ error: 'Invalid year, round number, or user ID' });
+    }
+
+    const html = await raceEmailService.generatePreRaceEmailPreview(userIdNum, seasonYear, roundNumber);
+
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  } catch (error) {
+    logger.error('Get pre-race email preview error:', error);
+    res.status(500).json({ error: 'Failed to generate preview' });
+  }
+};
+
+/**
+ * Get post-race email preview HTML for a specific user
+ * GET /api/admin/emails/preview/post-race/:year/:round/:userId
+ */
+export const getPostRaceEmailPreview = async (req: AuthRequest, res: Response) => {
+  try {
+    const { year, round, userId } = req.params;
+    const seasonYear = parseInt(year);
+    const roundNumber = parseInt(round);
+    const userIdNum = parseInt(userId);
+
+    if (isNaN(seasonYear) || isNaN(roundNumber) || isNaN(userIdNum)) {
+      return res.status(400).json({ error: 'Invalid year, round number, or user ID' });
+    }
+
+    const html = await raceEmailService.generatePostRaceEmailPreview(userIdNum, seasonYear, roundNumber);
+
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  } catch (error) {
+    logger.error('Get post-race email preview error:', error);
+    res.status(500).json({ error: 'Failed to generate preview' });
+  }
+};
+
 // Backups
 export const getBackups = async (req: AuthRequest, res: Response) => {
   try {
