@@ -82,8 +82,20 @@ export const scheduler = {
                         `).get(currentYear, parseInt(race.round));
 
                         if (!emailLog) {
-                            logger.log(`Found completed race needing emails: ${race.raceName} (Round ${race.round})`);
-                            await raceEmailService.sendPostRaceEmailsToAll(currentYear, parseInt(race.round));
+                            // Verify race results exist before attempting to send emails
+                            const raceResults = await db.prepare(`
+                                SELECT id FROM race_results
+                                WHERE race_id = (
+                                    SELECT id FROM races WHERE season_id = (SELECT id FROM seasons WHERE year = $1) AND round_number = $2
+                                )
+                            `).get(currentYear, parseInt(race.round));
+
+                            if (raceResults) {
+                                logger.log(`Found completed race with results: ${race.raceName} (Round ${race.round})`);
+                                await raceEmailService.sendPostRaceEmailsToAll(currentYear, parseInt(race.round));
+                            } else {
+                                logger.log(`Race ${race.raceName} (Round ${race.round}) finished but results not yet imported, will retry later`);
+                            }
                         }
                     }
                 }

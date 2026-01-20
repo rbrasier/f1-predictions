@@ -410,6 +410,33 @@ export class RaceEmailService {
    */
   async sendPostRaceEmailsToAll(raceYear: number, raceRound: number): Promise<{ sent: number; failed: number }> {
     try {
+      // CRITICAL: Verify race results exist before sending emails
+      const raceResults = await db.prepare(`
+        SELECT id FROM race_results
+        WHERE race_id = (
+          SELECT id FROM races WHERE season_id = (SELECT id FROM seasons WHERE year = $1) AND round_number = $2
+        )
+      `).get(raceYear, raceRound);
+
+      if (!raceResults) {
+        logger.log(`⚠️ Race results not yet available for ${raceYear} Round ${raceRound}, skipping post-race emails`);
+        return { sent: 0, failed: 0 };
+      }
+
+      // Verify at least one prediction has been scored (has non-null points)
+      const scoredPrediction = await db.prepare(`
+        SELECT id FROM race_predictions
+        WHERE season_year = $1 AND round_number = $2 AND points_earned IS NOT NULL
+        LIMIT 1
+      `).get(raceYear, raceRound);
+
+      if (!scoredPrediction) {
+        logger.log(`⚠️ Predictions not yet scored for ${raceYear} Round ${raceRound}, skipping post-race emails`);
+        return { sent: 0, failed: 0 };
+      }
+
+      logger.log(`✅ Race results and scores confirmed for ${raceYear} Round ${raceRound}, proceeding with emails`);
+
       // Get all users with email and results enabled
       const users = await db.prepare(`
         SELECT id FROM users
