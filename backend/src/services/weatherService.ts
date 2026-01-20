@@ -118,7 +118,7 @@ export class WeatherService {
     } catch (error: any) {
       // Check if it's a 400 Bad Request (likely due to date being outside allowed range)
       if (error.response?.status === 400) {
-        logger.debug(`Weather forecast not available for date range: ${startDate}`, error.response?.data);
+        logger.log(`Weather forecast not available for date range: ${startDate}`, error.response?.data);
       } else {
         logger.error('Error fetching weather forecast:', error);
       }
