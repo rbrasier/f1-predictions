@@ -44,9 +44,8 @@ export interface PreRaceEmailData {
   userPosition: number | null;
   userPoints: number | null;
 
-  // Changelog
+  // Recent implemented features
   recentChanges: Array<{
-    version: string;
     title: string;
     description: string;
     date: string;
@@ -151,10 +150,10 @@ export function generatePreRaceEmailHTML(data: PreRaceEmailData): string {
 
   const changelogSection = data.recentChanges.length > 0 ? `
     <div style="margin: 30px 0; padding-top: 20px; border-top: 2px solid #e0e0e0;">
-      <h3 style="color: #e10600; font-size: 18px;">What's New?</h3>
+      <h3 style="color: #e10600; font-size: 18px;">Recently Implemented Features</h3>
       ${data.recentChanges.map(change => `
         <div style="margin: 15px 0;">
-          <p style="margin: 0 0 5px 0; font-weight: bold;">${change.version}: ${change.title}</p>
+          <p style="margin: 0 0 5px 0; font-weight: bold;">${change.title}</p>
           <p style="margin: 0; color: #666; font-size: 14px;">${change.description}</p>
           <p style="margin: 5px 0 0 0; color: #999; font-size: 12px;">${new Date(change.date).toLocaleDateString()}</p>
         </div>
@@ -283,9 +282,9 @@ ${data.fp1TimeRemaining}
   }
 
   if (data.recentChanges.length > 0) {
-    text += `\n\nWHAT'S NEW?\n`;
+    text += `\n\nRECENTLY IMPLEMENTED FEATURES\n`;
     data.recentChanges.forEach(change => {
-      text += `\n${change.version}: ${change.title}\n${change.description}\n`;
+      text += `\n${change.title}\n${change.description}\n`;
     });
   }
 

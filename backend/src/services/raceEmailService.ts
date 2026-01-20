@@ -107,12 +107,15 @@ export class RaceEmailService {
       const userStanding = leagueStandings.find((s: any) => s.id === userId);
       const userPosition = leagueStandings.findIndex((s: any) => s.id === userId) + 1;
 
-      // Get recent changelog
+      // Get recent implemented features from feedback
       const recentChanges = await db.prepare(`
-        SELECT version, title, description, release_date
-        FROM changelog
-        WHERE is_published = true
-        ORDER BY release_date DESC
+        SELECT
+          title,
+          COALESCE(implementation_note, description) as description,
+          implementation_date as release_date
+        FROM feedback
+        WHERE type = 'feature' AND status = 'implemented' AND implementation_date IS NOT NULL
+        ORDER BY implementation_date DESC
         LIMIT 3
       `).all();
 
@@ -162,7 +165,6 @@ export class RaceEmailService {
         userPosition: userPosition > 3 ? userPosition : null,
         userPoints: userStanding?.total_points || 0,
         recentChanges: recentChanges.map((c: any) => ({
-          version: c.version,
           title: c.title,
           description: c.description,
           date: c.release_date

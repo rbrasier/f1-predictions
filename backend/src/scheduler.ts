@@ -68,13 +68,13 @@ export const scheduler = {
                 const scheduleData = await f1ApiService.fetchSchedule(currentYear);
                 const races = scheduleData?.MRData?.RaceTable?.Races || [];
 
-                // Find races that finished at least 12 hours ago and haven't had emails sent
+                // Find races that finished at least 2 hours ago and haven't had emails sent
                 for (const race of races) {
                     const raceDateTime = new Date(race.date + 'T' + (race.time || '14:00:00Z'));
                     const hoursAfterRace = (now.getTime() - raceDateTime.getTime()) / (1000 * 60 * 60);
 
-                    // Only process races that finished at least 12 hours ago
-                    if (hoursAfterRace >= 12) {
+                    // Only process races that finished at least 2 hours ago
+                    if (hoursAfterRace >= 2) {
                         // Check if we've already sent emails for this race
                         const emailLog = await db.prepare(`
                             SELECT id FROM race_email_log
