@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useToast } from '../../contexts/ToastContext';
-import api from '../../services/api';
+import { submitFeedback } from '../../services/api';
 
 interface BugReportFormProps {
   onClose: () => void;
@@ -28,7 +28,7 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onClose, onBack }) => {
 
     setLoading(true);
     try {
-      await api.submitFeedback({
+      await submitFeedback({
         type: 'bug',
         title: title.trim(),
         description: description.trim()

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useToast } from '../../contexts/ToastContext';
-import api from '../../services/api';
+import { submitFeedback } from '../../services/api';
 
 interface FeatureRequestFormProps {
   onClose: () => void;
@@ -8,7 +8,7 @@ interface FeatureRequestFormProps {
   onSubmitted: () => void;
 }
 
-const FeatureRequestForm: React.FC<FeatureRequestFormProps> = ({ onClose, onBack, onSubmitted }) => {
+const FeatureRequestForm: React.FC<FeatureRequestFormProps> = ({ onClose: _onClose, onBack, onSubmitted }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
@@ -29,7 +29,7 @@ const FeatureRequestForm: React.FC<FeatureRequestFormProps> = ({ onClose, onBack
 
     setLoading(true);
     try {
-      await api.submitFeedback({
+      await submitFeedback({
         type: 'feature',
         title: title.trim(),
         description: description.trim()
