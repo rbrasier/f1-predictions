@@ -94,6 +94,18 @@ export const snoozeEmailReminder = async (): Promise<{ message: string; email_re
   return data;
 };
 
+export const getEmailPreferences = async (): Promise<{ data: { race_reminder_emails: boolean; race_results_emails: boolean } }> => {
+  return await api.get('/auth/email-preferences');
+};
+
+export const updateEmailPreferences = async (preferences: {
+  race_reminder_emails?: boolean;
+  race_results_emails?: boolean;
+}): Promise<{ message: string; user: User }> => {
+  const { data } = await api.put('/auth/email-preferences', preferences);
+  return data;
+};
+
 // Reference Data
 export const getDrivers = async (year?: number): Promise<Driver[]> => {
   const params = year ? { year } : {};
