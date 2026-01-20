@@ -1,6 +1,7 @@
 import cron from 'node-cron';
 import { backupService } from './services/backupService';
 import { raceEmailService } from './services/raceEmailService';
+import { raceResultsService } from './services/raceResultsService';
 import { f1ApiService } from './services/f1ApiService';
 import { logger } from './utils/logger';
 import db from './db/database';
@@ -82,19 +83,18 @@ export const scheduler = {
                         `).get(currentYear, parseInt(race.round));
 
                         if (!emailLog) {
-                            // Verify race results exist before attempting to send emails
-                            const raceResults = await db.prepare(`
-                                SELECT id FROM race_results
-                                WHERE race_id = (
-                                    SELECT id FROM races WHERE season_id = (SELECT id FROM seasons WHERE year = $1) AND round_number = $2
-                                )
-                            `).get(currentYear, parseInt(race.round));
+                            logger.log(`Found completed race: ${race.raceName} (Round ${race.round})`);
 
-                            if (raceResults) {
-                                logger.log(`Found completed race with results: ${race.raceName} (Round ${race.round})`);
+                            // Try to import race results from F1 API and calculate scores
+                            const imported = await raceResultsService.importAndScoreRace(currentYear, parseInt(race.round));
+
+                            if (imported) {
+                                // Results imported successfully, send emails
+                                logger.log(`Sending post-race emails for ${race.raceName} (Round ${race.round})`);
                                 await raceEmailService.sendPostRaceEmailsToAll(currentYear, parseInt(race.round));
                             } else {
-                                logger.log(`Race ${race.raceName} (Round ${race.round}) finished but results not yet imported, will retry later`);
+                                // Results not available yet from F1 API, will retry on next check
+                                logger.log(`Race ${race.raceName} (Round ${race.round}) finished but results not yet available from F1 API, will retry in 2 hours`);
                             }
                         }
                     }
