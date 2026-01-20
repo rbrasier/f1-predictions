@@ -160,15 +160,16 @@ export const getValidationsForPrediction = async (req: AuthRequest, res: Respons
 
 /**
  * Vote on whether a crazy prediction is legit (for email feature)
+ * Uses existing crazy_prediction_validations table
  */
 export const voteOnCrazyPrediction = async (req: AuthRequest, res: Response) => {
   try {
     const { predictionId } = req.params;
-    const { is_legit } = req.body;
+    const { is_validated } = req.body;
     const userId = req.user!.id;
 
-    if (typeof is_legit !== 'boolean') {
-      return res.status(400).json({ error: 'is_legit must be a boolean' });
+    if (typeof is_validated !== 'boolean') {
+      return res.status(400).json({ error: 'is_validated must be a boolean' });
     }
 
     // Check if prediction exists
@@ -185,13 +186,26 @@ export const voteOnCrazyPrediction = async (req: AuthRequest, res: Response) => 
       return res.status(400).json({ error: 'Cannot vote on your own prediction' });
     }
 
-    // Insert or update vote
-    await db.query(`
-      INSERT INTO crazy_prediction_votes (prediction_id, voter_user_id, is_legit)
-      VALUES ($1, $2, $3)
-      ON CONFLICT (prediction_id, voter_user_id)
-      DO UPDATE SET is_legit = $3, voted_at = CURRENT_TIMESTAMP
-    `, [parseInt(predictionId), userId, is_legit]);
+    // Check if user already voted
+    const existing = await db.prepare(`
+      SELECT id FROM crazy_prediction_validations
+      WHERE prediction_type = 'race' AND prediction_id = $1 AND validator_user_id = $2
+    `).get(parseInt(predictionId), userId);
+
+    if (existing) {
+      // Update existing vote
+      await db.prepare(`
+        UPDATE crazy_prediction_validations
+        SET is_validated = $1, validated_at = CURRENT_TIMESTAMP
+        WHERE id = $2
+      `).run(is_validated, existing.id);
+    } else {
+      // Insert new vote
+      await db.prepare(`
+        INSERT INTO crazy_prediction_validations (prediction_type, prediction_id, validator_user_id, is_validated)
+        VALUES ('race', $1, $2, $3)
+      `).run(parseInt(predictionId), userId, is_validated);
+    }
 
     res.json({ success: true, message: 'Vote recorded' });
   } catch (error) {
@@ -202,6 +216,7 @@ export const voteOnCrazyPrediction = async (req: AuthRequest, res: Response) => 
 
 /**
  * Get votes for a crazy prediction
+ * Uses existing crazy_prediction_validations table
  */
 export const getCrazyPredictionVotes = async (req: AuthRequest, res: Response) => {
   try {
@@ -209,11 +224,11 @@ export const getCrazyPredictionVotes = async (req: AuthRequest, res: Response) =
 
     const votes = await db.query(`
       SELECT
-        COUNT(*) FILTER (WHERE is_legit = true) as legit_votes,
-        COUNT(*) FILTER (WHERE is_legit = false) as not_legit_votes,
+        COUNT(*) FILTER (WHERE is_validated = true) as legit_votes,
+        COUNT(*) FILTER (WHERE is_validated = false) as not_legit_votes,
         COUNT(*) as total_votes
-      FROM crazy_prediction_votes
-      WHERE prediction_id = $1
+      FROM crazy_prediction_validations
+      WHERE prediction_type = 'race' AND prediction_id = $1
     `, [parseInt(predictionId)]);
 
     res.json(votes.rows[0]);
@@ -225,15 +240,15 @@ export const getCrazyPredictionVotes = async (req: AuthRequest, res: Response) =
 
 /**
  * Confirm whether a crazy prediction came true (after race results)
+ * Uses existing crazy_prediction_outcomes table
  */
 export const confirmCrazyPredictionOutcome = async (req: AuthRequest, res: Response) => {
   try {
     const { predictionId } = req.params;
-    const { came_true } = req.body;
-    const userId = req.user!.id;
+    const { actually_happened } = req.body;
 
-    if (typeof came_true !== 'boolean') {
-      return res.status(400).json({ error: 'came_true must be a boolean' });
+    if (typeof actually_happened !== 'boolean') {
+      return res.status(400).json({ error: 'actually_happened must be a boolean' });
     }
 
     // Check if prediction exists
@@ -245,15 +260,28 @@ export const confirmCrazyPredictionOutcome = async (req: AuthRequest, res: Respo
       return res.status(404).json({ error: 'Prediction not found' });
     }
 
-    // Insert or update confirmation
-    await db.query(`
-      INSERT INTO crazy_prediction_confirmations (prediction_id, user_id, came_true)
-      VALUES ($1, $2, $3)
-      ON CONFLICT (prediction_id, user_id)
-      DO UPDATE SET came_true = $3, confirmed_at = CURRENT_TIMESTAMP
-    `, [parseInt(predictionId), userId, came_true]);
+    // Check if outcome already exists
+    const existing = await db.prepare(`
+      SELECT id FROM crazy_prediction_outcomes
+      WHERE prediction_type = 'race' AND prediction_id = $1
+    `).get(parseInt(predictionId));
 
-    res.json({ success: true, message: 'Confirmation recorded' });
+    if (existing) {
+      // Update existing outcome
+      await db.prepare(`
+        UPDATE crazy_prediction_outcomes
+        SET actually_happened = $1, marked_at = CURRENT_TIMESTAMP
+        WHERE id = $2
+      `).run(actually_happened, existing.id);
+    } else {
+      // Insert new outcome
+      await db.prepare(`
+        INSERT INTO crazy_prediction_outcomes (prediction_type, prediction_id, actually_happened)
+        VALUES ('race', $1, $2)
+      `).run(parseInt(predictionId), actually_happened);
+    }
+
+    res.json({ success: true, message: 'Outcome recorded' });
   } catch (error) {
     logger.error('Confirm crazy prediction outcome error:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -261,24 +289,22 @@ export const confirmCrazyPredictionOutcome = async (req: AuthRequest, res: Respo
 };
 
 /**
- * Get confirmations for a crazy prediction
+ * Get outcome for a crazy prediction
+ * Uses existing crazy_prediction_outcomes table
  */
 export const getCrazyPredictionConfirmations = async (req: AuthRequest, res: Response) => {
   try {
     const { predictionId } = req.params;
 
-    const confirmations = await db.query(`
-      SELECT
-        COUNT(*) FILTER (WHERE came_true = true) as came_true_count,
-        COUNT(*) FILTER (WHERE came_true = false) as did_not_come_true_count,
-        COUNT(*) as total_confirmations
-      FROM crazy_prediction_confirmations
-      WHERE prediction_id = $1
-    `, [parseInt(predictionId)]);
+    const outcome = await db.prepare(`
+      SELECT actually_happened, marked_at
+      FROM crazy_prediction_outcomes
+      WHERE prediction_type = 'race' AND prediction_id = $1
+    `).get(parseInt(predictionId));
 
-    res.json(confirmations.rows[0]);
+    res.json(outcome || { actually_happened: null, marked_at: null });
   } catch (error) {
-    logger.error('Get crazy prediction confirmations error:', error);
+    logger.error('Get crazy prediction outcome error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };

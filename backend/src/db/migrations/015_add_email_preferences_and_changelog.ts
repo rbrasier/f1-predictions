@@ -21,43 +21,24 @@ export async function up(db: Database): Promise<void> {
     );
   `);
 
-  // Create crazy prediction votes table
+  // Create table to track which races have had emails sent
   await db.query(`
-    CREATE TABLE IF NOT EXISTS crazy_prediction_votes (
+    CREATE TABLE IF NOT EXISTS race_email_log (
       id SERIAL PRIMARY KEY,
-      prediction_id INTEGER NOT NULL REFERENCES race_predictions(id) ON DELETE CASCADE,
-      voter_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      is_legit BOOLEAN NOT NULL,
-      voted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      UNIQUE(prediction_id, voter_user_id)
+      season_year INTEGER NOT NULL,
+      round_number INTEGER NOT NULL,
+      email_type TEXT NOT NULL, -- 'pre_race' or 'post_race'
+      sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      users_sent_to INTEGER DEFAULT 0,
+      UNIQUE(season_year, round_number, email_type)
     );
   `);
 
-  // Create index for faster vote queries
-  await db.query(`
-    CREATE INDEX IF NOT EXISTS idx_crazy_prediction_votes_prediction
-    ON crazy_prediction_votes(prediction_id);
-  `);
-
-  // Create table to track which users confirmed which crazy predictions came true
-  await db.query(`
-    CREATE TABLE IF NOT EXISTS crazy_prediction_confirmations (
-      id SERIAL PRIMARY KEY,
-      prediction_id INTEGER NOT NULL REFERENCES race_predictions(id) ON DELETE CASCADE,
-      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      came_true BOOLEAN NOT NULL,
-      confirmed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      UNIQUE(prediction_id, user_id)
-    );
-  `);
-
-  console.log('Migration 015: Added email preferences, changelog, and crazy prediction voting tables');
+  console.log('Migration 015: Added email preferences, changelog, and race email tracking');
 }
 
 export async function down(db: Database): Promise<void> {
-  await db.query(`DROP TABLE IF EXISTS crazy_prediction_confirmations;`);
-  await db.query(`DROP INDEX IF EXISTS idx_crazy_prediction_votes_prediction;`);
-  await db.query(`DROP TABLE IF EXISTS crazy_prediction_votes;`);
+  await db.query(`DROP TABLE IF EXISTS race_email_log;`);
   await db.query(`DROP TABLE IF EXISTS changelog;`);
   await db.query(`
     ALTER TABLE users

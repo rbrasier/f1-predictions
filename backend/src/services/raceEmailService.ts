@@ -217,8 +217,19 @@ export class RaceEmailService {
         await new Promise(resolve => setTimeout(resolve, 100));
       }
 
-      logger.log(`✅ Pre-race emails sent: ${sent} successful, ${failed} failed`);
+
+      logger.log(\`✅ Pre-race emails sent: \${sent} successful, \${failed} failed\`);
+      
+      // Log that emails were sent
+      await db.prepare(\`
+        INSERT INTO race_email_log (season_year, round_number, email_type, users_sent_to)
+        VALUES (\$1, \$2, 'pre_race', \$3)
+        ON CONFLICT (season_year, round_number, email_type) DO UPDATE
+        SET users_sent_to = \$3, sent_at = CURRENT_TIMESTAMP
+      \`).run(raceYear, raceRound, sent);
+      
       return { sent, failed };
+
     } catch (error) {
       logger.error('Error sending pre-race emails to all users:', error);
       throw error;
@@ -330,7 +341,7 @@ export class RaceEmailService {
         AND rp.user_id != $3
         ${leagueId ? 'AND ul.league_id = $4' : ''}
         AND NOT EXISTS (
-          SELECT 1 FROM crazy_prediction_confirmations cpc
+          SELECT 1 FROM crazy_prediction_outcomes cpc
           WHERE cpc.prediction_id = rp.id AND cpc.user_id = $3
         )
         LIMIT 10
@@ -420,8 +431,19 @@ export class RaceEmailService {
         await new Promise(resolve => setTimeout(resolve, 100));
       }
 
-      logger.log(`✅ Post-race emails sent: ${sent} successful, ${failed} failed`);
+
+      logger.log(\`✅ Post-race emails sent: \${sent} successful, \${failed} failed\`);
+      
+      // Log that emails were sent
+      await db.prepare(\`
+        INSERT INTO race_email_log (season_year, round_number, email_type, users_sent_to)
+        VALUES (\$1, \$2, 'post_race', \$3)
+        ON CONFLICT (season_year, round_number, email_type) DO UPDATE
+        SET users_sent_to = \$3, sent_at = CURRENT_TIMESTAMP
+      \`).run(raceYear, raceRound, sent);
+      
       return { sent, failed };
+
     } catch (error) {
       logger.error('Error sending post-race emails to all users:', error);
       throw error;
