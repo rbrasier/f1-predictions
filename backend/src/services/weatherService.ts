@@ -115,8 +115,13 @@ export class WeatherService {
         timezone: data.timezone,
         forecasts
       };
-    } catch (error) {
-      logger.error('Error fetching weather forecast:', error);
+    } catch (error: any) {
+      // Check if it's a 400 Bad Request (likely due to date being outside allowed range)
+      if (error.response?.status === 400) {
+        logger.debug(`Weather forecast not available for date range: ${startDate}`, error.response?.data);
+      } else {
+        logger.error('Error fetching weather forecast:', error);
+      }
       return null;
     }
   }

@@ -344,7 +344,7 @@ export class RaceEmailService {
         ${leagueId ? 'AND ul.league_id = $4' : ''}
         AND NOT EXISTS (
           SELECT 1 FROM crazy_prediction_outcomes cpc
-          WHERE cpc.prediction_id = rp.id AND cpc.user_id = $3
+          WHERE cpc.prediction_id = rp.id
         )
         LIMIT 10
       `).all(...(leagueId ? [raceYear, raceRound, userId, leagueId] : [raceYear, raceRound, userId]));
@@ -993,7 +993,7 @@ export class RaceEmailService {
         ${leagueId ? 'AND ul.league_id = $4' : ''}
         AND NOT EXISTS (
           SELECT 1 FROM crazy_prediction_outcomes cpc
-          WHERE cpc.prediction_id = rp.id AND cpc.user_id = $3
+          WHERE cpc.prediction_id = rp.id
         )
         LIMIT 10
       `).all(...(leagueId ? [raceYear, raceRound, userId, leagueId] : [raceYear, raceRound, userId]));
