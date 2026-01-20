@@ -15,6 +15,7 @@ import { AdminPage } from './pages/AdminPage';
 import SettingsPage from './pages/SettingsPage';
 import { LoadingSpinner } from './components/common/LoadingSpinner';
 import { CompareTipsPage } from './pages/CompareTipsPage';
+import { ChangelogPage } from './pages/ChangelogPage';
 import { FirstTimeLeagueSetup } from './components/leagues/FirstTimeLeagueSetup';
 import { OAuthCallbackPage } from './pages/OAuthCallbackPage';
 import { GoogleOAuthProvider } from '@react-oauth/google';
@@ -118,6 +119,14 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <CompareTipsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/changelog"
+        element={
+          <ProtectedRoute>
+            <ChangelogPage />
           </ProtectedRoute>
         }
       />

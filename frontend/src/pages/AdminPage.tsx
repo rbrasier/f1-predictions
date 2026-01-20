@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Layout } from '../components/common/Layout';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
+import AdminFeedbackTab from '../components/admin/AdminFeedbackTab';
 import {
   getRaces,
   getDrivers,
@@ -27,7 +28,7 @@ import {
 import { Race, Driver, Team, Season } from '../types';
 
 export const AdminPage = () => {
-  const [activeTab, setActiveTab] = useState<'admin' | 'races' | 'season' | 'f1data' | 'backups'>('admin');
+  const [activeTab, setActiveTab] = useState<'admin' | 'races' | 'season' | 'f1data' | 'backups' | 'feedback'>('admin');
   const [backups, setBackups] = useState<any[]>([]);
   const [races, setRaces] = useState<Race[]>([]);
   const [selectedRace, setSelectedRace] = useState<Race | null>(null);
@@ -435,6 +436,15 @@ export const AdminPage = () => {
               }`}
           >
             F1 Data Management
+          </button>
+          <button
+            onClick={() => setActiveTab('feedback')}
+            className={`px-6 py-3 rounded-lg font-bold ${activeTab === 'feedback'
+              ? 'bg-f1-red text-white'
+              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+          >
+            Feedback
           </button>
           <button
             onClick={() => {
@@ -1032,6 +1042,14 @@ export const AdminPage = () => {
               </div>
             </div>
           </div>
+        )}
+
+        {/* Feedback Tab */}
+        {activeTab === 'feedback' && (
+          <AdminFeedbackTab
+            onError={setError}
+            onSuccess={setSuccess}
+          />
         )}
 
         {/* Backups Tab */}
