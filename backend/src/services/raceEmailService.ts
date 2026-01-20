@@ -176,12 +176,12 @@ export class RaceEmailService {
       const htmlContent = generatePreRaceEmailHTML(emailData);
       const textContent = generatePreRaceEmailText(emailData);
 
-      await emailService.sendEmail(
-        user.email,
-        `🏁 ${race.raceName} - Race Weekend Reminder`,
-        textContent,
-        htmlContent
-      );
+      await emailService.sendEmail({
+        to: user.email,
+        subject: `🏁 ${race.raceName} - Race Weekend Reminder`,
+        text: textContent,
+        html: htmlContent
+      });
 
       logger.log(`✅ Pre-race email sent to ${user.display_name} (${user.email})`);
       return true;
@@ -220,15 +220,15 @@ export class RaceEmailService {
       }
 
 
-      logger.log(\`✅ Pre-race emails sent: \${sent} successful, \${failed} failed\`);
+      logger.log(`✅ Pre-race emails sent: ${sent} successful, ${failed} failed`);
       
       // Log that emails were sent
-      await db.prepare(\`
+      await db.prepare(`
         INSERT INTO race_email_log (season_year, round_number, email_type, users_sent_to)
-        VALUES (\$1, \$2, 'pre_race', \$3)
+        VALUES ($1, $2, 'pre_race', $3)
         ON CONFLICT (season_year, round_number, email_type) DO UPDATE
-        SET users_sent_to = \$3, sent_at = CURRENT_TIMESTAMP
-      \`).run(raceYear, raceRound, sent);
+        SET users_sent_to = $3, sent_at = CURRENT_TIMESTAMP
+      `).run(raceYear, raceRound, sent);
       
       return { sent, failed };
 
@@ -390,12 +390,12 @@ export class RaceEmailService {
       const htmlContent = generatePostRaceEmailHTML(emailData);
       const textContent = generatePostRaceEmailText(emailData);
 
-      await emailService.sendEmail(
-        user.email,
-        `🏁 ${race.raceName} - Race Results`,
-        textContent,
-        htmlContent
-      );
+      await emailService.sendEmail({
+        to: user.email,
+        subject: `🏁 ${race.raceName} - Race Results`,
+        text: textContent,
+        html: htmlContent
+      });
 
       logger.log(`✅ Post-race email sent to ${user.display_name} (${user.email})`);
       return true;
@@ -461,20 +461,266 @@ export class RaceEmailService {
       }
 
 
-      logger.log(\`✅ Post-race emails sent: \${sent} successful, \${failed} failed\`);
+      logger.log(`✅ Post-race emails sent: ${sent} successful, ${failed} failed`);
       
       // Log that emails were sent
-      await db.prepare(\`
+      await db.prepare(`
         INSERT INTO race_email_log (season_year, round_number, email_type, users_sent_to)
-        VALUES (\$1, \$2, 'post_race', \$3)
+        VALUES ($1, $2, 'post_race', $3)
         ON CONFLICT (season_year, round_number, email_type) DO UPDATE
-        SET users_sent_to = \$3, sent_at = CURRENT_TIMESTAMP
-      \`).run(raceYear, raceRound, sent);
+        SET users_sent_to = $3, sent_at = CURRENT_TIMESTAMP
+      `).run(raceYear, raceRound, sent);
       
       return { sent, failed };
 
     } catch (error) {
       logger.error('Error sending post-race emails to all users:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Send pre-race sample emails to admin users
+   */
+  async sendPreRaceEmailsToAdmins(raceYear: number, raceRound: number): Promise<{ sent: number; token: string }> {
+    try {
+      const token = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+
+      // Get all admin users with email
+      const admins = await db.prepare(`
+        SELECT id, display_name, email FROM users
+        WHERE email IS NOT NULL AND is_admin = true
+      `).all();
+
+      logger.log(`📧 Sending pre-race sample emails to ${admins.length} admin users for ${raceYear} Round ${raceRound}`);
+
+      let sent = 0;
+
+      for (const admin of admins) {
+        try {
+          // Get race details
+          const scheduleData = await f1ApiService.fetchSchedule(raceYear);
+          const races = scheduleData?.MRData?.RaceTable?.Races || [];
+          const race = races.find((r: any) => r.round === raceRound.toString());
+
+          if (!race) {
+            logger.error(`Race not found: ${raceYear} Round ${raceRound}`);
+            continue;
+          }
+
+          // Get weather forecast
+          const fridayDate = race.FirstPractice?.date || race.date;
+          const weather = await weatherService.getRaceWeekendForecast(
+            parseFloat(race.Circuit.Location.lat),
+            parseFloat(race.Circuit.Location.long),
+            fridayDate
+          );
+
+          // Calculate time remaining until FP1
+          const fp1DateTime = race.FirstPractice
+            ? `${race.FirstPractice.date} ${race.FirstPractice.time}`
+            : `${race.date} ${race.time || '00:00:00'}`;
+
+          const fp1Date = new Date(fp1DateTime.replace(' ', 'T'));
+          const now = new Date();
+          const timeRemaining = this.formatTimeRemaining(fp1Date.getTime() - now.getTime());
+
+          // Build minimal email data for sample
+          const emailData: PreRaceEmailData = {
+            displayName: admin.display_name,
+            raceName: race.raceName,
+            raceDate: new Date(race.date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
+            circuitName: race.Circuit.circuitName,
+            country: race.Circuit.Location.country,
+            fp1DateTime: fp1Date.toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }),
+            fp1TimeRemaining: timeRemaining,
+            raceUrl: `${FRONTEND_URL}/races/${raceYear}-${raceRound}`,
+            weatherFriday: weather.friday,
+            weatherSaturday: weather.saturday,
+            weatherSunday: weather.sunday,
+            userHasSubmittedPrediction: false,
+            crazyPredictions: [],
+            leagueName: 'World League',
+            topThree: [],
+            userPosition: null,
+            userPoints: null,
+            recentChanges: [],
+            unsubscribeReminderUrl: `${FRONTEND_URL}/settings?unsubscribe=reminders`,
+            adminReleaseUrl: `${FRONTEND_URL}/admin/release-emails?token=${token}&type=pre_race&year=${raceYear}&round=${raceRound}`,
+            isAdminSample: true
+          };
+
+          const htmlContent = generatePreRaceEmailHTML(emailData);
+          const textContent = generatePreRaceEmailText(emailData);
+
+          await emailService.sendEmail({
+            to: admin.email,
+            subject: `[ADMIN SAMPLE] 🏁 ${race.raceName} - Race Weekend Reminder`,
+            text: textContent,
+            html: htmlContent
+          });
+
+          logger.log(`✅ Pre-race sample email sent to admin ${admin.display_name} (${admin.email})`);
+          sent++;
+        } catch (error) {
+          logger.error(`Error sending pre-race sample email to admin ${admin.id}:`, error);
+        }
+      }
+
+      // Log the sample send with token
+      await db.prepare(`
+        INSERT INTO race_email_log (season_year, round_number, email_type, ready_at)
+        VALUES ($1, $2, 'pre_race', CURRENT_TIMESTAMP)
+        ON CONFLICT (season_year, round_number, email_type) DO UPDATE
+        SET ready_at = CURRENT_TIMESTAMP
+      `).run(raceYear, raceRound);
+
+      logger.log(`✅ Pre-race sample emails sent: ${sent} successful`);
+
+      return { sent, token };
+    } catch (error) {
+      logger.error('Error sending pre-race sample emails to admins:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Send post-race sample emails to admin users
+   */
+  async sendPostRaceEmailsToAdmins(raceYear: number, raceRound: number): Promise<{ sent: number; token: string }> {
+    try {
+      const token = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+
+      // Get all admin users with email
+      const admins = await db.prepare(`
+        SELECT id, display_name, email FROM users
+        WHERE email IS NOT NULL AND is_admin = true
+      `).all();
+
+      logger.log(`📧 Sending post-race sample emails to ${admins.length} admin users for ${raceYear} Round ${raceRound}`);
+
+      let sent = 0;
+
+      for (const admin of admins) {
+        try {
+          // Get race details
+          const scheduleData = await f1ApiService.fetchSchedule(raceYear);
+          const races = scheduleData?.MRData?.RaceTable?.Races || [];
+          const race = races.find((r: any) => r.round === raceRound.toString());
+
+          if (!race) {
+            logger.error(`Race not found: ${raceYear} Round ${raceRound}`);
+            continue;
+          }
+
+          // Get next race
+          const nextRace = races.find((r: any) => parseInt(r.round) === raceRound + 1);
+          const nextRaceData = nextRace ? {
+            name: nextRace.raceName,
+            date: new Date(nextRace.date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }),
+            daysUntil: Math.ceil((new Date(nextRace.date).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+          } : null;
+
+          // Build minimal email data for sample
+          const emailData: PostRaceEmailData = {
+            displayName: admin.display_name,
+            raceName: race.raceName,
+            raceDate: new Date(race.date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
+            circuitName: race.Circuit.circuitName,
+            country: race.Circuit.Location.country,
+            userPoints: 0,
+            topScorer: { displayName: 'N/A', points: 0 },
+            leagueName: 'World League',
+            roundResults: [],
+            crazyPredictionsToConfirm: [],
+            nextRace: nextRaceData,
+            unsubscribeResultsUrl: `${FRONTEND_URL}/settings?unsubscribe=results`,
+            adminReleaseUrl: `${FRONTEND_URL}/admin/release-emails?token=${token}&type=post_race&year=${raceYear}&round=${raceRound}`,
+            isAdminSample: true
+          };
+
+          const htmlContent = generatePostRaceEmailHTML(emailData);
+          const textContent = generatePostRaceEmailText(emailData);
+
+          await emailService.sendEmail({
+            to: admin.email,
+            subject: `[ADMIN SAMPLE] 🏁 ${race.raceName} - Race Results`,
+            text: textContent,
+            html: htmlContent
+          });
+
+          logger.log(`✅ Post-race sample email sent to admin ${admin.display_name} (${admin.email})`);
+          sent++;
+        } catch (error) {
+          logger.error(`Error sending post-race sample email to admin ${admin.id}:`, error);
+        }
+      }
+
+      // Log the sample send with token
+      await db.prepare(`
+        INSERT INTO race_email_log (season_year, round_number, email_type, ready_at)
+        VALUES ($1, $2, 'post_race', CURRENT_TIMESTAMP)
+        ON CONFLICT (season_year, round_number, email_type) DO UPDATE
+        SET ready_at = CURRENT_TIMESTAMP
+      `).run(raceYear, raceRound);
+
+      logger.log(`✅ Post-race sample emails sent: ${sent} successful`);
+
+      return { sent, token };
+    } catch (error) {
+      logger.error('Error sending post-race sample emails to admins:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Release pre-race emails to all users (called by admin via link)
+   */
+  async releasePreRaceEmails(raceYear: number, raceRound: number, releasedByUserId: number): Promise<{ sent: number; failed: number }> {
+    try {
+      logger.log(`🚀 Releasing pre-race emails for ${raceYear} Round ${raceRound} by user ${releasedByUserId}`);
+
+      // Send to all users
+      const result = await this.sendPreRaceEmailsToAll(raceYear, raceRound);
+
+      // Update log with release info
+      await db.prepare(`
+        UPDATE race_email_log
+        SET released_at = CURRENT_TIMESTAMP, released_by_user_id = $1
+        WHERE season_year = $2 AND round_number = $3 AND email_type = 'pre_race'
+      `).run(releasedByUserId, raceYear, raceRound);
+
+      logger.log(`✅ Pre-race emails released: ${result.sent} sent, ${result.failed} failed`);
+
+      return result;
+    } catch (error) {
+      logger.error('Error releasing pre-race emails:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Release post-race emails to all users (called by admin via link)
+   */
+  async releasePostRaceEmails(raceYear: number, raceRound: number, releasedByUserId: number): Promise<{ sent: number; failed: number }> {
+    try {
+      logger.log(`🚀 Releasing post-race emails for ${raceYear} Round ${raceRound} by user ${releasedByUserId}`);
+
+      // Send to all users
+      const result = await this.sendPostRaceEmailsToAll(raceYear, raceRound);
+
+      // Update log with release info
+      await db.prepare(`
+        UPDATE race_email_log
+        SET released_at = CURRENT_TIMESTAMP, released_by_user_id = $1
+        WHERE season_year = $2 AND round_number = $3 AND email_type = 'post_race'
+      `).run(releasedByUserId, raceYear, raceRound);
+
+      logger.log(`✅ Post-race emails released: ${result.sent} sent, ${result.failed} failed`);
+
+      return result;
+    } catch (error) {
+      logger.error('Error releasing post-race emails:', error);
       throw error;
     }
   }

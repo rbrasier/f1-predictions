@@ -16,6 +16,10 @@ import {
   importSeasonStandings,
   bulkImportSeason,
   populateDriverImages,
+  sendPreRaceSampleEmails,
+  sendPostRaceSampleEmails,
+  releaseEmails,
+  getEmailLog,
   getBackups,
   downloadBackup,
   triggerBackup
@@ -51,6 +55,12 @@ router.post('/f1-data/import-race/:year/:round', importRaceResults);
 router.post('/f1-data/import-standings/:year', importSeasonStandings);
 router.post('/f1-data/import-season/:year', bulkImportSeason);
 router.post('/f1-data/populate-driver-images/:year', populateDriverImages);
+
+// Email Management
+router.post('/emails/sample-pre-race/:year/:round', sendPreRaceSampleEmails);
+router.post('/emails/sample-post-race/:year/:round', sendPostRaceSampleEmails);
+router.post('/emails/release', releaseEmails);
+router.get('/emails/log/:year/:round/:type', getEmailLog);
 
 // Backups
 router.get('/backups', getBackups);

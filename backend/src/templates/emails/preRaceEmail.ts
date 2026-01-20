@@ -53,6 +53,10 @@ export interface PreRaceEmailData {
 
   // Unsubscribe
   unsubscribeReminderUrl: string;
+
+  // Admin release (optional - only present for admin samples)
+  adminReleaseUrl?: string;
+  isAdminSample?: boolean;
 }
 
 /**
@@ -161,6 +165,15 @@ export function generatePreRaceEmailHTML(data: PreRaceEmailData): string {
     </div>
   ` : '';
 
+  const adminReleaseSection = data.isAdminSample && data.adminReleaseUrl ? `
+    <div style="background-color: #ffc107; border: 2px solid #ff9800; padding: 15px; margin-bottom: 20px; border-radius: 8px; text-align: center;">
+      <p style="margin: 0 0 10px 0; font-weight: bold; font-size: 16px;">⚠️ ADMIN SAMPLE</p>
+      <p style="margin: 0 0 15px 0; color: #333;">This is a preview of the email that will be sent to all users.</p>
+      <a href="${data.adminReleaseUrl}" style="background-color: #28a745; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block; margin: 0 5px;">Release to All Users</a>
+      <p style="margin: 10px 0 0 0; font-size: 12px; color: #666;">This action runs in the background and will send to all users with reminders enabled.</p>
+    </div>
+  ` : '';
+
   return `
 <!DOCTYPE html>
 <html>
@@ -170,6 +183,8 @@ export function generatePreRaceEmailHTML(data: PreRaceEmailData): string {
   <title>${data.raceName} - Race Weekend Reminder</title>
 </head>
 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  ${adminReleaseSection}
+
   <div style="background-color: #e10600; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
     <h1 style="margin: 0; font-size: 28px;">🏁 ${data.raceName}</h1>
     <p style="margin: 10px 0 0 0; font-size: 16px;">${data.circuitName}, ${data.country}</p>
@@ -225,7 +240,23 @@ export function generatePreRaceEmailHTML(data: PreRaceEmailData): string {
  * Generate Pre-Race Email Plain Text Version
  */
 export function generatePreRaceEmailText(data: PreRaceEmailData): string {
-  let text = `
+  let text = '';
+
+  if (data.isAdminSample && data.adminReleaseUrl) {
+    text += `⚠️ ADMIN SAMPLE
+
+This is a preview of the email that will be sent to all users.
+
+RELEASE TO ALL USERS: ${data.adminReleaseUrl}
+
+This action runs in the background and will send to all users with reminders enabled.
+
+---
+
+`;
+  }
+
+  text += `
 🏁 ${data.raceName}
 ${data.circuitName}, ${data.country}
 
