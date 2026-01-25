@@ -231,7 +231,17 @@ export const DashboardPage = () => {
 
     const fetchData = async () => {
       try {
-        const [seasonData, raceData, upcomingRacesData, allUsers, leaderboardData, driversData, teamsData, principalsData] = await Promise.all([
+        // Fetch ALL data in parallel - no sequential awaits!
+        const [
+          seasonData,
+          raceData,
+          upcomingRacesData,
+          allUsers,
+          leaderboardData,
+          driversData,
+          teamsData,
+          principalsData
+        ] = await Promise.all([
           getActiveSeason().catch(() => null),
           getNextRace().catch(() => null),
           getUpcomingRaces(5),
@@ -242,6 +252,7 @@ export const DashboardPage = () => {
           getTeamPrincipals().catch(() => [])
         ]);
 
+        // Set the primary data immediately and hide loading spinner
         setSeason(seasonData);
         setNextRace(raceData);
         setUpcomingRaces(upcomingRacesData);
@@ -251,68 +262,38 @@ export const DashboardPage = () => {
         setTeams(teamsData);
         setTeamPrincipals(principalsData);
 
-        // Fetch driver standings if we have a season
+        // Show the page immediately - don't wait for secondary data
+        setLoading(false);
+
+        // Now fetch secondary data - all in parallel, not sequential!
+        const secondaryPromises: Promise<any>[] = [];
+
+        // Driver standings
         if (seasonData) {
-          try {
-            const standings = await getDriverStandings(seasonData.year);
-            setDriverStandings(standings);
-          } catch (err) {
-            console.log('Failed to fetch driver standings');
-          }
+          secondaryPromises.push(
+            getDriverStandings(seasonData.year)
+              .then(setDriverStandings)
+              .catch(() => console.log('Failed to fetch driver standings'))
+          );
         }
 
-        // Fetch race predictions if there's a next race
+        // Race predictions and validations
         if (raceData) {
-          try {
-            const raceId = `${raceData.season}-${raceData.round}`;
-            const [myPrediction, allPredictions] = await Promise.all([
+          const raceId = `${raceData.season}-${raceData.round}`;
+          secondaryPromises.push(
+            Promise.all([
               getMyRacePrediction(raceId).catch(() => null),
               getAllRacePredictions(raceId, 10, defaultLeague?.id).catch(() => [])
-            ]);
-            setMyRacePrediction(myPrediction);
+            ]).then(async ([myPrediction, allPredictions]) => {
+              setMyRacePrediction(myPrediction);
 
-            // Fetch crazy predictions with validation counts
-            const predictionsWithValidations = await Promise.all(
-              allPredictions
-                .filter(p => p.crazy_prediction)
-                .map(async (p) => {
-                  try {
-                    const validations = await getValidationsForPrediction('race', p.id);
-                    const agreeCount = validations.filter(v => v.is_validated).length;
-                    const userHasVoted = validations.some(v => v.validator_user_id === currentUser?.id);
-                    return { ...p, agreeCount, userHasVoted };
-                  } catch {
-                    return { ...p, agreeCount: 0, userHasVoted: false };
-                  }
-                })
-            );
-            setCrazyPredictionsWithValidations(predictionsWithValidations);
-          } catch (err) {
-            console.error('Error loading race predictions:', err);
-          }
-        }
-
-        // Fetch season prediction
-        if (seasonData) {
-          try {
-            const mySeasonPred = await getMySeasonPrediction(seasonData.year);
-            setMySeasonPrediction(mySeasonPred);
-          } catch (err) {
-            // No season prediction yet
-          }
-
-          // Fetch season crazy predictions with validation counts (only if before deadline)
-          const seasonDeadline = new Date(seasonData.prediction_deadline);
-          const now = new Date();
-          if (now <= seasonDeadline) {
-            try {
-              const allSeasonPredictions = await getAllSeasonPredictions(seasonData.year, defaultLeague?.id);
-              const seasonPredictionsWithValidations = await Promise.all(
-                allSeasonPredictions
+              // Fetch validations for crazy predictions in parallel
+              const predictionsWithValidations = await Promise.all(
+                allPredictions
                   .filter(p => p.crazy_prediction)
                   .map(async (p) => {
                     try {
-                      const validations = await getValidationsForPrediction('season', p.id);
+                      const validations = await getValidationsForPrediction('race', p.id);
                       const agreeCount = validations.filter(v => v.is_validated).length;
                       const userHasVoted = validations.some(v => v.validator_user_id === currentUser?.id);
                       return { ...p, agreeCount, userHasVoted };
@@ -321,42 +302,71 @@ export const DashboardPage = () => {
                     }
                   })
               );
-              setSeasonCrazyPredictionsWithValidations(seasonPredictionsWithValidations);
-            } catch (err) {
-              console.error('Error loading season crazy predictions:', err);
-            }
-          }
+              setCrazyPredictionsWithValidations(predictionsWithValidations);
+            }).catch(err => console.error('Error loading race predictions:', err))
+          );
         }
 
-        // Fetch pending crazy prediction validations
-        try {
-          await getPendingValidations(defaultLeague?.id);
-        } catch (err) {
-          // Ignore errors for pending validations
-        }
-
-        // Fetch last round results if season exists
+        // Season predictions
         if (seasonData) {
-          try {
-            const lastRound = await getLastRoundResults(seasonData.year, defaultLeague?.id);
-            setLastRoundData(lastRound);
-          } catch (err) {
-            // No last round data available yet (no completed races or results not entered)
-            console.log('No last round data available');
+          secondaryPromises.push(
+            getMySeasonPrediction(seasonData.year)
+              .then(setMySeasonPrediction)
+              .catch(() => {/* No season prediction yet */})
+          );
+
+          // Season crazy predictions (only if before deadline)
+          const seasonDeadline = new Date(seasonData.prediction_deadline);
+          const now = new Date();
+          if (now <= seasonDeadline) {
+            secondaryPromises.push(
+              getAllSeasonPredictions(seasonData.year, defaultLeague?.id)
+                .then(async (allSeasonPredictions) => {
+                  const seasonPredictionsWithValidations = await Promise.all(
+                    allSeasonPredictions
+                      .filter(p => p.crazy_prediction)
+                      .map(async (p) => {
+                        try {
+                          const validations = await getValidationsForPrediction('season', p.id);
+                          const agreeCount = validations.filter(v => v.is_validated).length;
+                          const userHasVoted = validations.some(v => v.validator_user_id === currentUser?.id);
+                          return { ...p, agreeCount, userHasVoted };
+                        } catch {
+                          return { ...p, agreeCount: 0, userHasVoted: false };
+                        }
+                      })
+                  );
+                  setSeasonCrazyPredictionsWithValidations(seasonPredictionsWithValidations);
+                })
+                .catch(err => console.error('Error loading season crazy predictions:', err))
+            );
           }
 
-          // Fetch last season results if season exists
-          try {
-            const lastSeasonResults = await getLastSeasonResults(seasonData.year, defaultLeague?.id);
-            setLastSeasonData(lastSeasonResults);
-          } catch (err) {
-            // No last season data available yet (season not completed or results not entered)
-            console.log('No last season data available');
-          }
+          // Last round results
+          secondaryPromises.push(
+            getLastRoundResults(seasonData.year, defaultLeague?.id)
+              .then(setLastRoundData)
+              .catch(() => console.log('No last round data available'))
+          );
+
+          // Last season results
+          secondaryPromises.push(
+            getLastSeasonResults(seasonData.year, defaultLeague?.id)
+              .then(setLastSeasonData)
+              .catch(() => console.log('No last season data available'))
+          );
         }
+
+        // Pending validations
+        secondaryPromises.push(
+          getPendingValidations(defaultLeague?.id).catch(() => {/* Ignore errors */})
+        );
+
+        // Wait for all secondary data to load in parallel (in background)
+        await Promise.allSettled(secondaryPromises);
+
       } catch (err: any) {
         setError(err.response?.data?.error || 'Failed to load data');
-      } finally {
         setLoading(false);
       }
     };
