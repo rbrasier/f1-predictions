@@ -1025,7 +1025,6 @@ export const DashboardPage = () => {
                       <div className="flex-1">
                         <span className={entry.user_id === currentUser?.id ? 'text-paddock-coral' : 'text-white'}>
                           {entry.display_name}
-                          {entry.user_id === currentUser?.id && ' (PaddockKing)'}
                         </span>
                       </div>
                       <div className="w-16 text-right text-paddock-coral font-bold">
