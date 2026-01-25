@@ -30,6 +30,21 @@ export type ResourceType =
  * Handles fetching data from Jolpica F1 API and caching it locally
  */
 export class F1ApiService {
+  // In-memory map to track in-flight requests and prevent duplicate API calls
+  private inflightRequests = new Map<string, Promise<any>>();
+
+  /**
+   * Generate a unique cache key for request deduplication
+   */
+  private getCacheKey(
+    resourceType: ResourceType,
+    seasonYear?: number,
+    roundNumber?: number,
+    resourceId?: string
+  ): string {
+    return `${resourceType}:${seasonYear ?? 'null'}:${roundNumber ?? 'null'}:${resourceId ?? 'null'}`;
+  }
+
   /**
    * Fetch race schedule for a season
    */
@@ -166,9 +181,9 @@ export class F1ApiService {
         SELECT data_json, last_fetched_at
         FROM f1_api_cache
         WHERE resource_type = $1
-          AND (season_year = $2 OR (season_year IS NULL AND $2 IS NULL))
-          AND (round_number = $3 OR (round_number IS NULL AND $3 IS NULL))
-          AND (resource_id = $4 OR (resource_id IS NULL AND $4 IS NULL))
+          AND season_year IS NOT DISTINCT FROM $2
+          AND round_number IS NOT DISTINCT FROM $3
+          AND resource_id IS NOT DISTINCT FROM $4
       `;
 
       const row = await db.prepare(query).get(
@@ -208,20 +223,21 @@ export class F1ApiService {
           AND resource_id IS NOT DISTINCT FROM $4
       `;
 
-      const row = await db.prepare(query).get(
-        resourceType,
-        seasonYear || null,
-        roundNumber || null,
-        resourceId || null
-      ) as { last_fetched_at: string | Date } | undefined;
+      const params = [resourceType, seasonYear || null, roundNumber || null, resourceId || null];
+      logger.log(`  Checking cache for ${resourceType} (year: ${seasonYear || 'null'}, round: ${roundNumber || 'null'})`);
+
+      const row = await db.prepare(query).get(...params) as { last_fetched_at: string | Date } | undefined;
 
       if (!row) {
+        logger.log(`  ✗ No cache found for ${resourceType}`);
         return false;
       }
 
       const lastFetched = new Date(row.last_fetched_at);
       const now = new Date();
       const hoursSinceLastFetch = (now.getTime() - lastFetched.getTime()) / (1000 * 60 * 60);
+
+      logger.log(`  Cache age: ${hoursSinceLastFetch.toFixed(2)} hours (fresh until ${CACHE_DURATION_HOURS}h)`);
 
       return hoursSinceLastFetch < CACHE_DURATION_HOURS;
     } catch (error) {
@@ -241,6 +257,20 @@ export class F1ApiService {
     forceRefresh: boolean,
     apiUrl: string
   ): Promise<any> {
+    // Generate cache key for request deduplication
+    const cacheKey = this.getCacheKey(
+      resourceType,
+      seasonYear || undefined,
+      roundNumber || undefined,
+      resourceId || undefined
+    );
+
+    // Check if there's already an in-flight request for this resource
+    if (!forceRefresh && this.inflightRequests.has(cacheKey)) {
+      logger.log(`  Waiting for in-flight ${resourceType} request`);
+      return this.inflightRequests.get(cacheKey)!;
+    }
+
     // Check if we have fresh cached data and don't need to refresh
     if (!forceRefresh && await this.isCacheFresh(resourceType, seasonYear || undefined, roundNumber || undefined, resourceId || undefined)) {
       const cached = await this.getCachedData(resourceType, seasonYear || undefined, roundNumber || undefined, resourceId || undefined);
@@ -250,35 +280,46 @@ export class F1ApiService {
       }
     }
 
-    // Fetch fresh data from API
-    logger.log(`  Fetching ${resourceType} from API: ${apiUrl}`);
+    // Create a new promise for this fetch operation
+    const fetchPromise = (async () => {
+      try {
+        // Fetch fresh data from API
+        logger.log(`  Fetching ${resourceType} from API: ${apiUrl}`);
 
-    try {
-      const response = await axios.get(apiUrl, {
-        timeout: 10000,
-        headers: {
-          'Accept': 'application/json'
+        const response = await axios.get(apiUrl, {
+          timeout: 10000,
+          headers: {
+            'Accept': 'application/json'
+          }
+        });
+
+        const data = response.data;
+
+        // Cache the data
+        await this.cacheData(resourceType, seasonYear, roundNumber, resourceId, data);
+
+        return data;
+      } catch (error: any) {
+        logger.error(`Error fetching ${resourceType}:`, error.message);
+
+        // If fetch fails, try to return stale cached data if available
+        const cached = await this.getCachedData(resourceType, seasonYear || undefined, roundNumber || undefined, resourceId || undefined);
+        if (cached) {
+          logger.log(`  Returning stale cached ${resourceType} data due to API error`);
+          return cached;
         }
-      });
 
-      const data = response.data;
-
-      // Cache the data
-      await this.cacheData(resourceType, seasonYear, roundNumber, resourceId, data);
-
-      return data;
-    } catch (error: any) {
-      logger.error(`Error fetching ${resourceType}:`, error.message);
-
-      // If fetch fails, try to return stale cached data if available
-      const cached = await this.getCachedData(resourceType, seasonYear || undefined, roundNumber || undefined, resourceId || undefined);
-      if (cached) {
-        logger.log(`  Returning stale cached ${resourceType} data due to API error`);
-        return cached;
+        throw error;
+      } finally {
+        // Remove this request from the in-flight map
+        this.inflightRequests.delete(cacheKey);
       }
+    })();
 
-      throw error;
-    }
+    // Store the promise in the in-flight map
+    this.inflightRequests.set(cacheKey, fetchPromise);
+
+    return fetchPromise;
   }
 
   /**
@@ -295,20 +336,25 @@ export class F1ApiService {
       const dataJson = JSON.stringify(data);
       const now = new Date().toISOString();
 
+      logger.log(`  Attempting to cache ${resourceType} (year: ${seasonYear}, round: ${roundNumber}, id: ${resourceId})`);
+
       // Use UPSERT (INSERT ... ON CONFLICT) for PostgreSQL
       const stmt = db.prepare(`
         INSERT INTO f1_api_cache
         (resource_type, season_year, round_number, resource_id, data_json, last_fetched_at)
         VALUES ($1, $2, $3, $4, $5, $6)
         ON CONFLICT (resource_type, season_year, round_number, resource_id)
-        DO UPDATE SET data_json = $5, last_fetched_at = $6
+        DO UPDATE SET
+          data_json = excluded.data_json,
+          last_fetched_at = excluded.last_fetched_at
       `);
 
-      await stmt.run(resourceType, seasonYear, roundNumber, resourceId, dataJson, now);
+      const result = await stmt.run(resourceType, seasonYear, roundNumber, resourceId, dataJson, now);
 
-      logger.log(`  ✓ Cached ${resourceType} data`);
+      logger.log(`  ✓ Cached ${resourceType} data (${(dataJson.length / 1024).toFixed(2)} KB) - DB result:`, result);
     } catch (error) {
-      logger.error('Error caching data:', error);
+      logger.error(`✗ Error caching ${resourceType} data - Type: ${resourceType}, Year: ${seasonYear}, Round: ${roundNumber}, ID: ${resourceId}`);
+      logger.error(`✗ Error details:`, error);
       // Don't throw - caching failure shouldn't break the API fetch
     }
   }
