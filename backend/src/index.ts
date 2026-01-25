@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import { initializeDatabase } from './db/database';
 import { scheduler } from './scheduler';
 import { logger } from './utils/logger';
+import { perfMonitor } from './utils/performance';
 import passport from './config/passport';
 
 // Routes
@@ -59,15 +60,56 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(passport.initialize());
 
-// Request logging middleware
+// Performance monitoring middleware
 app.use((req, res, next) => {
+  const requestId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+  // Store requestId on request object for use in controllers
+  (req as any).requestId = requestId;
+
+  // Start performance tracking
+  perfMonitor.startRequest(requestId);
   logger.log(`→ ${req.method} ${req.path}`);
+
+  // Capture response finish
+  const originalSend = res.send;
+  res.send = function(data) {
+    const metrics = perfMonitor.endRequest(requestId);
+
+    if (metrics) {
+      const { totalDuration, breakdown } = metrics;
+
+      // Add performance headers
+      res.setHeader('X-Response-Time', `${totalDuration}ms`);
+      if (breakdown) {
+        res.setHeader('X-Performance-Breakdown', breakdown);
+      }
+
+      // Log performance
+      const performanceEmoji = totalDuration < 100 ? '⚡' : totalDuration < 500 ? '✓' : '⚠️';
+      logger.log(`${performanceEmoji} ${req.method} ${req.path} - ${totalDuration}ms ${breakdown ? `(${breakdown})` : ''}`);
+    }
+
+    return originalSend.call(this, data);
+  };
+
   next();
 });
 
 // Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Performance stats endpoint (for monitoring)
+app.get('/api/admin/performance-stats', (req, res) => {
+  const { f1ApiService } = require('./services/f1ApiService');
+  const cacheStats = f1ApiService.getCacheStats();
+
+  res.json({
+    cache: cacheStats,
+    timestamp: new Date().toISOString()
+  });
 });
 
 // API Routes
