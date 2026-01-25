@@ -197,7 +197,7 @@ export const getAllRacePredictions = async (req: AuthRequest, res: Response) => 
       FROM race_predictions rp
       JOIN users u ON rp.user_id = u.id
       ${leagueId ? 'INNER JOIN user_leagues ul ON u.id = ul.user_id' : ''}
-      WHERE rp.season_year = $1 AND rp.round_number = $2 ${leagueId ? 'AND ul.league_id = $3' : ''}
+      WHERE rp.season_year = $1 AND rp.round_number = $2 AND u.username != 'admin' ${leagueId ? 'AND ul.league_id = $3' : ''}
       ORDER BY u.display_name
     `;
 
