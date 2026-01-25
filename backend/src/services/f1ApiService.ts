@@ -25,6 +25,11 @@ export type ResourceType =
   | 'qualifying'      // Qualifying results
   | 'sprint';         // Sprint results
 
+interface MemoryCacheEntry {
+  data: any;
+  expiresAt: number;
+}
+
 /**
  * F1 API Service
  * Handles fetching data from Jolpica F1 API and caching it locally
@@ -32,6 +37,10 @@ export type ResourceType =
 export class F1ApiService {
   // In-memory map to track in-flight requests and prevent duplicate API calls
   private inflightRequests = new Map<string, Promise<any>>();
+
+  // In-memory cache for fast repeated access (5 minute TTL)
+  private memoryCache = new Map<string, MemoryCacheEntry>();
+  private MEMORY_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
   /**
    * Generate a unique cache key for request deduplication
@@ -43,6 +52,33 @@ export class F1ApiService {
     resourceId?: string
   ): string {
     return `${resourceType}:${seasonYear ?? 'null'}:${roundNumber ?? 'null'}:${resourceId ?? 'null'}`;
+  }
+
+  /**
+   * Get data from memory cache if available and fresh
+   */
+  private getFromMemoryCache(cacheKey: string): any | null {
+    const entry = this.memoryCache.get(cacheKey);
+    if (!entry) {
+      return null;
+    }
+
+    const now = Date.now();
+    if (now > entry.expiresAt) {
+      // Expired, remove it
+      this.memoryCache.delete(cacheKey);
+      return null;
+    }
+
+    return entry.data;
+  }
+
+  /**
+   * Store data in memory cache
+   */
+  private setMemoryCache(cacheKey: string, data: any): void {
+    const expiresAt = Date.now() + this.MEMORY_CACHE_TTL_MS;
+    this.memoryCache.set(cacheKey, { data, expiresAt });
   }
 
   /**
@@ -257,7 +293,7 @@ export class F1ApiService {
     forceRefresh: boolean,
     apiUrl: string
   ): Promise<any> {
-    // Generate cache key for request deduplication
+    // Generate cache key for request deduplication and memory cache
     const cacheKey = this.getCacheKey(
       resourceType,
       seasonYear || undefined,
@@ -265,17 +301,28 @@ export class F1ApiService {
       resourceId || undefined
     );
 
+    // Check memory cache first (fastest - no DB query)
+    if (!forceRefresh) {
+      const memCached = this.getFromMemoryCache(cacheKey);
+      if (memCached) {
+        logger.log(`  ⚡ Using memory cached ${resourceType} data`);
+        return memCached;
+      }
+    }
+
     // Check if there's already an in-flight request for this resource
     if (!forceRefresh && this.inflightRequests.has(cacheKey)) {
-      logger.log(`  Waiting for in-flight ${resourceType} request`);
+      logger.log(`  ⏳ Waiting for in-flight ${resourceType} request`);
       return this.inflightRequests.get(cacheKey)!;
     }
 
-    // Check if we have fresh cached data and don't need to refresh
+    // Check if we have fresh DB cached data and don't need to refresh
     if (!forceRefresh && await this.isCacheFresh(resourceType, seasonYear || undefined, roundNumber || undefined, resourceId || undefined)) {
       const cached = await this.getCachedData(resourceType, seasonYear || undefined, roundNumber || undefined, resourceId || undefined);
       if (cached) {
-        logger.log(`  Using cached ${resourceType} data`);
+        logger.log(`  💾 Using DB cached ${resourceType} data`);
+        // Store in memory cache for next time
+        this.setMemoryCache(cacheKey, cached);
         return cached;
       }
     }
@@ -284,7 +331,7 @@ export class F1ApiService {
     const fetchPromise = (async () => {
       try {
         // Fetch fresh data from API
-        logger.log(`  Fetching ${resourceType} from API: ${apiUrl}`);
+        logger.log(`  🌐 Fetching ${resourceType} from API: ${apiUrl}`);
 
         const response = await axios.get(apiUrl, {
           timeout: 10000,
@@ -295,8 +342,9 @@ export class F1ApiService {
 
         const data = response.data;
 
-        // Cache the data
+        // Cache the data in both DB and memory
         await this.cacheData(resourceType, seasonYear, roundNumber, resourceId, data);
+        this.setMemoryCache(cacheKey, data);
 
         return data;
       } catch (error: any) {
@@ -305,7 +353,9 @@ export class F1ApiService {
         // If fetch fails, try to return stale cached data if available
         const cached = await this.getCachedData(resourceType, seasonYear || undefined, roundNumber || undefined, resourceId || undefined);
         if (cached) {
-          logger.log(`  Returning stale cached ${resourceType} data due to API error`);
+          logger.log(`  ♻️  Returning stale cached ${resourceType} data due to API error`);
+          // Store in memory cache too
+          this.setMemoryCache(cacheKey, cached);
           return cached;
         }
 
@@ -365,7 +415,8 @@ export class F1ApiService {
   async clearCache(): Promise<void> {
     try {
       await db.prepare('DELETE FROM f1_api_cache').run();
-      logger.log('✓ Cleared all cached F1 API data');
+      this.memoryCache.clear();
+      logger.log('✓ Cleared all cached F1 API data (DB + memory)');
     } catch (error) {
       logger.error('Error clearing cache:', error);
       throw error;
@@ -378,11 +429,29 @@ export class F1ApiService {
   async clearSeasonCache(year: number): Promise<void> {
     try {
       await db.prepare('DELETE FROM f1_api_cache WHERE season_year = $1').run(year);
-      logger.log(`✓ Cleared cached data for ${year} season`);
+
+      // Clear memory cache entries for this season
+      for (const [key, _] of this.memoryCache) {
+        if (key.includes(`:${year}:`)) {
+          this.memoryCache.delete(key);
+        }
+      }
+
+      logger.log(`✓ Cleared cached data for ${year} season (DB + memory)`);
     } catch (error) {
       logger.error('Error clearing season cache:', error);
       throw error;
     }
+  }
+
+  /**
+   * Get cache statistics for monitoring
+   */
+  getCacheStats(): { memorySize: number; memoryKeys: string[] } {
+    return {
+      memorySize: this.memoryCache.size,
+      memoryKeys: Array.from(this.memoryCache.keys())
+    };
   }
 }
 
