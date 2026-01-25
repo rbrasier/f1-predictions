@@ -16,7 +16,10 @@ import type {
   PendingValidation,
   CrazyPredictionValidation,
   League,
-  LeagueUser
+  LeagueUser,
+  Feedback,
+  FeedbackRequest,
+  UpdateFeedbackRequest
 } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4001/api';
@@ -88,6 +91,18 @@ export const saveEmail = async (email: string): Promise<{ message: string; user:
 
 export const snoozeEmailReminder = async (): Promise<{ message: string; email_reminder_snooze_until: string }> => {
   const { data } = await api.post('/auth/email-reminder/snooze');
+  return data;
+};
+
+export const getEmailPreferences = async (): Promise<{ data: { race_reminder_emails: boolean; race_results_emails: boolean } }> => {
+  return await api.get('/auth/email-preferences');
+};
+
+export const updateEmailPreferences = async (preferences: {
+  race_reminder_emails?: boolean;
+  race_results_emails?: boolean;
+}): Promise<{ message: string; user: User }> => {
+  const { data } = await api.put('/auth/email-preferences', preferences);
   return data;
 };
 
@@ -318,6 +333,17 @@ export const bulkImportSeason = async (year: number): Promise<any> => {
   return data;
 };
 
+// Admin - Email Previews
+export const getPreRaceEmailPreview = async (year: number, round: number, userId: number): Promise<string> => {
+  const { data } = await api.get(`/admin/emails/preview/pre-race/${year}/${round}/${userId}`);
+  return data;
+};
+
+export const getPostRaceEmailPreview = async (year: number, round: number, userId: number): Promise<string> => {
+  const { data } = await api.get(`/admin/emails/preview/post-race/${year}/${round}/${userId}`);
+  return data;
+};
+
 // Backups
 export const getBackups = async (): Promise<any[]> => {
   const { data } = await api.get('/admin/backups');
@@ -412,6 +438,37 @@ export const getActiveSeasonPublic = async (): Promise<Season> => {
 export const getUpcomingRacesPublic = async (limit?: number): Promise<Race[]> => {
   const params = limit ? { limit: limit.toString() } : {};
   const { data } = await publicApi.get('/public/races/upcoming', { params });
+  return data;
+};
+
+// Feedback
+export const submitFeedback = async (feedback: FeedbackRequest): Promise<Feedback> => {
+  const { data } = await api.post('/feedback', feedback);
+  return data;
+};
+
+export const getFeatures = async (): Promise<Feedback[]> => {
+  const { data } = await api.get('/feedback/features');
+  return data;
+};
+
+export const voteOnFeature = async (feedbackId: number, voteType: 'upvote' | 'downvote'): Promise<{ message: string; vote: string | null }> => {
+  const { data } = await api.post(`/feedback/${feedbackId}/vote`, { vote_type: voteType });
+  return data;
+};
+
+export const getChangelog = async (): Promise<Feedback[]> => {
+  const { data } = await api.get('/feedback/changelog');
+  return data;
+};
+
+export const getAllFeedback = async (params?: { type?: string; status?: string }): Promise<Feedback[]> => {
+  const { data } = await api.get('/feedback/admin/all', { params });
+  return data;
+};
+
+export const updateFeedback = async (feedbackId: number, updates: UpdateFeedbackRequest): Promise<Feedback> => {
+  const { data } = await api.patch(`/feedback/admin/${feedbackId}`, updates);
   return data;
 };
 

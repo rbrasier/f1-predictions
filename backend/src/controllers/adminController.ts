@@ -5,6 +5,7 @@ import { AuthRequest } from '../middleware/auth';
 import { RaceResult, SeasonResult } from '../types';
 import { f1ApiService } from '../services/f1ApiService';
 import { backupService } from '../services/backupService';
+import { raceEmailService } from '../services/raceEmailService';
 import { logger } from '../utils/logger';
 
 // Race Results
@@ -1133,6 +1134,217 @@ export const populateDriverImages = async (req: AuthRequest, res: Response) => {
       error: 'Failed to populate driver images',
       details: error.message
     });
+  }
+};
+
+// Email Management Endpoints
+
+/**
+ * Send pre-race sample emails to all admin users
+ * POST /api/admin/emails/sample-pre-race/:year/:round
+ */
+export const sendPreRaceSampleEmails = async (req: AuthRequest, res: Response) => {
+  try {
+    const { year, round } = req.params;
+    const seasonYear = parseInt(year);
+    const roundNumber = parseInt(round);
+
+    if (isNaN(seasonYear) || isNaN(roundNumber)) {
+      return res.status(400).json({ error: 'Invalid year or round number' });
+    }
+
+    const result = await raceEmailService.sendPreRaceEmailsToAdmins(seasonYear, roundNumber);
+
+    res.json({
+      success: true,
+      message: `Pre-race sample emails sent to ${result.sent} admin users`,
+      adminsSent: result.sent,
+      token: result.token
+    });
+  } catch (error) {
+    logger.error('Send pre-race sample emails error:', error);
+    res.status(500).json({ error: 'Failed to send sample emails' });
+  }
+};
+
+/**
+ * Send post-race sample emails to all admin users
+ * POST /api/admin/emails/sample-post-race/:year/:round
+ */
+export const sendPostRaceSampleEmails = async (req: AuthRequest, res: Response) => {
+  try {
+    const { year, round } = req.params;
+    const seasonYear = parseInt(year);
+    const roundNumber = parseInt(round);
+
+    if (isNaN(seasonYear) || isNaN(roundNumber)) {
+      return res.status(400).json({ error: 'Invalid year or round number' });
+    }
+
+    const result = await raceEmailService.sendPostRaceEmailsToAdmins(seasonYear, roundNumber);
+
+    res.json({
+      success: true,
+      message: `Post-race sample emails sent to ${result.sent} admin users`,
+      adminsSent: result.sent,
+      token: result.token
+    });
+  } catch (error) {
+    logger.error('Send post-race sample emails error:', error);
+    res.status(500).json({ error: 'Failed to send sample emails' });
+  }
+};
+
+/**
+ * Release emails to all users (async)
+ * POST /api/admin/emails/release
+ */
+export const releaseEmails = async (req: AuthRequest, res: Response) => {
+  try {
+    const { year, round, emailType } = req.body;
+    const seasonYear = parseInt(year);
+    const roundNumber = parseInt(round);
+    const userId = req.user?.id;
+
+    if (isNaN(seasonYear) || isNaN(roundNumber) || !userId) {
+      return res.status(400).json({ error: 'Invalid year, round number, or user' });
+    }
+
+    if (emailType !== 'pre_race' && emailType !== 'post_race') {
+      return res.status(400).json({ error: 'Invalid email type' });
+    }
+
+    // Start the release in the background
+    if (emailType === 'pre_race') {
+      raceEmailService.releasePreRaceEmails(seasonYear, roundNumber, userId).catch(err => {
+        logger.error('Background pre-race email release failed:', err);
+      });
+    } else {
+      raceEmailService.releasePostRaceEmails(seasonYear, roundNumber, userId).catch(err => {
+        logger.error('Background post-race email release failed:', err);
+      });
+    }
+
+    res.json({
+      success: true,
+      message: `Releasing ${emailType.replace('_', '-')} emails for ${seasonYear} Round ${roundNumber}. This will run in the background.`,
+      type: emailType,
+      year: seasonYear,
+      round: roundNumber
+    });
+  } catch (error) {
+    logger.error('Release emails error:', error);
+    res.status(500).json({ error: 'Failed to release emails' });
+  }
+};
+
+/**
+ * Get email log status for a race
+ * GET /api/admin/emails/log/:year/:round/:type
+ */
+export const getEmailLog = async (req: AuthRequest, res: Response) => {
+  try {
+    const { year, round, type } = req.params;
+    const seasonYear = parseInt(year);
+    const roundNumber = parseInt(round);
+
+    if (isNaN(seasonYear) || isNaN(roundNumber)) {
+      return res.status(400).json({ error: 'Invalid year or round number' });
+    }
+
+    if (type !== 'pre_race' && type !== 'post_race') {
+      return res.status(400).json({ error: 'Invalid email type' });
+    }
+
+    const log = await db.prepare(`
+      SELECT
+        id,
+        season_year,
+        round_number,
+        email_type,
+        ready_at,
+        released_at,
+        released_by_user_id,
+        sent_at,
+        users_sent_to
+      FROM race_email_log
+      WHERE season_year = $1 AND round_number = $2 AND email_type = $3
+    `).get(seasonYear, roundNumber, type) as any;
+
+    if (!log) {
+      return res.status(404).json({ error: 'No email log found for this race' });
+    }
+
+    // Get the user info if there's a released_by_user_id
+    let releasedByUser = null;
+    if (log.released_by_user_id) {
+      releasedByUser = await db.prepare(`
+        SELECT id, display_name, email FROM users WHERE id = $1
+      `).get(log.released_by_user_id) as any;
+    }
+
+    res.json({
+      ...log,
+      releasedByUser: releasedByUser ? {
+        id: releasedByUser.id,
+        displayName: releasedByUser.display_name,
+        email: releasedByUser.email
+      } : null,
+      status: log.released_at ? 'released' : log.ready_at ? 'ready' : 'pending'
+    });
+  } catch (error) {
+    logger.error('Get email log error:', error);
+    res.status(500).json({ error: 'Failed to get email log' });
+  }
+};
+
+/**
+ * Get pre-race email preview HTML for a specific user
+ * GET /api/admin/emails/preview/pre-race/:year/:round/:userId
+ */
+export const getPreRaceEmailPreview = async (req: AuthRequest, res: Response) => {
+  try {
+    const { year, round, userId } = req.params;
+    const seasonYear = parseInt(year);
+    const roundNumber = parseInt(round);
+    const userIdNum = parseInt(userId);
+
+    if (isNaN(seasonYear) || isNaN(roundNumber) || isNaN(userIdNum)) {
+      return res.status(400).json({ error: 'Invalid year, round number, or user ID' });
+    }
+
+    const html = await raceEmailService.generatePreRaceEmailPreview(userIdNum, seasonYear, roundNumber);
+
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  } catch (error) {
+    logger.error('Get pre-race email preview error:', error);
+    res.status(500).json({ error: 'Failed to generate preview' });
+  }
+};
+
+/**
+ * Get post-race email preview HTML for a specific user
+ * GET /api/admin/emails/preview/post-race/:year/:round/:userId
+ */
+export const getPostRaceEmailPreview = async (req: AuthRequest, res: Response) => {
+  try {
+    const { year, round, userId } = req.params;
+    const seasonYear = parseInt(year);
+    const roundNumber = parseInt(round);
+    const userIdNum = parseInt(userId);
+
+    if (isNaN(seasonYear) || isNaN(roundNumber) || isNaN(userIdNum)) {
+      return res.status(400).json({ error: 'Invalid year, round number, or user ID' });
+    }
+
+    const html = await raceEmailService.generatePostRaceEmailPreview(userIdNum, seasonYear, roundNumber);
+
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  } catch (error) {
+    logger.error('Get post-race email preview error:', error);
+    res.status(500).json({ error: 'Failed to generate preview' });
   }
 };
 

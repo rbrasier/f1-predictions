@@ -89,7 +89,7 @@ export const getUserLeagues = async (req: AuthRequest, res: Response) => {
 
     const leagues = await db.prepare(`
       SELECT l.id, l.name, l.invite_code, l.is_world_league, l.created_by_user_id, l.created_at, ul.is_default, ul.joined_at,
-             (SELECT COUNT(*) FROM user_leagues WHERE league_id = l.id) as member_count
+             (SELECT COUNT(*) FROM user_leagues ul2 INNER JOIN users u ON ul2.user_id = u.id WHERE ul2.league_id = l.id AND u.username != 'admin') as member_count
       FROM leagues l
       INNER JOIN user_leagues ul ON l.id = ul.league_id
       WHERE ul.user_id = $1
@@ -112,7 +112,7 @@ export const getDefaultLeague = async (req: AuthRequest, res: Response) => {
 
     const league = await db.prepare(`
       SELECT l.id, l.name, l.invite_code, l.is_world_league, l.created_by_user_id, l.created_at, ul.is_default, ul.joined_at,
-             (SELECT COUNT(*) FROM user_leagues WHERE league_id = l.id) as member_count
+             (SELECT COUNT(*) FROM user_leagues ul2 INNER JOIN users u ON ul2.user_id = u.id WHERE ul2.league_id = l.id AND u.username != 'admin') as member_count
       FROM leagues l
       INNER JOIN user_leagues ul ON l.id = ul.league_id
       WHERE ul.user_id = $1 AND ul.is_default = true
@@ -405,7 +405,7 @@ export const getLeagueByInviteCode = async (req: AuthRequest, res: Response) => 
     // Find the league and get member count
     const league = await db.prepare(`
       SELECT l.id, l.name, l.invite_code, l.is_world_league,
-             (SELECT COUNT(*) FROM user_leagues WHERE league_id = l.id) as member_count
+             (SELECT COUNT(*) FROM user_leagues ul2 INNER JOIN users u ON ul2.user_id = u.id WHERE ul2.league_id = l.id AND u.username != 'admin') as member_count
       FROM leagues l
       WHERE l.invite_code = $1
     `).get(inviteCode.toUpperCase());

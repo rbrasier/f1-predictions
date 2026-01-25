@@ -1,16 +1,80 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Layout } from '../components/common/Layout';
 import { useLeague } from '../contexts/LeagueContext';
 import { useToast } from '../contexts/ToastContext';
+import { useAuth } from '../hooks/useAuth';
+import * as api from '../services/api';
 import CreateLeagueModal from '../components/leagues/CreateLeagueModal';
 import JoinLeagueModal from '../components/leagues/JoinLeagueModal';
 
 const SettingsPage: React.FC = () => {
   const { leagues, defaultLeague, loading, setDefaultLeague, joinWorldLeague, leaveLeague } = useLeague();
   const { showToast } = useToast();
+  const { user } = useAuth();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [processingLeagueId, setProcessingLeagueId] = useState<number | null>(null);
+
+  // User profile state
+  const [displayName, setDisplayName] = useState(user?.display_name || '');
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+
+  // Email preferences state
+  const [raceReminderEmails, setRaceReminderEmails] = useState(true);
+  const [raceResultsEmails, setRaceResultsEmails] = useState(true);
+  const [isSavingEmailPrefs, setIsSavingEmailPrefs] = useState(false);
+  const [loadingEmailPrefs, setLoadingEmailPrefs] = useState(true);
+
+  // Load email preferences on mount
+  useEffect(() => {
+    loadEmailPreferences();
+  }, []);
+
+  const loadEmailPreferences = async () => {
+    try {
+      const response = await api.getEmailPreferences();
+      setRaceReminderEmails(response.data.race_reminder_emails);
+      setRaceResultsEmails(response.data.race_results_emails);
+    } catch (error: any) {
+      console.error('Failed to load email preferences:', error);
+    } finally {
+      setLoadingEmailPrefs(false);
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    if (!displayName.trim()) {
+      showToast('Display name cannot be empty', 'error');
+      return;
+    }
+
+    setIsSavingProfile(true);
+    try {
+      await api.updateDisplayName(displayName);
+      showToast('Profile updated successfully', 'success');
+      // Reload page to reflect changes
+      window.location.reload();
+    } catch (error: any) {
+      showToast(error.response?.data?.error || 'Failed to update profile', 'error');
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
+
+  const handleSaveEmailPreferences = async () => {
+    setIsSavingEmailPrefs(true);
+    try {
+      await api.updateEmailPreferences({
+        race_reminder_emails: raceReminderEmails,
+        race_results_emails: raceResultsEmails
+      });
+      showToast('Email preferences updated successfully', 'success');
+    } catch (error: any) {
+      showToast(error.response?.data?.error || 'Failed to update email preferences', 'error');
+    } finally {
+      setIsSavingEmailPrefs(false);
+    }
+  };
 
   const handleSetDefault = async (leagueId: number) => {
     setProcessingLeagueId(leagueId);
@@ -63,6 +127,104 @@ const SettingsPage: React.FC = () => {
     <Layout>
       <div className="max-w-4xl mx-auto">
         <h1 className="text-3xl md:text-4xl font-bold text-white mb-8">Settings</h1>
+
+        {/* User Profile Section */}
+        <div className="bg-gray-800 rounded-lg shadow-lg p-4 md:p-6 mb-6">
+          <h2 className="text-2xl font-bold text-white mb-4">Profile</h2>
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="displayName" className="block text-sm font-medium text-gray-300 mb-2">
+                Display Name
+              </label>
+              <div className="flex gap-3">
+                <input
+                  type="text"
+                  id="displayName"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500"
+                  placeholder="Enter your display name"
+                />
+                <button
+                  onClick={handleSaveProfile}
+                  disabled={isSavingProfile || displayName === user?.display_name}
+                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSavingProfile ? 'Saving...' : 'Save'}
+                </button>
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Email
+              </label>
+              <div className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-gray-400">
+                {user?.email || 'No email set'}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Email Preferences Section */}
+        <div className="bg-gray-800 rounded-lg shadow-lg p-4 md:p-6 mb-6">
+          <h2 className="text-2xl font-bold text-white mb-4">Email Preferences</h2>
+
+          {loadingEmailPrefs ? (
+            <div className="text-center py-4">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-500 mx-auto"></div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex items-start">
+                <div className="flex items-center h-5">
+                  <input
+                    id="raceReminders"
+                    type="checkbox"
+                    checked={raceReminderEmails}
+                    onChange={(e) => setRaceReminderEmails(e.target.checked)}
+                    className="w-4 h-4 text-red-600 bg-gray-700 border-gray-600 rounded focus:ring-red-500 focus:ring-2"
+                  />
+                </div>
+                <div className="ml-3">
+                  <label htmlFor="raceReminders" className="font-medium text-white">
+                    Race Reminder Emails
+                  </label>
+                  <p className="text-sm text-gray-400">
+                    Receive emails on Wednesday before each race weekend with weather forecasts, crazy predictions, and league standings
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start">
+                <div className="flex items-center h-5">
+                  <input
+                    id="raceResults"
+                    type="checkbox"
+                    checked={raceResultsEmails}
+                    onChange={(e) => setRaceResultsEmails(e.target.checked)}
+                    className="w-4 h-4 text-red-600 bg-gray-700 border-gray-600 rounded focus:ring-red-500 focus:ring-2"
+                  />
+                </div>
+                <div className="ml-3">
+                  <label htmlFor="raceResults" className="font-medium text-white">
+                    Race Results Emails
+                  </label>
+                  <p className="text-sm text-gray-400">
+                    Receive emails 12 hours after each race with your points, league results, and crazy prediction confirmations
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={handleSaveEmailPreferences}
+                disabled={isSavingEmailPrefs}
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors disabled:opacity-50"
+              >
+                {isSavingEmailPrefs ? 'Saving...' : 'Save Email Preferences'}
+              </button>
+            </div>
+          )}
+        </div>
 
         {/* Leagues Section */}
         <div className="bg-gray-800 rounded-lg shadow-lg p-4 md:p-6 mb-6">

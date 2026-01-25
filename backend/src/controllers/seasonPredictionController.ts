@@ -185,7 +185,7 @@ export const getAllSeasonPredictions = async (req: AuthRequest, res: Response) =
       FROM season_predictions sp
       JOIN users u ON sp.user_id = u.id
       ${leagueId ? 'INNER JOIN user_leagues ul ON u.id = ul.user_id' : ''}
-      WHERE sp.season_year = $1 ${leagueId ? 'AND ul.league_id = $2' : ''}
+      WHERE sp.season_year = $1 AND u.username != 'admin' ${leagueId ? 'AND ul.league_id = $2' : ''}
       ORDER BY u.display_name
     `;
 

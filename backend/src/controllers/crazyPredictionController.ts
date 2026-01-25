@@ -157,3 +157,154 @@ export const getValidationsForPrediction = async (req: AuthRequest, res: Respons
     res.status(500).json({ error: 'Internal server error' });
   }
 };
+
+/**
+ * Vote on whether a crazy prediction is legit (for email feature)
+ * Uses existing crazy_prediction_validations table
+ */
+export const voteOnCrazyPrediction = async (req: AuthRequest, res: Response) => {
+  try {
+    const { predictionId } = req.params;
+    const { is_validated } = req.body;
+    const userId = req.user!.id;
+
+    if (typeof is_validated !== 'boolean') {
+      return res.status(400).json({ error: 'is_validated must be a boolean' });
+    }
+
+    // Check if prediction exists
+    const prediction = await db.prepare(
+      'SELECT id, user_id FROM race_predictions WHERE id = $1'
+    ).get(parseInt(predictionId));
+
+    if (!prediction) {
+      return res.status(404).json({ error: 'Prediction not found' });
+    }
+
+    // Users cannot vote on their own predictions
+    if (prediction.user_id === userId) {
+      return res.status(400).json({ error: 'Cannot vote on your own prediction' });
+    }
+
+    // Check if user already voted
+    const existing = await db.prepare(`
+      SELECT id FROM crazy_prediction_validations
+      WHERE prediction_type = 'race' AND prediction_id = $1 AND validator_user_id = $2
+    `).get(parseInt(predictionId), userId);
+
+    if (existing) {
+      // Update existing vote
+      await db.prepare(`
+        UPDATE crazy_prediction_validations
+        SET is_validated = $1, validated_at = CURRENT_TIMESTAMP
+        WHERE id = $2
+      `).run(is_validated, existing.id);
+    } else {
+      // Insert new vote
+      await db.prepare(`
+        INSERT INTO crazy_prediction_validations (prediction_type, prediction_id, validator_user_id, is_validated)
+        VALUES ('race', $1, $2, $3)
+      `).run(parseInt(predictionId), userId, is_validated);
+    }
+
+    res.json({ success: true, message: 'Vote recorded' });
+  } catch (error) {
+    logger.error('Vote on crazy prediction error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+/**
+ * Get votes for a crazy prediction
+ * Uses existing crazy_prediction_validations table
+ */
+export const getCrazyPredictionVotes = async (req: AuthRequest, res: Response) => {
+  try {
+    const { predictionId } = req.params;
+
+    const votes = await db.query(`
+      SELECT
+        COUNT(*) FILTER (WHERE is_validated = true) as legit_votes,
+        COUNT(*) FILTER (WHERE is_validated = false) as not_legit_votes,
+        COUNT(*) as total_votes
+      FROM crazy_prediction_validations
+      WHERE prediction_type = 'race' AND prediction_id = $1
+    `, [parseInt(predictionId)]);
+
+    res.json(votes.rows[0]);
+  } catch (error) {
+    logger.error('Get crazy prediction votes error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+/**
+ * Confirm whether a crazy prediction came true (after race results)
+ * Uses existing crazy_prediction_outcomes table
+ */
+export const confirmCrazyPredictionOutcome = async (req: AuthRequest, res: Response) => {
+  try {
+    const { predictionId } = req.params;
+    const { actually_happened } = req.body;
+
+    if (typeof actually_happened !== 'boolean') {
+      return res.status(400).json({ error: 'actually_happened must be a boolean' });
+    }
+
+    // Check if prediction exists
+    const prediction = await db.prepare(
+      'SELECT id FROM race_predictions WHERE id = $1'
+    ).get(parseInt(predictionId));
+
+    if (!prediction) {
+      return res.status(404).json({ error: 'Prediction not found' });
+    }
+
+    // Check if outcome already exists
+    const existing = await db.prepare(`
+      SELECT id FROM crazy_prediction_outcomes
+      WHERE prediction_type = 'race' AND prediction_id = $1
+    `).get(parseInt(predictionId));
+
+    if (existing) {
+      // Update existing outcome
+      await db.prepare(`
+        UPDATE crazy_prediction_outcomes
+        SET actually_happened = $1, marked_at = CURRENT_TIMESTAMP
+        WHERE id = $2
+      `).run(actually_happened, existing.id);
+    } else {
+      // Insert new outcome
+      await db.prepare(`
+        INSERT INTO crazy_prediction_outcomes (prediction_type, prediction_id, actually_happened)
+        VALUES ('race', $1, $2)
+      `).run(parseInt(predictionId), actually_happened);
+    }
+
+    res.json({ success: true, message: 'Outcome recorded' });
+  } catch (error) {
+    logger.error('Confirm crazy prediction outcome error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+/**
+ * Get outcome for a crazy prediction
+ * Uses existing crazy_prediction_outcomes table
+ */
+export const getCrazyPredictionConfirmations = async (req: AuthRequest, res: Response) => {
+  try {
+    const { predictionId } = req.params;
+
+    const outcome = await db.prepare(`
+      SELECT actually_happened, marked_at
+      FROM crazy_prediction_outcomes
+      WHERE prediction_type = 'race' AND prediction_id = $1
+    `).get(parseInt(predictionId));
+
+    res.json(outcome || { actually_happened: null, marked_at: null });
+  } catch (error) {
+    logger.error('Get crazy prediction outcome error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
