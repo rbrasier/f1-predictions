@@ -212,6 +212,7 @@ export class F1ApiService {
     roundNumber?: number,
     resourceId?: string
   ): Promise<any | null> {
+    const startTime = Date.now();
     try {
       const query = `
         SELECT data_json, last_fetched_at
@@ -229,11 +230,16 @@ export class F1ApiService {
         resourceId || null
       ) as { data_json: string; last_fetched_at: string } | undefined;
 
+      const queryTime = Date.now() - startTime;
+
       if (!row) {
         return null;
       }
 
-      return JSON.parse(row.data_json);
+      const data = JSON.parse(row.data_json);
+      logger.log(`  📖 Read ${resourceType} from DB (${queryTime}ms)`);
+
+      return data;
     } catch (error) {
       logger.error('Error getting cached data:', error);
       return null;
@@ -249,6 +255,7 @@ export class F1ApiService {
     roundNumber?: number,
     resourceId?: string
   ): Promise<boolean> {
+    const startTime = Date.now();
     try {
       const query = `
         SELECT last_fetched_at
@@ -260,12 +267,12 @@ export class F1ApiService {
       `;
 
       const params = [resourceType, seasonYear || null, roundNumber || null, resourceId || null];
-      logger.log(`  Checking cache for ${resourceType} (year: ${seasonYear || 'null'}, round: ${roundNumber || 'null'})`);
 
       const row = await db.prepare(query).get(...params) as { last_fetched_at: string | Date } | undefined;
+      const queryTime = Date.now() - startTime;
 
       if (!row) {
-        logger.log(`  ✗ No cache found for ${resourceType}`);
+        logger.log(`  ✗ No cache found for ${resourceType} (${queryTime}ms)`);
         return false;
       }
 
@@ -273,9 +280,10 @@ export class F1ApiService {
       const now = new Date();
       const hoursSinceLastFetch = (now.getTime() - lastFetched.getTime()) / (1000 * 60 * 60);
 
-      logger.log(`  Cache age: ${hoursSinceLastFetch.toFixed(2)} hours (fresh until ${CACHE_DURATION_HOURS}h)`);
+      const isFresh = hoursSinceLastFetch < CACHE_DURATION_HOURS;
+      logger.log(`  ${isFresh ? '✓' : '✗'} Cache ${isFresh ? 'fresh' : 'stale'} for ${resourceType} - age: ${hoursSinceLastFetch.toFixed(2)}h (${queryTime}ms)`);
 
-      return hoursSinceLastFetch < CACHE_DURATION_HOURS;
+      return isFresh;
     } catch (error) {
       logger.error('Error checking cache freshness:', error);
       return false;
@@ -329,6 +337,7 @@ export class F1ApiService {
 
     // Create a new promise for this fetch operation
     const fetchPromise = (async () => {
+      const apiStartTime = Date.now();
       try {
         // Fetch fresh data from API
         logger.log(`  🌐 Fetching ${resourceType} from API: ${apiUrl}`);
@@ -340,7 +349,10 @@ export class F1ApiService {
           }
         });
 
+        const apiDuration = Date.now() - apiStartTime;
         const data = response.data;
+
+        logger.log(`  ✓ API fetch completed in ${apiDuration}ms`);
 
         // Cache the data in both DB and memory
         await this.cacheData(resourceType, seasonYear, roundNumber, resourceId, data);
@@ -348,7 +360,8 @@ export class F1ApiService {
 
         return data;
       } catch (error: any) {
-        logger.error(`Error fetching ${resourceType}:`, error.message);
+        const apiDuration = Date.now() - apiStartTime;
+        logger.error(`Error fetching ${resourceType} (${apiDuration}ms):`, error.message);
 
         // If fetch fails, try to return stale cached data if available
         const cached = await this.getCachedData(resourceType, seasonYear || undefined, roundNumber || undefined, resourceId || undefined);
@@ -382,11 +395,10 @@ export class F1ApiService {
     resourceId: string | null,
     data: any
   ): Promise<void> {
+    const startTime = Date.now();
     try {
       const dataJson = JSON.stringify(data);
       const now = new Date().toISOString();
-
-      logger.log(`  Attempting to cache ${resourceType} (year: ${seasonYear}, round: ${roundNumber}, id: ${resourceId})`);
 
       // Use UPSERT (INSERT ... ON CONFLICT) for PostgreSQL
       const stmt = db.prepare(`
@@ -399,11 +411,13 @@ export class F1ApiService {
           last_fetched_at = excluded.last_fetched_at
       `);
 
-      const result = await stmt.run(resourceType, seasonYear, roundNumber, resourceId, dataJson, now);
+      await stmt.run(resourceType, seasonYear, roundNumber, resourceId, dataJson, now);
 
-      logger.log(`  ✓ Cached ${resourceType} data (${(dataJson.length / 1024).toFixed(2)} KB) - DB result:`, result);
+      const cacheTime = Date.now() - startTime;
+      logger.log(`  💾 Cached ${resourceType} data (${(dataJson.length / 1024).toFixed(2)} KB) in ${cacheTime}ms`);
     } catch (error) {
-      logger.error(`✗ Error caching ${resourceType} data - Type: ${resourceType}, Year: ${seasonYear}, Round: ${roundNumber}, ID: ${resourceId}`);
+      const cacheTime = Date.now() - startTime;
+      logger.error(`✗ Error caching ${resourceType} data (${cacheTime}ms) - Type: ${resourceType}, Year: ${seasonYear}, Round: ${roundNumber}, ID: ${resourceId}`);
       logger.error(`✗ Error details:`, error);
       // Don't throw - caching failure shouldn't break the API fetch
     }
