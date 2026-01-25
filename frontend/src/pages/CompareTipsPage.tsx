@@ -6,7 +6,7 @@ import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import {
     getActiveSeason,
     getNextRace,
-    getAllUsers,
+    getLeagueUsers,
     getDrivers,
     getTeams,
     getAllSeasonPredictions,
@@ -61,7 +61,7 @@ export const CompareTipsPage = () => {
             try {
                 setLoading(true);
                 const [usersData, driversData, teamsData, seasonData, raceData] = await Promise.all([
-                    getAllUsers(),
+                    getLeagueUsers(defaultLeague.id) as unknown as Promise<User[]>,
                     getDrivers(),
                     getTeams(),
                     getActiveSeason().catch(() => null),
