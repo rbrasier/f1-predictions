@@ -11,7 +11,7 @@ export async function up(db: any) {
       resource_id TEXT,
       data_json TEXT NOT NULL,
       last_fetched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      UNIQUE(resource_type, season_year, round_number, resource_id)
+      UNIQUE NULLS NOT DISTINCT (resource_type, season_year, round_number, resource_id)
     )
   `);
 

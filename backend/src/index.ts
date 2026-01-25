@@ -59,6 +59,12 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(passport.initialize());
 
+// Request logging middleware
+app.use((req, res, next) => {
+  logger.log(`→ ${req.method} ${req.path}`);
+  next();
+});
+
 // Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

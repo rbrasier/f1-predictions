@@ -199,8 +199,10 @@ export const getDriverStandings = async (req: AuthRequest, res: Response) => {
       };
     });
 
-    logger.log('Top 4 team drivers:', enrichedStandings.filter((s: any) => s.is_top_four_team).map((s: any) => s.Driver.familyName));
-    logger.log('Midfield drivers:', enrichedStandings.filter((s: any) => !s.is_top_four_team).map((s: any) => s.Driver.familyName));
+    const topFourDrivers = enrichedStandings.filter((s: any) => s.is_top_four_team);
+    const midfieldDrivers = enrichedStandings.filter((s: any) => !s.is_top_four_team);
+    logger.log(`Top 4 team drivers (${topFourDrivers.length} loaded)`);
+    logger.log(`Midfield drivers (${midfieldDrivers.length} loaded)`);
 
     res.json(enrichedStandings);
   } catch (error) {
