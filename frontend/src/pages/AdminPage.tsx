@@ -57,7 +57,6 @@ export const AdminPage = () => {
   const [audiVsCadillacWinner, setAudiVsCadillacWinner] = useState<'audi' | 'cadillac'>('audi');
 
   // Email Preview State
-  const [currentUser, setCurrentUser] = useState<any>(null);
   const [selectedEmailRound, setSelectedEmailRound] = useState<number>(1);
   const [selectedEmailUser, setSelectedEmailUser] = useState<number | null>(null);
   const [preRaceEmailHtml, setPreRaceEmailHtml] = useState<string>('');
@@ -84,7 +83,6 @@ export const AdminPage = () => {
       setTeams(teamsData);
       setSeason(seasonData);
       setUsers(usersData);
-      setCurrentUser(currentUserData);
       setSelectedSeasonYear(seasonData.year);
       setSelectedEmailUser(currentUserData.id);
 
