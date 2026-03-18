@@ -260,7 +260,7 @@ const buildRoundResults = async (
   const crazyPredIds = predictions.map(p => p.id);
   let crazyValidations: any[] = [];
   if (crazyPredIds.length > 0) {
-    const placeholders = crazyPredIds.map(() => '?').join(',');
+    const placeholders = crazyPredIds.map((_, i) => `$${i + 1}`).join(',');
     crazyValidations = await db.prepare(`
       SELECT cpv.*, u.display_name as validator_name
       FROM crazy_prediction_validations cpv
