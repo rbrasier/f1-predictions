@@ -509,6 +509,72 @@ export const DashboardPage = () => {
                 PADDOCK PREDICTIONS
               </h2>
 
+              {/* Previous Round Score Card */}
+              {lastRoundData && lastRoundData.predictions && lastRoundData.predictions.length > 0 && (() => {
+                const myPred = lastRoundData.predictions.find((p: any) => p.user_id === currentUser?.id);
+                const top3 = lastRoundData.predictions.slice(0, 3);
+                return (
+                  <div className="bg-gradient-to-r from-green-900/30 to-black rounded-lg border border-green-900/50 mb-4 overflow-hidden">
+                    <div className="p-3 md:p-4">
+                      <div className="flex items-start justify-between gap-4">
+                        {/* Left: Round info + my score */}
+                        <div className="flex-1 min-w-0">
+                          <div className="text-green-400 text-xs font-bold uppercase tracking-wide mb-1">
+                            Round {lastRoundData.round} Results
+                          </div>
+                          <h3 className="text-base md:text-lg font-bold text-white mb-0.5 truncate">
+                            {lastRoundData.race_name || `Round ${lastRoundData.round}`}
+                          </h3>
+                          {lastRoundData.race_location && (
+                            <p className="text-gray-400 text-xs mb-2">{lastRoundData.race_location}</p>
+                          )}
+                          {myPred ? (
+                            <div className="flex items-center gap-2">
+                              <span className="text-gray-400 text-xs">Your score:</span>
+                              <span className="text-green-400 font-bold text-sm">{myPred.calculated_score} pts</span>
+                              {myPred.score_breakdown && (
+                                <div className="flex gap-1 text-xs">
+                                  {myPred.score_breakdown.pole && <span className="text-gray-300 bg-paddock-gray px-1 rounded" title="Pole">P</span>}
+                                  {myPred.score_breakdown.p1 && <span className="text-yellow-400 bg-paddock-gray px-1 rounded" title="P1">1</span>}
+                                  {myPred.score_breakdown.p2 && <span className="text-gray-300 bg-paddock-gray px-1 rounded" title="P2">2</span>}
+                                  {myPred.score_breakdown.p3 && <span className="text-orange-400 bg-paddock-gray px-1 rounded" title="P3">3</span>}
+                                  {myPred.score_breakdown.midfield && <span className="text-blue-400 bg-paddock-gray px-1 rounded" title="Midfield">M</span>}
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-gray-500 text-xs italic">No prediction submitted</span>
+                          )}
+                        </div>
+
+                        {/* Right: Top 3 + compare button */}
+                        <div className="flex-shrink-0 text-right">
+                          <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Top 3</div>
+                          <div className="space-y-0.5 mb-2">
+                            {top3.map((pred: any, idx: number) => (
+                              <div key={pred.id} className="flex items-center gap-2 justify-end">
+                                <span className={`text-xs font-bold ${pred.user_id === currentUser?.id ? 'text-paddock-coral' : 'text-white'}`}>
+                                  {pred.display_name}
+                                </span>
+                                <span className={`text-xs font-bold min-w-[2rem] text-right ${idx === 0 ? 'text-yellow-400' : 'text-green-400'}`}>
+                                  {pred.calculated_score}pt
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                          <Link
+                            to={`/compare-tips?mode=race&round=${lastRoundData.round}`}
+                            className="bg-green-700 hover:bg-green-800 text-white px-3 py-1.5 rounded font-bold uppercase text-xs tracking-wide transition inline-block"
+                          >
+                            Compare Results
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
               {/* Current Round - Show user tips if submitted */}
               {nextRace && (
                 <div className="bg-gradient-to-r from-red-900/40 to-black rounded-lg border border-paddock-lightgray mb-4 overflow-hidden">

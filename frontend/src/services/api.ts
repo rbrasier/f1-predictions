@@ -203,6 +203,17 @@ export const getLastRoundResults = async (seasonYear: number, leagueId?: number)
   return data;
 };
 
+export const getRoundResults = async (seasonYear: number, round: number, leagueId?: number): Promise<any> => {
+  const params = leagueId ? { leagueId } : {};
+  const { data } = await api.get(`/races/round-results/${seasonYear}/${round}`, { params });
+  return data;
+};
+
+export const getCompletedRounds = async (seasonYear: number): Promise<{ round: number; race_name: string; race_location: string | null }[]> => {
+  const { data } = await api.get(`/races/completed-rounds/${seasonYear}`);
+  return data;
+};
+
 export const getLastSeasonResults = async (seasonYear: number, leagueId?: number): Promise<any> => {
   const params = leagueId ? { leagueId } : {};
   const { data } = await api.get(`/seasons/season-results/${seasonYear}`, { params });
