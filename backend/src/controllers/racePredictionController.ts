@@ -215,6 +215,70 @@ export const getAllRacePredictions = async (req: AuthRequest, res: Response) => 
   }
 };
 
+// Shared helper to build predictions-with-scores for a given round
+const buildRoundResults = async (
+  year: number,
+  roundNumber: number,
+  raceResults: any,
+  leagueId: number | undefined,
+  races: any[]
+) => {
+  let predictionsQuery = `
+    SELECT
+      rp.*,
+      u.display_name,
+      u.id as user_id
+    FROM race_predictions rp
+    JOIN users u ON rp.user_id = u.id
+    ${leagueId ? 'INNER JOIN user_leagues ul ON u.id = ul.user_id' : ''}
+    WHERE rp.season_year = $1 AND rp.round_number = $2 ${leagueId ? 'AND ul.league_id = $3' : ''}
+    ORDER BY u.display_name
+  `;
+
+  const predictionsParams = leagueId ? [year, roundNumber, leagueId] : [year, roundNumber];
+  const predictions = await db.prepare(predictionsQuery).all(...predictionsParams) as any[];
+
+  const predictionsWithScores = predictions.map(pred => {
+    let score = 0;
+    const breakdown: any = {};
+
+    if (pred.pole_position_driver_api_id === raceResults.pole_position_driver_api_id) { score += 1; breakdown.pole = true; }
+    if (pred.podium_first_driver_api_id === raceResults.podium_first_driver_api_id) { score += 1; breakdown.p1 = true; }
+    if (pred.podium_second_driver_api_id === raceResults.podium_second_driver_api_id) { score += 1; breakdown.p2 = true; }
+    if (pred.podium_third_driver_api_id === raceResults.podium_third_driver_api_id) { score += 1; breakdown.p3 = true; }
+    if (pred.midfield_hero_driver_api_id === raceResults.midfield_hero_driver_api_id) { score += 1; breakdown.midfield = true; }
+
+    if (raceResults.sprint_pole_driver_api_id && pred.sprint_pole_driver_api_id === raceResults.sprint_pole_driver_api_id) { score += 1; breakdown.sprintPole = true; }
+    if (raceResults.sprint_winner_driver_api_id && pred.sprint_winner_driver_api_id === raceResults.sprint_winner_driver_api_id) { score += 1; breakdown.sprintWinner = true; }
+    if (raceResults.sprint_midfield_hero_driver_api_id && pred.sprint_midfield_hero_driver_api_id === raceResults.sprint_midfield_hero_driver_api_id) { score += 1; breakdown.sprintMidfield = true; }
+
+    return { ...pred, calculated_score: score, score_breakdown: breakdown };
+  });
+
+  predictionsWithScores.sort((a, b) => b.calculated_score - a.calculated_score);
+
+  const crazyPredIds = predictions.map(p => p.id);
+  let crazyValidations: any[] = [];
+  if (crazyPredIds.length > 0) {
+    const placeholders = crazyPredIds.map(() => '?').join(',');
+    crazyValidations = await db.prepare(`
+      SELECT cpv.*, u.display_name as validator_name
+      FROM crazy_prediction_validations cpv
+      JOIN users u ON cpv.validator_user_id = u.id
+      WHERE cpv.prediction_type = 'race' AND cpv.prediction_id IN (${placeholders})
+    `).all(...crazyPredIds) as any[];
+  }
+
+  // Find race info from schedule
+  const raceInfo = races.find((r: any) => parseInt(r.round) === roundNumber);
+  const raceName = raceInfo?.raceName || null;
+  const raceLocation = raceInfo?.Circuit?.Location
+    ? `${raceInfo.Circuit.Location.locality}, ${raceInfo.Circuit.Location.country}`
+    : null;
+
+  return { roundNumber, raceName, raceLocation, results: raceResults, predictions: predictionsWithScores, crazy_validations: crazyValidations };
+};
+
 export const getLastRoundResults = async (req: AuthRequest, res: Response) => {
   try {
     const { seasonYear } = req.params;
@@ -225,14 +289,11 @@ export const getLastRoundResults = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'Invalid season year' });
     }
 
-    // Get current schedule to find last completed round
     const scheduleData = await f1ApiService.fetchSchedule(year);
     const races = scheduleData?.MRData?.RaceTable?.Races || [];
 
     const now = new Date();
     let lastCompletedRound = 0;
-
-    // Find the last race that has passed
     for (const race of races) {
       const raceDate = new Date(race.date);
       if (raceDate < now) {
@@ -244,124 +305,88 @@ export const getLastRoundResults = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ error: 'No completed races found' });
     }
 
-    // Get race results from database
     const raceResults = await db.prepare(`
-      SELECT * FROM race_results
-      WHERE season_year = $1 AND round_number = $2
+      SELECT * FROM race_results WHERE season_year = $1 AND round_number = $2
     `).get(year, lastCompletedRound) as any;
 
     if (!raceResults) {
       return res.status(404).json({ error: 'Race results not entered yet' });
     }
 
-    // Get all predictions for this round with user info
-    let predictionsQuery = `
-      SELECT
-        rp.*,
-        u.display_name,
-        u.id as user_id
-      FROM race_predictions rp
-      JOIN users u ON rp.user_id = u.id
-      ${leagueId ? 'INNER JOIN user_leagues ul ON u.id = ul.user_id' : ''}
-      WHERE rp.season_year = $1 AND rp.round_number = $2 ${leagueId ? 'AND ul.league_id = $3' : ''}
-      ORDER BY u.display_name
-    `;
+    const data = await buildRoundResults(year, lastCompletedRound, raceResults, leagueId, races);
+    res.json({ round: data.roundNumber, race_name: data.raceName, race_location: data.raceLocation, results: data.results, predictions: data.predictions, crazy_validations: data.crazy_validations });
+  } catch (error) {
+    logger.error('Get last round results error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
 
-    const predictionsParams = leagueId ? [year, lastCompletedRound, leagueId] : [year, lastCompletedRound];
-    const predictions = await db.prepare(predictionsQuery).all(...predictionsParams) as any[];
+export const getRoundResults = async (req: AuthRequest, res: Response) => {
+  try {
+    const { seasonYear, roundNumber } = req.params;
+    const year = parseInt(seasonYear);
+    const round = parseInt(roundNumber);
+    const leagueId = req.query.leagueId ? parseInt(req.query.leagueId as string) : undefined;
 
-    // Calculate scores for each prediction
-    const predictionsWithScores = predictions.map(pred => {
-      let score = 0;
-      let breakdown: any = {};
+    if (isNaN(year) || isNaN(round)) {
+      return res.status(400).json({ error: 'Invalid season year or round number' });
+    }
 
-      // Pole position (1 point)
-      if (pred.pole_position_driver_api_id === raceResults.pole_position_driver_api_id) {
-        score += 1;
-        breakdown.pole = true;
-      }
+    const raceResults = await db.prepare(`
+      SELECT * FROM race_results WHERE season_year = $1 AND round_number = $2
+    `).get(year, round) as any;
 
-      // Podium first (1 point)
-      if (pred.podium_first_driver_api_id === raceResults.podium_first_driver_api_id) {
-        score += 1;
-        breakdown.p1 = true;
-      }
+    if (!raceResults) {
+      return res.status(404).json({ error: 'Race results not entered yet' });
+    }
 
-      // Podium second (1 point)
-      if (pred.podium_second_driver_api_id === raceResults.podium_second_driver_api_id) {
-        score += 1;
-        breakdown.p2 = true;
-      }
+    const scheduleData = await f1ApiService.fetchSchedule(year);
+    const races = scheduleData?.MRData?.RaceTable?.Races || [];
 
-      // Podium third (1 point)
-      if (pred.podium_third_driver_api_id === raceResults.podium_third_driver_api_id) {
-        score += 1;
-        breakdown.p3 = true;
-      }
+    const data = await buildRoundResults(year, round, raceResults, leagueId, races);
+    res.json({ round: data.roundNumber, race_name: data.raceName, race_location: data.raceLocation, results: data.results, predictions: data.predictions, crazy_validations: data.crazy_validations });
+  } catch (error) {
+    logger.error('Get round results error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
 
-      // Midfield hero (1 point)
-      if (pred.midfield_hero_driver_api_id === raceResults.midfield_hero_driver_api_id) {
-        score += 1;
-        breakdown.midfield = true;
-      }
+export const getCompletedRounds = async (req: AuthRequest, res: Response) => {
+  try {
+    const { seasonYear } = req.params;
+    const year = parseInt(seasonYear);
 
-      // Sprint predictions if applicable
-      if (raceResults.sprint_pole_driver_api_id) {
-        if (pred.sprint_pole_driver_api_id === raceResults.sprint_pole_driver_api_id) {
-          score += 1;
-          breakdown.sprintPole = true;
-        }
-      }
+    if (isNaN(year)) {
+      return res.status(400).json({ error: 'Invalid season year' });
+    }
 
-      if (raceResults.sprint_winner_driver_api_id) {
-        if (pred.sprint_winner_driver_api_id === raceResults.sprint_winner_driver_api_id) {
-          score += 1;
-          breakdown.sprintWinner = true;
-        }
-      }
+    // Get all rounds that have results entered
+    const completedRounds = await db.prepare(`
+      SELECT round_number FROM race_results WHERE season_year = $1 ORDER BY round_number ASC
+    `).all(year) as { round_number: number }[];
 
-      if (raceResults.sprint_midfield_hero_driver_api_id) {
-        if (pred.sprint_midfield_hero_driver_api_id === raceResults.sprint_midfield_hero_driver_api_id) {
-          score += 1;
-          breakdown.sprintMidfield = true;
-        }
-      }
+    if (completedRounds.length === 0) {
+      return res.json([]);
+    }
 
+    // Enrich with race names from F1 API schedule
+    const scheduleData = await f1ApiService.fetchSchedule(year);
+    const races = scheduleData?.MRData?.RaceTable?.Races || [];
+
+    const enriched = completedRounds.map(({ round_number }) => {
+      const raceInfo = races.find((r: any) => parseInt(r.round) === round_number);
       return {
-        ...pred,
-        calculated_score: score,
-        score_breakdown: breakdown
+        round: round_number,
+        race_name: raceInfo?.raceName || `Round ${round_number}`,
+        race_location: raceInfo?.Circuit?.Location
+          ? `${raceInfo.Circuit.Location.locality}, ${raceInfo.Circuit.Location.country}`
+          : null
       };
     });
 
-    // Sort by score (highest first)
-    predictionsWithScores.sort((a, b) => b.calculated_score - a.calculated_score);
-
-    // Get crazy prediction validations for this round
-    const crazyPredIds = predictions.map(p => p.id);
-    let crazyValidations: any[] = [];
-
-    if (crazyPredIds.length > 0) {
-      const placeholders = crazyPredIds.map(() => '?').join(',');
-      crazyValidations = await db.prepare(`
-        SELECT
-          cpv.*,
-          u.display_name as validator_name
-        FROM crazy_prediction_validations cpv
-        JOIN users u ON cpv.validator_user_id = u.id
-        WHERE cpv.prediction_type = 'race'
-        AND cpv.prediction_id IN (${placeholders})
-      `).all(...crazyPredIds) as any[];
-    }
-
-    res.json({
-      round: lastCompletedRound,
-      results: raceResults,
-      predictions: predictionsWithScores,
-      crazy_validations: crazyValidations
-    });
+    res.json(enriched);
   } catch (error) {
-    logger.error('Get last round results error:', error);
+    logger.error('Get completed rounds error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
